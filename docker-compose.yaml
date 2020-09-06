@@ -1,0 +1,7 @@
+version: '3.7'
+services:
+  server:
+    image: lueurxax/teaelephant:latest
+    ports:
+      - 8009:8080
+    entrypoint: ls -la

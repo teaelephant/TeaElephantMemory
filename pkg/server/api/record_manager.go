@@ -26,6 +26,7 @@ func New(s Storage) *RecordManager {
 
 // Create new record in Storage
 func (m *RecordManager) NewRecord(w http.ResponseWriter, r *http.Request) {
+	logrus.Info("new record")
 	record := new(common.Record)
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
