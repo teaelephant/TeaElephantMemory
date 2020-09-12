@@ -24,6 +24,7 @@ func (s *Server) Run() error {
 	r := mux.NewRouter()
 	r.HandleFunc("/new_record", a.NewRecord)
 	r.HandleFunc("/{id}", a.ReadRecord)
+	r.HandleFunc("/", a.ReadAllRecords)
 
 	http.Handle("/", r)
 	if err := http.ListenAndServe(":8080", nil); err != nil {

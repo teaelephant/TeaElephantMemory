@@ -12,6 +12,7 @@ import (
 type Storage interface {
 	Write(rec *common.Record) (record *common.RecordWithID, err error)
 	Read(id string) (record *common.RecordWithID, err error)
+	ReadAll() ([]common.RecordWithID, error)
 }
 
 type RecordManager struct {
@@ -68,6 +69,27 @@ func (m *RecordManager) ReadRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rec, err := m.Storage.Read(id)
+	if err != nil {
+		logrus.WithError(err).Error("read from Storage error")
+		// TODO handle error
+		return
+	}
+	data, err := json.Marshal(rec)
+	if err != nil {
+		logrus.WithError(err).Error("marshal response error")
+		// TODO handle error
+		return
+	}
+	if _, err := w.Write(data); err != nil {
+		logrus.WithError(err).Error("write response error")
+		// TODO handle error
+		return
+	}
+}
+
+func (m *RecordManager) ReadAllRecords(w http.ResponseWriter, _ *http.Request) {
+	logrus.Info("read record")
+	rec, err := m.Storage.ReadAll()
 	if err != nil {
 		logrus.WithError(err).Error("read from Storage error")
 		// TODO handle error

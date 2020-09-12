@@ -16,6 +16,26 @@ type DB struct {
 	db   *leveldb.DB
 }
 
+func (D *DB) ReadAll() ([]common.RecordWithID, error) {
+	var records []common.RecordWithID
+	iter := D.db.NewIterator(nil, nil)
+	for iter.Next() {
+		rec := new(common.Record)
+		if err := json.Unmarshal(iter.Value(), rec); err != nil {
+			return nil, err
+		}
+		records = append(records, common.RecordWithID{
+			ID:     string(iter.Key()),
+			Record: rec,
+		})
+	}
+	if iter.Error() != nil {
+		return nil, iter.Error()
+	}
+	iter.Release()
+	return records, nil
+}
+
 func (D *DB) Write(rec *common.Record) (record *common.RecordWithID, err error) {
 	id := uuid.NewV4().String()
 	data, err := json.Marshal(rec)
