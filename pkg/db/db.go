@@ -16,6 +16,20 @@ type DB struct {
 	db   *leveldb.DB
 }
 
+func (D *DB) Update(id string, rec *common.Record) (record *common.RecordWithID, err error) {
+	data, err := json.Marshal(rec)
+	if err != nil {
+		return nil, err
+	}
+	if err := D.db.Put([]byte(id), data, nil); err != nil {
+		return nil, err
+	}
+	return &common.RecordWithID{
+		ID:     id,
+		Record: rec,
+	}, nil
+}
+
 func (D *DB) ReadAll() ([]common.RecordWithID, error) {
 	var records []common.RecordWithID
 	iter := D.db.NewIterator(nil, nil)

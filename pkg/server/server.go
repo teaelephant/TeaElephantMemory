@@ -22,9 +22,10 @@ func (s *Server) Run() error {
 	}
 	a := api.New(st)
 	r := mux.NewRouter()
-	r.HandleFunc("/new_record", a.NewRecord)
-	r.HandleFunc("/{id}", a.ReadRecord)
-	r.HandleFunc("/", a.ReadAllRecords)
+	r.HandleFunc("/new_record", a.NewRecord).Methods("POST")
+	r.HandleFunc("/all", a.ReadAllRecords).Methods("GET")
+	r.HandleFunc("/{id}", a.ReadRecord).Methods("GET")
+	r.HandleFunc("/{id}", a.UpdateRecord).Methods("POST")
 
 	http.Handle("/", r)
 	if err := http.ListenAndServe(":8080", nil); err != nil {

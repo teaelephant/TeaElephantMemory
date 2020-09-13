@@ -13,6 +13,7 @@ type Storage interface {
 	Write(rec *common.Record) (record *common.RecordWithID, err error)
 	Read(id string) (record *common.RecordWithID, err error)
 	ReadAll() ([]common.RecordWithID, error)
+	Update(id string, rec *common.Record) (record *common.RecordWithID, err error)
 }
 
 type RecordManager struct {
@@ -102,6 +103,45 @@ func (m *RecordManager) ReadAllRecords(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	if _, err := w.Write(data); err != nil {
+		logrus.WithError(err).Error("write response error")
+		// TODO handle error
+		return
+	}
+}
+
+func (m *RecordManager) UpdateRecord(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	logrus.WithField("id", id).Info("update record")
+	if id == "" {
+		logrus.Error("empty id")
+		// TODO handle error
+		return
+	}
+	record := new(common.Record)
+	data, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		logrus.WithError(err).Error("read request error")
+		// TODO handle error
+		return
+	}
+	if err := json.Unmarshal(data, record); err != nil {
+		logrus.WithError(err).Error("unmarshal request error")
+		// TODO handle error
+		return
+	}
+	rec, err := m.Storage.Update(id, record)
+	if err != nil {
+		logrus.WithError(err).Error("read from Storage error")
+		// TODO handle error
+		return
+	}
+	data2, err := json.Marshal(rec)
+	if err != nil {
+		logrus.WithError(err).Error("marshal response error")
+		// TODO handle error
+		return
+	}
+	if _, err := w.Write(data2); err != nil {
 		logrus.WithError(err).Error("write response error")
 		// TODO handle error
 		return
