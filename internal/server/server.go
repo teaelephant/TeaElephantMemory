@@ -1,26 +1,23 @@
 package server
 
 import (
-	"github.com/gorilla/mux"
-	"github.com/lueurxax/teaelephantmemory/pkg/db"
-	"github.com/lueurxax/teaelephantmemory/pkg/server/api"
-	"github.com/sirupsen/logrus"
 	"net/http"
+
+	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
+
+	"github.com/lueurxax/teaelephantmemory/internal/httperror"
+	"github.com/lueurxax/teaelephantmemory/internal/server/api"
 )
 
 type Server struct {
-}
-
-func NewServer() *Server {
-	return &Server{}
+	db api.Storage
 }
 
 func (s *Server) Run() error {
-	st, err := db.NewDB("./database")
-	if err != nil {
-		return err
-	}
-	a := api.New(st)
+	errorCreator := httperror.NewCreator(logrus.WithField("pkg", "http_error"))
+	tr := NewTransport()
+	a := api.New(s.db, errorCreator, tr)
 	r := mux.NewRouter()
 	r.HandleFunc("/new_record", a.NewRecord).Methods("POST")
 	r.HandleFunc("/all", a.ReadAllRecords).Methods("GET")
@@ -29,7 +26,11 @@ func (s *Server) Run() error {
 
 	http.Handle("/", r)
 	if err := http.ListenAndServe(":8080", nil); err != nil {
-		logrus.WithError(err).Panic("server error")
+		logrus.WithError(err).Panic("server httperror")
 	}
 	return nil
+}
+
+func NewServer(db api.Storage) *Server {
+	return &Server{db}
 }
