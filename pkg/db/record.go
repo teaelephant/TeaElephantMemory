@@ -32,7 +32,7 @@ func (D *DB) Update(id string, rec *common.Record) (record *common.RecordWithID,
 func (D *DB) ReadAllRecords(search string) ([]common.RecordWithID, error) {
 	var records []common.RecordWithID
 	if search == "" {
-		iter := D.db.NewIterator(nil, nil)
+		iter := D.db.NewIterator(util.BytesPrefix([]byte{prefix.Record}), nil)
 		for iter.Next() {
 			rec := new(common.Record)
 			if err := json.Unmarshal(iter.Value(), rec); err != nil {

@@ -87,7 +87,7 @@ func (m *RecordManager) ReadRecord(w http.ResponseWriter, r *http.Request) {
 
 func (m *RecordManager) ReadAllRecords(w http.ResponseWriter, r *http.Request) {
 	logrus.Info("read record")
-	name := mux.Vars(r)["name"]
+	name := r.URL.Query().Get("name")
 	logrus.WithField("name", name).Info("search record by name")
 	rec, err := m.Storage.ReadAllRecords(name)
 	if err != nil {
