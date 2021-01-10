@@ -21,8 +21,18 @@ type DB struct {
 	db   *leveldb.DB
 }
 
-func (D *DB) Delete(key []byte) error {
-	return D.db.Delete(key, nil)
+func (D *DB) Delete(id string) error {
+	rec, err := D.ReadRecord(id)
+	if err != nil {
+		return err
+	}
+	if err := D.db.Delete(dbCommon.AppendPrefix(prefix.Record, []byte(id)), nil); err != nil {
+		return err
+	}
+	if err := D.db.Delete(dbCommon.AppendPrefix(prefix.RecordNameIndex, []byte(rec.Name)), nil); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (D *DB) Update(id string, rec *common.Record) (record *common.RecordWithID, err error) {
@@ -30,7 +40,7 @@ func (D *DB) Update(id string, rec *common.Record) (record *common.RecordWithID,
 }
 
 func (D *DB) ReadAllRecords(search string) ([]common.RecordWithID, error) {
-	var records []common.RecordWithID
+	records := make([]common.RecordWithID, 0)
 	if search == "" {
 		iter := D.db.NewIterator(util.BytesPrefix([]byte{prefix.Record}), nil)
 		for iter.Next() {
@@ -51,18 +61,11 @@ func (D *DB) ReadAllRecords(search string) ([]common.RecordWithID, error) {
 	}
 	iter := D.db.NewIterator(util.BytesPrefix(dbCommon.AppendPrefix(prefix.RecordNameIndex, []byte(search))), nil)
 	for iter.Next() {
-		value, err := D.db.Get(iter.Value(), nil)
+		rec, err := D.ReadRecord(string(iter.Value()))
 		if err != nil {
 			return nil, err
 		}
-		rec := new(common.Record)
-		if err := json.Unmarshal(value, rec); err != nil {
-			return nil, err
-		}
-		records = append(records, common.RecordWithID{
-			ID:     string(iter.Value()),
-			Record: rec,
-		})
+		records = append(records, *rec)
 	}
 	if iter.Error() != nil {
 		return nil, iter.Error()

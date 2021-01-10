@@ -19,6 +19,7 @@ type Storage interface {
 	ReadRecord(id string) (record *common.RecordWithID, err error)
 	ReadAllRecords(search string) ([]common.RecordWithID, error)
 	Update(id string, rec *common.Record) (record *common.RecordWithID, err error)
+	Delete(id string) error
 }
 
 type errorCreator interface {
@@ -129,6 +130,27 @@ func (m *RecordManager) UpdateRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := m.transport.Response(w, rec); err != nil {
+		logrus.WithError(err).Error("write response httperror")
+		m.ResponseError(w, common.Error{Code: http.StatusInternalServerError, Msg: err})
+		return
+	}
+}
+
+func (m *RecordManager) DeleteRecord(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	logrus.WithField("id", id).Info("delete record")
+	if id == "" {
+		logrus.Error("empty id")
+		m.ResponseError(w, common.Error{Code: http.StatusBadRequest, Msg: errorEmptyID})
+		return
+	}
+	if err := m.Storage.Delete(id); err != nil {
+		logrus.WithError(err).Error("delete from Storage httperror")
+		m.ResponseError(w, common.Error{Code: http.StatusInternalServerError, Msg: err})
+	}
+	if err := m.transport.Response(w, struct {
+		ID string `json:"id"`
+	}{ID: id}); err != nil {
 		logrus.WithError(err).Error("write response httperror")
 		m.ResponseError(w, common.Error{Code: http.StatusInternalServerError, Msg: err})
 		return

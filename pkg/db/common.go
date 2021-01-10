@@ -6,9 +6,13 @@ func (D *DB) ReadAll() ([]common.KeyValue, error) {
 	res := make([]common.KeyValue, 0)
 	iter := D.db.NewIterator(nil, nil)
 	for iter.Next() {
+		key := make([]byte, len(iter.Key()))
+		value := make([]byte, len(iter.Value()))
+		copy(key, iter.Key())
+		copy(value, iter.Value())
 		res = append(res, common.KeyValue{
-			Key:   iter.Key(),
-			Value: iter.Value(),
+			Key:   key,
+			Value: value,
 		})
 	}
 	iter.Release()

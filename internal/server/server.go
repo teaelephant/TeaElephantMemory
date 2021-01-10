@@ -23,6 +23,7 @@ func (s *Server) Run() error {
 	r.HandleFunc("/all", a.ReadAllRecords).Methods("GET")
 	r.HandleFunc("/{id}", a.ReadRecord).Methods("GET")
 	r.HandleFunc("/{id}", a.UpdateRecord).Methods("POST")
+	r.HandleFunc("/{id}", a.DeleteRecord).Methods("DELETE")
 
 	http.Handle("/", r)
 	if err := http.ListenAndServe(":8080", nil); err != nil {

@@ -7,7 +7,6 @@ import (
 
 type MigratingDB interface {
 	ReadAll() ([]dbCommon.KeyValue, error)
-	Delete(key []byte) error
 	Update(id string, rec *common.Record) (record *common.RecordWithID, err error)
 }
 
