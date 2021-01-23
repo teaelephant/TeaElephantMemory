@@ -1,0 +1,68 @@
+scalar Date
+
+type Query {
+    getTeas(prefix: String): [Tea!]!
+    getTea(id: ID!): Tea
+    getQrRecord(id: ID!): QRRecord
+    getTag(id: ID!): Tag
+    getTags(name: String): [Tag!]!
+}
+
+type Mutation {
+    newTea(tea: TeaData!): Tea!
+    updateTea(id: ID!, tea: TeaData!): Tea!
+    deleteTea(id: ID!): ID!
+    writeToQR(id: ID!, data: QRRecordData!): QRRecord!
+    createTag(name: String!, color: String!): Tag
+    updateTag(id: ID!, name: String!, color: String!): Tag
+    deleteTag(id: ID!): ID
+}
+
+type Subscription {
+    onCreateTea: Tea!
+    onUpdateTea: Tea!
+    onDeleteTea: ID!
+    onCreateTag: Tag!
+    onUpdateTag: Tag!
+    onDeleteTag: ID!
+}
+
+type QRRecord {
+    id: ID!
+    tea: Tea!
+    bowlingTemp: Int!
+    expirationDate: Date!
+}
+
+input QRRecordData {
+    tea: ID!
+    bowlingTemp: Int!
+    expirationDate: Date!
+}
+
+type Tea {
+    id: ID!
+    name: String!
+    type: Type!
+    description: String!
+}
+
+input TeaData {
+    name: String!
+    type: Type!
+    description: String!
+}
+
+type Tag {
+    id: ID!
+    name: String!
+    color: String!
+}
+
+enum Type {
+    unknown
+    tea
+    coffee
+    herb
+    other
+}

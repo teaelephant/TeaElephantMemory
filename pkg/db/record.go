@@ -35,22 +35,22 @@ func (D *DB) Delete(id string) error {
 	return nil
 }
 
-func (D *DB) Update(id string, rec *common.Record) (record *common.RecordWithID, err error) {
+func (D *DB) Update(id string, rec *common.TeaData) (record *common.Tea, err error) {
 	return D.writeRecord(id, rec)
 }
 
-func (D *DB) ReadAllRecords(search string) ([]common.RecordWithID, error) {
-	records := make([]common.RecordWithID, 0)
+func (D *DB) ReadAllRecords(search string) ([]common.Tea, error) {
+	records := make([]common.Tea, 0)
 	if search == "" {
 		iter := D.db.NewIterator(util.BytesPrefix([]byte{prefix.Record}), nil)
 		for iter.Next() {
-			rec := new(common.Record)
+			rec := new(common.TeaData)
 			if err := json.Unmarshal(iter.Value(), rec); err != nil {
 				return nil, err
 			}
-			records = append(records, common.RecordWithID{
-				ID:     string(iter.Key()[1:]),
-				Record: rec,
+			records = append(records, common.Tea{
+				ID:      string(iter.Key()[1:]),
+				TeaData: rec,
 			})
 		}
 		if iter.Error() != nil {
@@ -74,27 +74,27 @@ func (D *DB) ReadAllRecords(search string) ([]common.RecordWithID, error) {
 	return records, nil
 }
 
-func (D *DB) WriteRecord(rec *common.Record) (record *common.RecordWithID, err error) {
+func (D *DB) WriteRecord(rec *common.TeaData) (record *common.Tea, err error) {
 	id := uuid.NewV4().String()
 	return D.writeRecord(id, rec)
 }
 
-func (D *DB) ReadRecord(id string) (record *common.RecordWithID, err error) {
+func (D *DB) ReadRecord(id string) (record *common.Tea, err error) {
 	data, err := D.db.Get(dbCommon.AppendPrefix(prefix.Record, []byte(id)), nil)
 	if err != nil {
 		return nil, err
 	}
-	rec := new(common.Record)
+	rec := new(common.TeaData)
 	if err := json.Unmarshal(data, rec); err != nil {
 		return nil, err
 	}
-	return &common.RecordWithID{
-		ID:     id,
-		Record: rec,
+	return &common.Tea{
+		ID:      id,
+		TeaData: rec,
 	}, nil
 }
 
-func (D *DB) writeRecord(id string, rec *common.Record) (record *common.RecordWithID, err error) {
+func (D *DB) writeRecord(id string, rec *common.TeaData) (record *common.Tea, err error) {
 	data, err := json.Marshal(rec)
 	if err != nil {
 		return nil, err
@@ -105,9 +105,9 @@ func (D *DB) writeRecord(id string, rec *common.Record) (record *common.RecordWi
 	if err := D.db.Put(dbCommon.AppendPrefix(prefix.RecordNameIndex, []byte(rec.Name)), []byte(id), nil); err != nil {
 		return nil, err
 	}
-	return &common.RecordWithID{
-		ID:     id,
-		Record: rec,
+	return &common.Tea{
+		ID:      id,
+		TeaData: rec,
 	}, nil
 }
 

@@ -1,4 +1,4 @@
-package api
+package v1
 
 import (
 	"encoding/json"
@@ -15,10 +15,10 @@ import (
 var errorEmptyID = errors.New("empty id")
 
 type Storage interface {
-	WriteRecord(rec *common.Record) (record *common.RecordWithID, err error)
-	ReadRecord(id string) (record *common.RecordWithID, err error)
-	ReadAllRecords(search string) ([]common.RecordWithID, error)
-	Update(id string, rec *common.Record) (record *common.RecordWithID, err error)
+	WriteRecord(rec *common.TeaData) (record *common.Tea, err error)
+	ReadRecord(id string) (record *common.Tea, err error)
+	ReadAllRecords(search string) ([]common.Tea, error)
+	Update(id string, rec *common.TeaData) (record *common.Tea, err error)
 	Delete(id string) error
 }
 
@@ -39,7 +39,7 @@ type RecordManager struct {
 // Create new record in Storage
 func (m *RecordManager) NewRecord(w http.ResponseWriter, r *http.Request) {
 	logrus.Info("new record")
-	record := new(common.Record)
+	record := new(common.TeaData)
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		logrus.WithError(err).Error("read request httperror")
@@ -111,7 +111,7 @@ func (m *RecordManager) UpdateRecord(w http.ResponseWriter, r *http.Request) {
 		m.ResponseError(w, common.Error{Code: http.StatusBadRequest, Msg: errorEmptyID})
 		return
 	}
-	record := new(common.Record)
+	record := new(common.TeaData)
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		logrus.WithError(err).Error("read request httperror")

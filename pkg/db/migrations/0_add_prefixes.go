@@ -15,7 +15,7 @@ func (a *addPrefixes) Migrate(db MigratingDB) error {
 		return err
 	}
 	for _, record := range records {
-		rec := new(common.Record)
+		rec := new(common.TeaData)
 		if err = json.Unmarshal(record.Value, rec); err != nil {
 			return err
 		}

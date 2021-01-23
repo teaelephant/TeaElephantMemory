@@ -1,12 +1,20 @@
 package common
 
-type Record struct {
+import "time"
+
+type TeaData struct {
 	Name        string `json:"name"`
 	Type        string `json:"type"`
 	Description string `json:"description"`
 }
 
-type RecordWithID struct {
+type Tea struct {
 	ID string
-	*Record
+	*TeaData
+}
+
+type QR struct {
+	Tea            string
+	BowlingTemp    int
+	ExpirationDate time.Time
 }
