@@ -1,14 +1,14 @@
 package main
 
 import (
-	"github.com/lueurxax/teaelephantmemory/internal/server"
-	"github.com/lueurxax/teaelephantmemory/pkg/db"
-	"github.com/lueurxax/teaelephantmemory/pkg/db/migrations"
-	"github.com/lueurxax/teaelephantmemory/pkg/db/migrator"
+	"github.com/teaelephant/TeaElephantMemory/internal/server"
+	"github.com/teaelephant/TeaElephantMemory/pkg/leveldb"
+	"github.com/teaelephant/TeaElephantMemory/pkg/leveldb/migrations"
+	"github.com/teaelephant/TeaElephantMemory/pkg/leveldb/migrator"
 )
 
 func main() {
-	st, err := db.NewDB("./database")
+	st, err := leveldb.NewDB("./database")
 	if err != nil {
 		panic(err)
 	}

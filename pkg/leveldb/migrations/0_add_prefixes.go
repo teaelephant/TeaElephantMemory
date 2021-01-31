@@ -3,7 +3,7 @@ package migrations
 import (
 	"encoding/json"
 
-	"github.com/lueurxax/teaelephantmemory/common"
+	"github.com/teaelephant/TeaElephantMemory/common"
 )
 
 type addPrefixes struct {

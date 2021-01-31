@@ -1,6 +1,6 @@
 package tea_manager
 
-import model "github.com/lueurxax/teaelephantmemory/internal/server/api/v2/models"
+import model "github.com/teaelephant/TeaElephantMemory/internal/server/api/v2/models"
 
 func (m *manager) loop() {
 	for {

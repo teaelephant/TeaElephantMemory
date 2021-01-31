@@ -1,4 +1,4 @@
-module github.com/lueurxax/teaelephantmemory
+module github.com/teaelephant/TeaElephantMemory
 
 go 1.15
 

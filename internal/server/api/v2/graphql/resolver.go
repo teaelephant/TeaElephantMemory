@@ -1,8 +1,8 @@
 package graphql
 
 import (
-	"github.com/lueurxax/teaelephantmemory/common"
-	model "github.com/lueurxax/teaelephantmemory/internal/server/api/v2/models"
+	"github.com/teaelephant/TeaElephantMemory/common"
+	model "github.com/teaelephant/TeaElephantMemory/internal/server/api/v2/models"
 )
 
 //go:generate go run ../scripts/gqlgen.go
@@ -34,6 +34,10 @@ type Resolver struct {
 	log logger
 }
 
-func NewResolver(logger logger, teaData teaData) *Resolver {
-	return &Resolver{log: logger, teaData: teaData}
+func NewResolver(logger logger, teaData teaData, qrManager qrManager) *Resolver {
+	return &Resolver{
+		teaData:   teaData,
+		qrManager: qrManager,
+		log:       logger,
+	}
 }

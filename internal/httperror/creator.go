@@ -6,7 +6,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/lueurxax/teaelephantmemory/common"
+	"github.com/teaelephant/TeaElephantMemory/common"
 )
 
 type Creator interface {

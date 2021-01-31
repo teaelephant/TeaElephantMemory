@@ -7,8 +7,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/lueurxax/teaelephantmemory/internal/server/api/v2/graphql/generated"
-	model "github.com/lueurxax/teaelephantmemory/internal/server/api/v2/models"
+	"github.com/teaelephant/TeaElephantMemory/internal/server/api/v2/graphql/generated"
+	model "github.com/teaelephant/TeaElephantMemory/internal/server/api/v2/models"
 )
 
 func (r *mutationResolver) NewTea(ctx context.Context, tea model.TeaData) (*model.Tea, error) {
@@ -47,7 +47,7 @@ func (r *mutationResolver) WriteToQr(ctx context.Context, id string, data model.
 		Tea: &model.Tea{
 			ID:          tea.ID,
 			Name:        tea.Name,
-			Type:        tea.Type,
+			Type:        model.Type(tea.Type),
 			Description: tea.Description,
 		},
 		BowlingTemp:    data.BowlingTemp,
@@ -101,7 +101,7 @@ func (r *queryResolver) GetQrRecord(ctx context.Context, id string) (*model.QRRe
 		Tea: &model.Tea{
 			ID:          tea.ID,
 			Name:        tea.Name,
-			Type:        tea.Type,
+			Type:        model.Type(tea.Type),
 			Description: tea.Description,
 		},
 		BowlingTemp:    data.BowlingTemp,

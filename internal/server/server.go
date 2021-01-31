@@ -8,15 +8,28 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 
-	"github.com/lueurxax/teaelephantmemory/internal/httperror"
-	"github.com/lueurxax/teaelephantmemory/internal/server/api/v1"
-	"github.com/lueurxax/teaelephantmemory/internal/server/api/v2/graphql"
-	"github.com/lueurxax/teaelephantmemory/internal/server/api/v2/graphql/generated"
-	"github.com/lueurxax/teaelephantmemory/internal/tea_manager"
+	"github.com/teaelephant/TeaElephantMemory/common"
+	"github.com/teaelephant/TeaElephantMemory/internal/httperror"
+	"github.com/teaelephant/TeaElephantMemory/internal/qr_manager"
+	"github.com/teaelephant/TeaElephantMemory/internal/server/api/v1"
+	"github.com/teaelephant/TeaElephantMemory/internal/server/api/v2/graphql"
+	"github.com/teaelephant/TeaElephantMemory/internal/server/api/v2/graphql/generated"
+	"github.com/teaelephant/TeaElephantMemory/internal/tea_manager"
+	"github.com/teaelephant/TeaElephantMemory/pkg/leveldb"
 )
 
+type storage interface {
+	WriteQR(id string, data *common.QR) (err error)
+	ReadQR(id string) (record *common.QR, err error)
+	WriteRecord(rec *common.TeaData) (record *common.Tea, err error)
+	ReadRecord(id string) (record *common.Tea, err error)
+	ReadAllRecords(search string) ([]common.Tea, error)
+	Update(id string, rec *common.TeaData) (record *common.Tea, err error)
+	Delete(id string) error
+}
+
 type Server struct {
-	db v1.Storage
+	db storage
 }
 
 func (s *Server) Run() error {
@@ -30,9 +43,10 @@ func (s *Server) Run() error {
 	r.HandleFunc("/v1/{id}", a.UpdateRecord).Methods("POST")
 	r.HandleFunc("/v1/{id}", a.DeleteRecord).Methods("DELETE")
 
-	manager := tea_manager.NewManager(s.db)
+	teaManager := tea_manager.NewManager(s.db)
+	qrManager := qr_manager.NewManager(s.db)
 
-	resolvers := graphql.NewResolver(logrus.WithField("pkg", "graphql"), manager)
+	resolvers := graphql.NewResolver(logrus.WithField("pkg", "graphql"), teaManager, qrManager)
 
 	srv := handler.NewDefaultServer(
 		generated.NewExecutableSchema(
@@ -43,13 +57,13 @@ func (s *Server) Run() error {
 
 	http.Handle("/", r)
 
-	manager.Start()
+	teaManager.Start()
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		logrus.WithError(err).Panic("server httperror")
 	}
 	return nil
 }
 
-func NewServer(db v1.Storage) *Server {
+func NewServer(db leveldb.Storage) *Server {
 	return &Server{db}
 }

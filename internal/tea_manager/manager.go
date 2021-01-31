@@ -3,8 +3,8 @@ package tea_manager
 import (
 	"sync"
 
-	"github.com/lueurxax/teaelephantmemory/common"
-	model "github.com/lueurxax/teaelephantmemory/internal/server/api/v2/models"
+	"github.com/teaelephant/TeaElephantMemory/common"
+	model "github.com/teaelephant/TeaElephantMemory/internal/server/api/v2/models"
 )
 
 type TeaManager interface {

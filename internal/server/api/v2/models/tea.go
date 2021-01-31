@@ -1,6 +1,6 @@
 package model
 
-import "github.com/lueurxax/teaelephantmemory/common"
+import "github.com/teaelephant/TeaElephantMemory/common"
 
 func FromCommonTea(source *common.Tea) *Tea {
 	return &Tea{

@@ -1,4 +1,4 @@
-package db
+package leveldb
 
 import (
 	"encoding/json"
@@ -11,17 +11,29 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
 
-	"github.com/lueurxax/teaelephantmemory/common"
-	dbCommon "github.com/lueurxax/teaelephantmemory/pkg/db/common"
-	"github.com/lueurxax/teaelephantmemory/pkg/db/prefix"
+	"github.com/teaelephant/TeaElephantMemory/common"
+	dbCommon "github.com/teaelephant/TeaElephantMemory/pkg/leveldb/common"
+	"github.com/teaelephant/TeaElephantMemory/pkg/leveldb/prefix"
 )
 
-type DB struct {
+type Storage interface {
+	qr
+	WriteRecord(rec *common.TeaData) (record *common.Tea, err error)
+	ReadRecord(id string) (record *common.Tea, err error)
+	ReadAllRecords(search string) ([]common.Tea, error)
+	Update(id string, rec *common.TeaData) (record *common.Tea, err error)
+	Delete(id string) error
+	ReadAll() ([]dbCommon.KeyValue, error)
+	WriteVersion(version uint32) error
+	GetVersion() (uint32, error)
+}
+
+type levelStorage struct {
 	path string
 	db   *leveldb.DB
 }
 
-func (D *DB) Delete(id string) error {
+func (D *levelStorage) Delete(id string) error {
 	rec, err := D.ReadRecord(id)
 	if err != nil {
 		return err
@@ -35,11 +47,11 @@ func (D *DB) Delete(id string) error {
 	return nil
 }
 
-func (D *DB) Update(id string, rec *common.TeaData) (record *common.Tea, err error) {
+func (D *levelStorage) Update(id string, rec *common.TeaData) (record *common.Tea, err error) {
 	return D.writeRecord(id, rec)
 }
 
-func (D *DB) ReadAllRecords(search string) ([]common.Tea, error) {
+func (D *levelStorage) ReadAllRecords(search string) ([]common.Tea, error) {
 	records := make([]common.Tea, 0)
 	if search == "" {
 		iter := D.db.NewIterator(util.BytesPrefix([]byte{prefix.Record}), nil)
@@ -74,12 +86,12 @@ func (D *DB) ReadAllRecords(search string) ([]common.Tea, error) {
 	return records, nil
 }
 
-func (D *DB) WriteRecord(rec *common.TeaData) (record *common.Tea, err error) {
+func (D *levelStorage) WriteRecord(rec *common.TeaData) (record *common.Tea, err error) {
 	id := uuid.NewV4().String()
 	return D.writeRecord(id, rec)
 }
 
-func (D *DB) ReadRecord(id string) (record *common.Tea, err error) {
+func (D *levelStorage) ReadRecord(id string) (record *common.Tea, err error) {
 	data, err := D.db.Get(dbCommon.AppendPrefix(prefix.Record, []byte(id)), nil)
 	if err != nil {
 		return nil, err
@@ -94,7 +106,7 @@ func (D *DB) ReadRecord(id string) (record *common.Tea, err error) {
 	}, nil
 }
 
-func (D *DB) writeRecord(id string, rec *common.TeaData) (record *common.Tea, err error) {
+func (D *levelStorage) writeRecord(id string, rec *common.TeaData) (record *common.Tea, err error) {
 	data, err := json.Marshal(rec)
 	if err != nil {
 		return nil, err
@@ -111,7 +123,7 @@ func (D *DB) writeRecord(id string, rec *common.TeaData) (record *common.Tea, er
 	}, nil
 }
 
-func NewDB(path string) (*DB, error) {
+func NewDB(path string) (Storage, error) {
 	opts := &opt.Options{
 		OpenFilesCacheCapacity: 16,
 		BlockCacheCapacity:     16 / 2 * opt.MiB,
@@ -125,5 +137,5 @@ func NewDB(path string) (*DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("path: %s, %s", path, err.Error())
 	}
-	return &DB{path: path, db: db}, nil
+	return &levelStorage{path: path, db: db}, nil
 }

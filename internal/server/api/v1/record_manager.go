@@ -9,7 +9,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 
-	"github.com/lueurxax/teaelephantmemory/common"
+	"github.com/teaelephant/TeaElephantMemory/common"
 )
 
 var errorEmptyID = errors.New("empty id")

@@ -1,8 +1,8 @@
 package migrations
 
 import (
-	"github.com/lueurxax/teaelephantmemory/common"
-	dbCommon "github.com/lueurxax/teaelephantmemory/pkg/db/common"
+	"github.com/teaelephant/TeaElephantMemory/common"
+	dbCommon "github.com/teaelephant/TeaElephantMemory/pkg/leveldb/common"
 )
 
 type MigratingDB interface {

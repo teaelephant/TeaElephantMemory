@@ -1,8 +1,8 @@
-package db
+package leveldb
 
-import "github.com/lueurxax/teaelephantmemory/pkg/db/common"
+import "github.com/teaelephant/TeaElephantMemory/pkg/leveldb/common"
 
-func (D *DB) ReadAll() ([]common.KeyValue, error) {
+func (D *levelStorage) ReadAll() ([]common.KeyValue, error) {
 	res := make([]common.KeyValue, 0)
 	iter := D.db.NewIterator(nil, nil)
 	for iter.Next() {

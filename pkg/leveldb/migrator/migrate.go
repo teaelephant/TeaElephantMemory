@@ -3,7 +3,7 @@ package migrator
 import (
 	"github.com/syndtr/goleveldb/leveldb"
 
-	"github.com/lueurxax/teaelephantmemory/pkg/db/migrations"
+	"github.com/teaelephant/TeaElephantMemory/pkg/leveldb/migrations"
 )
 
 type Manager interface {
