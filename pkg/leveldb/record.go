@@ -1,7 +1,6 @@
 package leveldb
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/satori/go.uuid"
@@ -12,57 +11,59 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/util"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
+	"github.com/teaelephant/TeaElephantMemory/common/key_value/encoder"
+	"github.com/teaelephant/TeaElephantMemory/common/key_value/key_builder"
 	dbCommon "github.com/teaelephant/TeaElephantMemory/pkg/leveldb/common"
-	"github.com/teaelephant/TeaElephantMemory/pkg/leveldb/prefix"
 )
 
 type Storage interface {
 	qr
 	WriteRecord(rec *common.TeaData) (record *common.Tea, err error)
-	ReadRecord(id string) (record *common.Tea, err error)
+	ReadRecord(id uuid.UUID) (record *common.Tea, err error)
 	ReadAllRecords(search string) ([]common.Tea, error)
-	Update(id string, rec *common.TeaData) (record *common.Tea, err error)
-	Delete(id string) error
+	Update(id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
+	Delete(id uuid.UUID) error
 	ReadAll() ([]dbCommon.KeyValue, error)
 	WriteVersion(version uint32) error
 	GetVersion() (uint32, error)
 }
 
 type levelStorage struct {
-	path string
-	db   *leveldb.DB
+	path       string
+	db         *leveldb.DB
+	keyBuilder key_builder.Builder
 }
 
-func (D *levelStorage) Delete(id string) error {
-	rec, err := D.ReadRecord(id)
+func (l *levelStorage) Delete(id uuid.UUID) error {
+	rec, err := l.ReadRecord(id)
 	if err != nil {
 		return err
 	}
-	if err := D.db.Delete(dbCommon.AppendPrefix(prefix.Record, []byte(id)), nil); err != nil {
+	if err = l.db.Delete(l.keyBuilder.Record(id), nil); err != nil {
 		return err
 	}
-	if err := D.db.Delete(dbCommon.AppendPrefix(prefix.RecordNameIndex, []byte(rec.Name)), nil); err != nil {
+	if err = l.db.Delete(l.keyBuilder.RecordsByName(rec.Name), nil); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (D *levelStorage) Update(id string, rec *common.TeaData) (record *common.Tea, err error) {
-	return D.writeRecord(id, rec)
+func (l *levelStorage) Update(id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error) {
+	return l.writeRecord(id, rec)
 }
 
-func (D *levelStorage) ReadAllRecords(search string) ([]common.Tea, error) {
+func (l *levelStorage) ReadAllRecords(search string) ([]common.Tea, error) {
 	records := make([]common.Tea, 0)
 	if search == "" {
-		iter := D.db.NewIterator(util.BytesPrefix([]byte{prefix.Record}), nil)
+		iter := l.db.NewIterator(util.BytesPrefix(l.keyBuilder.Records()), nil)
 		for iter.Next() {
-			rec := new(common.TeaData)
-			if err := json.Unmarshal(iter.Value(), rec); err != nil {
+			rec := new(encoder.TeaData)
+			if err := rec.Decode(iter.Value()); err != nil {
 				return nil, err
 			}
 			records = append(records, common.Tea{
-				ID:      string(iter.Key()[1:]),
-				TeaData: rec,
+				ID:      uuid.FromStringOrNil(string(iter.Key()[1:])),
+				TeaData: (*common.TeaData)(rec),
 			})
 		}
 		if iter.Error() != nil {
@@ -71,9 +72,14 @@ func (D *levelStorage) ReadAllRecords(search string) ([]common.Tea, error) {
 		iter.Release()
 		return records, nil
 	}
-	iter := D.db.NewIterator(util.BytesPrefix(dbCommon.AppendPrefix(prefix.RecordNameIndex, []byte(search))), nil)
+	iter := l.db.NewIterator(util.BytesPrefix(l.keyBuilder.RecordsByName(search)), nil)
+	defer iter.Release()
 	for iter.Next() {
-		rec, err := D.ReadRecord(string(iter.Value()))
+		id := new(uuid.UUID)
+		if err := id.UnmarshalText(iter.Value()); err != nil {
+			return nil, err
+		}
+		rec, err := l.ReadRecord(*id)
 		if err != nil {
 			return nil, err
 		}
@@ -82,39 +88,38 @@ func (D *levelStorage) ReadAllRecords(search string) ([]common.Tea, error) {
 	if iter.Error() != nil {
 		return nil, iter.Error()
 	}
-	iter.Release()
 	return records, nil
 }
 
-func (D *levelStorage) WriteRecord(rec *common.TeaData) (record *common.Tea, err error) {
-	id := uuid.NewV4().String()
-	return D.writeRecord(id, rec)
+func (l *levelStorage) WriteRecord(rec *common.TeaData) (record *common.Tea, err error) {
+	id := uuid.NewV4()
+	return l.writeRecord(id, rec)
 }
 
-func (D *levelStorage) ReadRecord(id string) (record *common.Tea, err error) {
-	data, err := D.db.Get(dbCommon.AppendPrefix(prefix.Record, []byte(id)), nil)
+func (l *levelStorage) ReadRecord(id uuid.UUID) (record *common.Tea, err error) {
+	data, err := l.db.Get(l.keyBuilder.Record(id), nil)
 	if err != nil {
 		return nil, err
 	}
-	rec := new(common.TeaData)
-	if err := json.Unmarshal(data, rec); err != nil {
+	rec := new(encoder.TeaData)
+	if err = rec.Decode(data); err != nil {
 		return nil, err
 	}
 	return &common.Tea{
 		ID:      id,
-		TeaData: rec,
+		TeaData: (*common.TeaData)(rec),
 	}, nil
 }
 
-func (D *levelStorage) writeRecord(id string, rec *common.TeaData) (record *common.Tea, err error) {
-	data, err := json.Marshal(rec)
+func (l *levelStorage) writeRecord(id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error) {
+	data, err := (*encoder.TeaData)(rec).Encode()
 	if err != nil {
 		return nil, err
 	}
-	if err := D.db.Put(dbCommon.AppendPrefix(prefix.Record, []byte(id)), data, nil); err != nil {
+	if err := l.db.Put(l.keyBuilder.Record(id), data, nil); err != nil {
 		return nil, err
 	}
-	if err := D.db.Put(dbCommon.AppendPrefix(prefix.RecordNameIndex, []byte(rec.Name)), []byte(id), nil); err != nil {
+	if err := l.db.Put(l.keyBuilder.RecordsByName(rec.Name), id.Bytes(), nil); err != nil {
 		return nil, err
 	}
 	return &common.Tea{
@@ -137,5 +142,9 @@ func NewDB(path string) (Storage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("path: %s, %s", path, err.Error())
 	}
-	return &levelStorage{path: path, db: db}, nil
+	return &levelStorage{
+		path:       path,
+		db:         db,
+		keyBuilder: key_builder.NewBuilder(),
+	}, nil
 }

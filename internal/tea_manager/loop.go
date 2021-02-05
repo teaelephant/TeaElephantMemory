@@ -1,6 +1,9 @@
 package tea_manager
 
-import model "github.com/teaelephant/TeaElephantMemory/internal/server/api/v2/models"
+import (
+	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common"
+	model "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/models"
+)
 
 func (m *manager) loop() {
 	for {
@@ -20,7 +23,7 @@ func (m *manager) loop() {
 		case id := <-m.delete:
 			m.muDelete.RLock()
 			for _, el := range m.deleteSubscribers {
-				el <- id
+				el <- common.ID(id)
 			}
 			m.muDelete.RUnlock()
 		}

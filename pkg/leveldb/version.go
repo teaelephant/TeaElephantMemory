@@ -2,18 +2,16 @@ package leveldb
 
 import (
 	"encoding/binary"
-
-	"github.com/teaelephant/TeaElephantMemory/pkg/leveldb/prefix"
 )
 
-func (D *levelStorage) WriteVersion(version uint32) error {
+func (l *levelStorage) WriteVersion(version uint32) error {
 	data := make([]byte, 4)
 	binary.BigEndian.PutUint32(data, version)
-	return D.db.Put([]byte{prefix.Version}, data, nil)
+	return l.db.Put(l.keyBuilder.Version(), data, nil)
 }
 
-func (D *levelStorage) GetVersion() (uint32, error) {
-	data, err := D.db.Get([]byte{prefix.Version}, nil)
+func (l *levelStorage) GetVersion() (uint32, error) {
+	data, err := l.db.Get(l.keyBuilder.Version(), nil)
 	if err != nil {
 		return 0, err
 	}

@@ -1,6 +1,10 @@
 package common
 
-import "time"
+import (
+	"time"
+
+	uuid "github.com/satori/go.uuid"
+)
 
 type TeaData struct {
 	Name        string `json:"name"`
@@ -9,12 +13,12 @@ type TeaData struct {
 }
 
 type Tea struct {
-	ID string
+	ID uuid.UUID
 	*TeaData
 }
 
 type QR struct {
-	Tea            string
+	Tea            uuid.UUID
 	BowlingTemp    int
 	ExpirationDate time.Time
 }

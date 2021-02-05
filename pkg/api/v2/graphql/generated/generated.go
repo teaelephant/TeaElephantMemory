@@ -14,7 +14,8 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/introspection"
-	model "github.com/teaelephant/TeaElephantMemory/internal/server/api/v2/models"
+	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common"
+	model "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/models"
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 )
@@ -40,6 +41,8 @@ type ResolverRoot interface {
 	Mutation() MutationResolver
 	Query() QueryResolver
 	Subscription() SubscriptionResolver
+	Tag() TagResolver
+	Tea() TeaResolver
 }
 
 type DirectiveRoot struct {
@@ -47,13 +50,19 @@ type DirectiveRoot struct {
 
 type ComplexityRoot struct {
 	Mutation struct {
-		CreateTag func(childComplexity int, name string, color string) int
-		DeleteTag func(childComplexity int, id string) int
-		DeleteTea func(childComplexity int, id string) int
-		NewTea    func(childComplexity int, tea model.TeaData) int
-		UpdateTag func(childComplexity int, id string, name string, color string) int
-		UpdateTea func(childComplexity int, id string, tea model.TeaData) int
-		WriteToQr func(childComplexity int, id string, data model.QRRecordData) int
+		AddTagToTea       func(childComplexity int, teaID common.ID, tagID common.ID) int
+		ChangeTagCategory func(childComplexity int, id common.ID, category common.ID) int
+		CreateTag         func(childComplexity int, name string, color string, category common.ID) int
+		CreateTagCategory func(childComplexity int, name string) int
+		DeleteTag         func(childComplexity int, id common.ID) int
+		DeleteTagCategory func(childComplexity int, id common.ID) int
+		DeleteTagFromTea  func(childComplexity int, teaID common.ID, tagID common.ID) int
+		DeleteTea         func(childComplexity int, id common.ID) int
+		NewTea            func(childComplexity int, tea model.TeaData) int
+		UpdateTag         func(childComplexity int, id common.ID, name string, color string) int
+		UpdateTagCategory func(childComplexity int, id common.ID, name string) int
+		UpdateTea         func(childComplexity int, id common.ID, tea model.TeaData) int
+		WriteToQr         func(childComplexity int, id common.ID, data model.QRRecordData) int
 	}
 
 	QRRecord struct {
@@ -64,59 +73,90 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		GetQrRecord func(childComplexity int, id string) int
-		GetTag      func(childComplexity int, id string) int
-		GetTags     func(childComplexity int, name *string) int
-		GetTea      func(childComplexity int, id string) int
-		GetTeas     func(childComplexity int, prefix *string) int
+		GetQrRecord       func(childComplexity int, id common.ID) int
+		GetTag            func(childComplexity int, id common.ID) int
+		GetTags           func(childComplexity int, name *string, category *common.ID) int
+		GetTagsCategories func(childComplexity int, name *string) int
+		GetTea            func(childComplexity int, id common.ID) int
+		GetTeas           func(childComplexity int, prefix *string) int
 	}
 
 	Subscription struct {
-		OnCreateTag func(childComplexity int) int
-		OnCreateTea func(childComplexity int) int
-		OnDeleteTag func(childComplexity int) int
-		OnDeleteTea func(childComplexity int) int
-		OnUpdateTag func(childComplexity int) int
-		OnUpdateTea func(childComplexity int) int
+		OnAddTagToTea       func(childComplexity int) int
+		OnCreateTag         func(childComplexity int) int
+		OnCreateTagCategory func(childComplexity int) int
+		OnCreateTea         func(childComplexity int) int
+		OnDeleteTag         func(childComplexity int) int
+		OnDeleteTagCategory func(childComplexity int) int
+		OnDeleteTagFromTea  func(childComplexity int) int
+		OnDeleteTea         func(childComplexity int) int
+		OnUpdateTag         func(childComplexity int) int
+		OnUpdateTagCategory func(childComplexity int) int
+		OnUpdateTea         func(childComplexity int) int
 	}
 
 	Tag struct {
-		Color func(childComplexity int) int
-		ID    func(childComplexity int) int
-		Name  func(childComplexity int) int
+		Category func(childComplexity int) int
+		Color    func(childComplexity int) int
+		ID       func(childComplexity int) int
+		Name     func(childComplexity int) int
+	}
+
+	TagCategory struct {
+		ID   func(childComplexity int) int
+		Name func(childComplexity int) int
 	}
 
 	Tea struct {
 		Description func(childComplexity int) int
 		ID          func(childComplexity int) int
 		Name        func(childComplexity int) int
+		Tags        func(childComplexity int) int
 		Type        func(childComplexity int) int
 	}
 }
 
 type MutationResolver interface {
 	NewTea(ctx context.Context, tea model.TeaData) (*model.Tea, error)
-	UpdateTea(ctx context.Context, id string, tea model.TeaData) (*model.Tea, error)
-	DeleteTea(ctx context.Context, id string) (string, error)
-	WriteToQr(ctx context.Context, id string, data model.QRRecordData) (*model.QRRecord, error)
-	CreateTag(ctx context.Context, name string, color string) (*model.Tag, error)
-	UpdateTag(ctx context.Context, id string, name string, color string) (*model.Tag, error)
-	DeleteTag(ctx context.Context, id string) (*string, error)
+	UpdateTea(ctx context.Context, id common.ID, tea model.TeaData) (*model.Tea, error)
+	AddTagToTea(ctx context.Context, teaID common.ID, tagID common.ID) (*model.Tea, error)
+	DeleteTagFromTea(ctx context.Context, teaID common.ID, tagID common.ID) (*model.Tea, error)
+	DeleteTea(ctx context.Context, id common.ID) (common.ID, error)
+	WriteToQr(ctx context.Context, id common.ID, data model.QRRecordData) (*model.QRRecord, error)
+	CreateTagCategory(ctx context.Context, name string) (*model.TagCategory, error)
+	UpdateTagCategory(ctx context.Context, id common.ID, name string) (*model.TagCategory, error)
+	DeleteTagCategory(ctx context.Context, id common.ID) (common.ID, error)
+	CreateTag(ctx context.Context, name string, color string, category common.ID) (*model.Tag, error)
+	UpdateTag(ctx context.Context, id common.ID, name string, color string) (*model.Tag, error)
+	ChangeTagCategory(ctx context.Context, id common.ID, category common.ID) (*model.Tag, error)
+	DeleteTag(ctx context.Context, id common.ID) (common.ID, error)
 }
 type QueryResolver interface {
 	GetTeas(ctx context.Context, prefix *string) ([]*model.Tea, error)
-	GetTea(ctx context.Context, id string) (*model.Tea, error)
-	GetQrRecord(ctx context.Context, id string) (*model.QRRecord, error)
-	GetTag(ctx context.Context, id string) (*model.Tag, error)
-	GetTags(ctx context.Context, name *string) ([]*model.Tag, error)
+	GetTea(ctx context.Context, id common.ID) (*model.Tea, error)
+	GetQrRecord(ctx context.Context, id common.ID) (*model.QRRecord, error)
+	GetTag(ctx context.Context, id common.ID) (*model.Tag, error)
+	GetTags(ctx context.Context, name *string, category *common.ID) ([]*model.Tag, error)
+	GetTagsCategories(ctx context.Context, name *string) ([]*model.TagCategory, error)
 }
 type SubscriptionResolver interface {
 	OnCreateTea(ctx context.Context) (<-chan *model.Tea, error)
 	OnUpdateTea(ctx context.Context) (<-chan *model.Tea, error)
-	OnDeleteTea(ctx context.Context) (<-chan string, error)
+	OnDeleteTea(ctx context.Context) (<-chan common.ID, error)
+	OnCreateTagCategory(ctx context.Context) (<-chan *model.TagCategory, error)
+	OnUpdateTagCategory(ctx context.Context) (<-chan *model.TagCategory, error)
+	OnDeleteTagCategory(ctx context.Context) (<-chan common.ID, error)
 	OnCreateTag(ctx context.Context) (<-chan *model.Tag, error)
 	OnUpdateTag(ctx context.Context) (<-chan *model.Tag, error)
-	OnDeleteTag(ctx context.Context) (<-chan string, error)
+	OnDeleteTag(ctx context.Context) (<-chan common.ID, error)
+	OnAddTagToTea(ctx context.Context) (<-chan *model.Tea, error)
+	OnDeleteTagFromTea(ctx context.Context) (<-chan *model.Tea, error)
+}
+type TagResolver interface {
+	Category(ctx context.Context, obj *model.Tag) (*model.TagCategory, error)
+}
+type TeaResolver interface {
+	Tags(ctx context.Context, obj *model.Tea) ([]*model.Tag, error)
 }
 
 type executableSchema struct {
@@ -134,6 +174,30 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 	_ = ec
 	switch typeName + "." + field {
 
+	case "Mutation.addTagToTea":
+		if e.complexity.Mutation.AddTagToTea == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_addTagToTea_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.AddTagToTea(childComplexity, args["teaID"].(common.ID), args["tagID"].(common.ID)), true
+
+	case "Mutation.changeTagCategory":
+		if e.complexity.Mutation.ChangeTagCategory == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_changeTagCategory_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ChangeTagCategory(childComplexity, args["id"].(common.ID), args["category"].(common.ID)), true
+
 	case "Mutation.createTag":
 		if e.complexity.Mutation.CreateTag == nil {
 			break
@@ -144,7 +208,19 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.CreateTag(childComplexity, args["name"].(string), args["color"].(string)), true
+		return e.complexity.Mutation.CreateTag(childComplexity, args["name"].(string), args["color"].(string), args["category"].(common.ID)), true
+
+	case "Mutation.createTagCategory":
+		if e.complexity.Mutation.CreateTagCategory == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createTagCategory_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CreateTagCategory(childComplexity, args["name"].(string)), true
 
 	case "Mutation.deleteTag":
 		if e.complexity.Mutation.DeleteTag == nil {
@@ -156,7 +232,31 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.DeleteTag(childComplexity, args["id"].(string)), true
+		return e.complexity.Mutation.DeleteTag(childComplexity, args["id"].(common.ID)), true
+
+	case "Mutation.deleteTagCategory":
+		if e.complexity.Mutation.DeleteTagCategory == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteTagCategory_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteTagCategory(childComplexity, args["id"].(common.ID)), true
+
+	case "Mutation.deleteTagFromTea":
+		if e.complexity.Mutation.DeleteTagFromTea == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteTagFromTea_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteTagFromTea(childComplexity, args["teaID"].(common.ID), args["tagID"].(common.ID)), true
 
 	case "Mutation.deleteTea":
 		if e.complexity.Mutation.DeleteTea == nil {
@@ -168,7 +268,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.DeleteTea(childComplexity, args["id"].(string)), true
+		return e.complexity.Mutation.DeleteTea(childComplexity, args["id"].(common.ID)), true
 
 	case "Mutation.newTea":
 		if e.complexity.Mutation.NewTea == nil {
@@ -192,7 +292,19 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UpdateTag(childComplexity, args["id"].(string), args["name"].(string), args["color"].(string)), true
+		return e.complexity.Mutation.UpdateTag(childComplexity, args["id"].(common.ID), args["name"].(string), args["color"].(string)), true
+
+	case "Mutation.updateTagCategory":
+		if e.complexity.Mutation.UpdateTagCategory == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateTagCategory_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateTagCategory(childComplexity, args["id"].(common.ID), args["name"].(string)), true
 
 	case "Mutation.updateTea":
 		if e.complexity.Mutation.UpdateTea == nil {
@@ -204,7 +316,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UpdateTea(childComplexity, args["id"].(string), args["tea"].(model.TeaData)), true
+		return e.complexity.Mutation.UpdateTea(childComplexity, args["id"].(common.ID), args["tea"].(model.TeaData)), true
 
 	case "Mutation.writeToQR":
 		if e.complexity.Mutation.WriteToQr == nil {
@@ -216,7 +328,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.WriteToQr(childComplexity, args["id"].(string), args["data"].(model.QRRecordData)), true
+		return e.complexity.Mutation.WriteToQr(childComplexity, args["id"].(common.ID), args["data"].(model.QRRecordData)), true
 
 	case "QRRecord.bowlingTemp":
 		if e.complexity.QRRecord.BowlingTemp == nil {
@@ -256,7 +368,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.GetQrRecord(childComplexity, args["id"].(string)), true
+		return e.complexity.Query.GetQrRecord(childComplexity, args["id"].(common.ID)), true
 
 	case "Query.getTag":
 		if e.complexity.Query.GetTag == nil {
@@ -268,7 +380,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.GetTag(childComplexity, args["id"].(string)), true
+		return e.complexity.Query.GetTag(childComplexity, args["id"].(common.ID)), true
 
 	case "Query.getTags":
 		if e.complexity.Query.GetTags == nil {
@@ -280,7 +392,19 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.GetTags(childComplexity, args["name"].(*string)), true
+		return e.complexity.Query.GetTags(childComplexity, args["name"].(*string), args["category"].(*common.ID)), true
+
+	case "Query.getTagsCategories":
+		if e.complexity.Query.GetTagsCategories == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getTagsCategories_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetTagsCategories(childComplexity, args["name"].(*string)), true
 
 	case "Query.getTea":
 		if e.complexity.Query.GetTea == nil {
@@ -292,7 +416,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.GetTea(childComplexity, args["id"].(string)), true
+		return e.complexity.Query.GetTea(childComplexity, args["id"].(common.ID)), true
 
 	case "Query.getTeas":
 		if e.complexity.Query.GetTeas == nil {
@@ -306,12 +430,26 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.GetTeas(childComplexity, args["prefix"].(*string)), true
 
+	case "Subscription.onAddTagToTea":
+		if e.complexity.Subscription.OnAddTagToTea == nil {
+			break
+		}
+
+		return e.complexity.Subscription.OnAddTagToTea(childComplexity), true
+
 	case "Subscription.onCreateTag":
 		if e.complexity.Subscription.OnCreateTag == nil {
 			break
 		}
 
 		return e.complexity.Subscription.OnCreateTag(childComplexity), true
+
+	case "Subscription.onCreateTagCategory":
+		if e.complexity.Subscription.OnCreateTagCategory == nil {
+			break
+		}
+
+		return e.complexity.Subscription.OnCreateTagCategory(childComplexity), true
 
 	case "Subscription.onCreateTea":
 		if e.complexity.Subscription.OnCreateTea == nil {
@@ -327,6 +465,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Subscription.OnDeleteTag(childComplexity), true
 
+	case "Subscription.onDeleteTagCategory":
+		if e.complexity.Subscription.OnDeleteTagCategory == nil {
+			break
+		}
+
+		return e.complexity.Subscription.OnDeleteTagCategory(childComplexity), true
+
+	case "Subscription.onDeleteTagFromTea":
+		if e.complexity.Subscription.OnDeleteTagFromTea == nil {
+			break
+		}
+
+		return e.complexity.Subscription.OnDeleteTagFromTea(childComplexity), true
+
 	case "Subscription.onDeleteTea":
 		if e.complexity.Subscription.OnDeleteTea == nil {
 			break
@@ -341,12 +493,26 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Subscription.OnUpdateTag(childComplexity), true
 
+	case "Subscription.onUpdateTagCategory":
+		if e.complexity.Subscription.OnUpdateTagCategory == nil {
+			break
+		}
+
+		return e.complexity.Subscription.OnUpdateTagCategory(childComplexity), true
+
 	case "Subscription.onUpdateTea":
 		if e.complexity.Subscription.OnUpdateTea == nil {
 			break
 		}
 
 		return e.complexity.Subscription.OnUpdateTea(childComplexity), true
+
+	case "Tag.category":
+		if e.complexity.Tag.Category == nil {
+			break
+		}
+
+		return e.complexity.Tag.Category(childComplexity), true
 
 	case "Tag.color":
 		if e.complexity.Tag.Color == nil {
@@ -369,6 +535,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Tag.Name(childComplexity), true
 
+	case "TagCategory.id":
+		if e.complexity.TagCategory.ID == nil {
+			break
+		}
+
+		return e.complexity.TagCategory.ID(childComplexity), true
+
+	case "TagCategory.name":
+		if e.complexity.TagCategory.Name == nil {
+			break
+		}
+
+		return e.complexity.TagCategory.Name(childComplexity), true
+
 	case "Tea.description":
 		if e.complexity.Tea.Description == nil {
 			break
@@ -389,6 +569,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Tea.Name(childComplexity), true
+
+	case "Tea.tags":
+		if e.complexity.Tea.Tags == nil {
+			break
+		}
+
+		return e.complexity.Tea.Tags(childComplexity), true
 
 	case "Tea.type":
 		if e.complexity.Tea.Type == nil {
@@ -485,26 +672,43 @@ type Query {
     getTea(id: ID!): Tea
     getQrRecord(id: ID!): QRRecord
     getTag(id: ID!): Tag
-    getTags(name: String): [Tag!]!
+    getTags(name: String, category: ID): [Tag!]!
+    getTagsCategories(name: String): [TagCategory!]!
 }
 
 type Mutation {
     newTea(tea: TeaData!): Tea!
     updateTea(id: ID!, tea: TeaData!): Tea!
+    addTagToTea(teaID: ID!, tagID: ID!): Tea!
+    deleteTagFromTea(teaID: ID!, tagID: ID!): Tea!
     deleteTea(id: ID!): ID!
     writeToQR(id: ID!, data: QRRecordData!): QRRecord!
-    createTag(name: String!, color: String!): Tag
-    updateTag(id: ID!, name: String!, color: String!): Tag
-    deleteTag(id: ID!): ID
+    createTagCategory(name: String!): TagCategory!
+    updateTagCategory(id: ID!, name: String!): TagCategory!
+    deleteTagCategory(id:ID!): ID!
+    createTag(name: String!, color: String!, category: ID!): Tag!
+    updateTag(id: ID!, name: String!, color: String!): Tag!
+    changeTagCategory(id: ID!, category: ID!): Tag!
+    deleteTag(id: ID!): ID!
 }
 
 type Subscription {
     onCreateTea: Tea!
     onUpdateTea: Tea!
     onDeleteTea: ID!
+    onCreateTagCategory: TagCategory!
+    onUpdateTagCategory: TagCategory!
+    onDeleteTagCategory: ID!
     onCreateTag: Tag!
     onUpdateTag: Tag!
     onDeleteTag: ID!
+    onAddTagToTea: Tea!
+    onDeleteTagFromTea: Tea!
+}
+
+type TagCategory {
+    id: ID!
+    name: String!
 }
 
 type QRRecord {
@@ -525,6 +729,7 @@ type Tea {
     name: String!
     type: Type!
     description: String!
+    tags: [Tag!]!
 }
 
 input TeaData {
@@ -537,6 +742,7 @@ type Tag {
     id: ID!
     name: String!
     color: String!
+    category: TagCategory!
 }
 
 enum Type {
@@ -552,6 +758,69 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 // endregion ************************** generated!.gotpl **************************
 
 // region    ***************************** args.gotpl *****************************
+
+func (ec *executionContext) field_Mutation_addTagToTea_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 common.ID
+	if tmp, ok := rawArgs["teaID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("teaID"))
+		arg0, err = ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["teaID"] = arg0
+	var arg1 common.ID
+	if tmp, ok := rawArgs["tagID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tagID"))
+		arg1, err = ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["tagID"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_changeTagCategory_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 common.ID
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	var arg1 common.ID
+	if tmp, ok := rawArgs["category"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("category"))
+		arg1, err = ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["category"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_createTagCategory_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["name"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["name"] = arg0
+	return args, nil
+}
 
 func (ec *executionContext) field_Mutation_createTag_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
@@ -574,16 +843,64 @@ func (ec *executionContext) field_Mutation_createTag_args(ctx context.Context, r
 		}
 	}
 	args["color"] = arg1
+	var arg2 common.ID
+	if tmp, ok := rawArgs["category"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("category"))
+		arg2, err = ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["category"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteTagCategory_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 common.ID
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteTagFromTea_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 common.ID
+	if tmp, ok := rawArgs["teaID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("teaID"))
+		arg0, err = ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["teaID"] = arg0
+	var arg1 common.ID
+	if tmp, ok := rawArgs["tagID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tagID"))
+		arg1, err = ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["tagID"] = arg1
 	return args, nil
 }
 
 func (ec *executionContext) field_Mutation_deleteTag_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 string
+	var arg0 common.ID
 	if tmp, ok := rawArgs["id"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		arg0, err = ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -595,10 +912,10 @@ func (ec *executionContext) field_Mutation_deleteTag_args(ctx context.Context, r
 func (ec *executionContext) field_Mutation_deleteTea_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 string
+	var arg0 common.ID
 	if tmp, ok := rawArgs["id"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		arg0, err = ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -613,7 +930,7 @@ func (ec *executionContext) field_Mutation_newTea_args(ctx context.Context, rawA
 	var arg0 model.TeaData
 	if tmp, ok := rawArgs["tea"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tea"))
-		arg0, err = ec.unmarshalNTeaData2githubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTeaData(ctx, tmp)
+		arg0, err = ec.unmarshalNTeaData2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTeaData(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -622,13 +939,37 @@ func (ec *executionContext) field_Mutation_newTea_args(ctx context.Context, rawA
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_updateTagCategory_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 common.ID
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	var arg1 string
+	if tmp, ok := rawArgs["name"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+		arg1, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["name"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_updateTag_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 string
+	var arg0 common.ID
 	if tmp, ok := rawArgs["id"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		arg0, err = ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -658,10 +999,10 @@ func (ec *executionContext) field_Mutation_updateTag_args(ctx context.Context, r
 func (ec *executionContext) field_Mutation_updateTea_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 string
+	var arg0 common.ID
 	if tmp, ok := rawArgs["id"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		arg0, err = ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -670,7 +1011,7 @@ func (ec *executionContext) field_Mutation_updateTea_args(ctx context.Context, r
 	var arg1 model.TeaData
 	if tmp, ok := rawArgs["tea"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tea"))
-		arg1, err = ec.unmarshalNTeaData2githubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTeaData(ctx, tmp)
+		arg1, err = ec.unmarshalNTeaData2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTeaData(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -682,10 +1023,10 @@ func (ec *executionContext) field_Mutation_updateTea_args(ctx context.Context, r
 func (ec *executionContext) field_Mutation_writeToQR_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 string
+	var arg0 common.ID
 	if tmp, ok := rawArgs["id"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		arg0, err = ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -694,7 +1035,7 @@ func (ec *executionContext) field_Mutation_writeToQR_args(ctx context.Context, r
 	var arg1 model.QRRecordData
 	if tmp, ok := rawArgs["data"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("data"))
-		arg1, err = ec.unmarshalNQRRecordData2githubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐQRRecordData(ctx, tmp)
+		arg1, err = ec.unmarshalNQRRecordData2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐQRRecordData(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -721,10 +1062,10 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 func (ec *executionContext) field_Query_getQrRecord_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 string
+	var arg0 common.ID
 	if tmp, ok := rawArgs["id"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		arg0, err = ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -736,15 +1077,30 @@ func (ec *executionContext) field_Query_getQrRecord_args(ctx context.Context, ra
 func (ec *executionContext) field_Query_getTag_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 string
+	var arg0 common.ID
 	if tmp, ok := rawArgs["id"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		arg0, err = ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_getTagsCategories_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *string
+	if tmp, ok := rawArgs["name"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+		arg0, err = ec.unmarshalOString2ᚖstring(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["name"] = arg0
 	return args, nil
 }
 
@@ -760,16 +1116,25 @@ func (ec *executionContext) field_Query_getTags_args(ctx context.Context, rawArg
 		}
 	}
 	args["name"] = arg0
+	var arg1 *common.ID
+	if tmp, ok := rawArgs["category"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("category"))
+		arg1, err = ec.unmarshalOID2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["category"] = arg1
 	return args, nil
 }
 
 func (ec *executionContext) field_Query_getTea_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 string
+	var arg0 common.ID
 	if tmp, ok := rawArgs["id"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		arg0, err = ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -870,7 +1235,7 @@ func (ec *executionContext) _Mutation_newTea(ctx context.Context, field graphql.
 	}
 	res := resTmp.(*model.Tea)
 	fc.Result = res
-	return ec.marshalNTea2ᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTea(ctx, field.Selections, res)
+	return ec.marshalNTea2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTea(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_updateTea(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -898,7 +1263,7 @@ func (ec *executionContext) _Mutation_updateTea(ctx context.Context, field graph
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().UpdateTea(rctx, args["id"].(string), args["tea"].(model.TeaData))
+		return ec.resolvers.Mutation().UpdateTea(rctx, args["id"].(common.ID), args["tea"].(model.TeaData))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -912,7 +1277,91 @@ func (ec *executionContext) _Mutation_updateTea(ctx context.Context, field graph
 	}
 	res := resTmp.(*model.Tea)
 	fc.Result = res
-	return ec.marshalNTea2ᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTea(ctx, field.Selections, res)
+	return ec.marshalNTea2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTea(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_addTagToTea(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_addTagToTea_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().AddTagToTea(rctx, args["teaID"].(common.ID), args["tagID"].(common.ID))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Tea)
+	fc.Result = res
+	return ec.marshalNTea2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTea(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_deleteTagFromTea(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_deleteTagFromTea_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteTagFromTea(rctx, args["teaID"].(common.ID), args["tagID"].(common.ID))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Tea)
+	fc.Result = res
+	return ec.marshalNTea2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTea(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_deleteTea(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -940,7 +1389,7 @@ func (ec *executionContext) _Mutation_deleteTea(ctx context.Context, field graph
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().DeleteTea(rctx, args["id"].(string))
+		return ec.resolvers.Mutation().DeleteTea(rctx, args["id"].(common.ID))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -952,9 +1401,9 @@ func (ec *executionContext) _Mutation_deleteTea(ctx context.Context, field graph
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(common.ID)
 	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
+	return ec.marshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_writeToQR(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -982,7 +1431,7 @@ func (ec *executionContext) _Mutation_writeToQR(ctx context.Context, field graph
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().WriteToQr(rctx, args["id"].(string), args["data"].(model.QRRecordData))
+		return ec.resolvers.Mutation().WriteToQr(rctx, args["id"].(common.ID), args["data"].(model.QRRecordData))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -996,7 +1445,133 @@ func (ec *executionContext) _Mutation_writeToQR(ctx context.Context, field graph
 	}
 	res := resTmp.(*model.QRRecord)
 	fc.Result = res
-	return ec.marshalNQRRecord2ᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐQRRecord(ctx, field.Selections, res)
+	return ec.marshalNQRRecord2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐQRRecord(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_createTagCategory(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_createTagCategory_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().CreateTagCategory(rctx, args["name"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.TagCategory)
+	fc.Result = res
+	return ec.marshalNTagCategory2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTagCategory(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_updateTagCategory(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_updateTagCategory_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateTagCategory(rctx, args["id"].(common.ID), args["name"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.TagCategory)
+	fc.Result = res
+	return ec.marshalNTagCategory2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTagCategory(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_deleteTagCategory(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_deleteTagCategory_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteTagCategory(rctx, args["id"].(common.ID))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(common.ID)
+	fc.Result = res
+	return ec.marshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_createTag(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -1024,18 +1599,21 @@ func (ec *executionContext) _Mutation_createTag(ctx context.Context, field graph
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateTag(rctx, args["name"].(string), args["color"].(string))
+		return ec.resolvers.Mutation().CreateTag(rctx, args["name"].(string), args["color"].(string), args["category"].(common.ID))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
 	res := resTmp.(*model.Tag)
 	fc.Result = res
-	return ec.marshalOTag2ᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTag(ctx, field.Selections, res)
+	return ec.marshalNTag2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTag(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_updateTag(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -1063,18 +1641,63 @@ func (ec *executionContext) _Mutation_updateTag(ctx context.Context, field graph
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().UpdateTag(rctx, args["id"].(string), args["name"].(string), args["color"].(string))
+		return ec.resolvers.Mutation().UpdateTag(rctx, args["id"].(common.ID), args["name"].(string), args["color"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
 	res := resTmp.(*model.Tag)
 	fc.Result = res
-	return ec.marshalOTag2ᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTag(ctx, field.Selections, res)
+	return ec.marshalNTag2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTag(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_changeTagCategory(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_changeTagCategory_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().ChangeTagCategory(rctx, args["id"].(common.ID), args["category"].(common.ID))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Tag)
+	fc.Result = res
+	return ec.marshalNTag2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTag(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_deleteTag(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -1102,18 +1725,21 @@ func (ec *executionContext) _Mutation_deleteTag(ctx context.Context, field graph
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().DeleteTag(rctx, args["id"].(string))
+		return ec.resolvers.Mutation().DeleteTag(rctx, args["id"].(common.ID))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*string)
+	res := resTmp.(common.ID)
 	fc.Result = res
-	return ec.marshalOID2ᚖstring(ctx, field.Selections, res)
+	return ec.marshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _QRRecord_id(ctx context.Context, field graphql.CollectedField, obj *model.QRRecord) (ret graphql.Marshaler) {
@@ -1146,9 +1772,9 @@ func (ec *executionContext) _QRRecord_id(ctx context.Context, field graphql.Coll
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(common.ID)
 	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
+	return ec.marshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _QRRecord_tea(ctx context.Context, field graphql.CollectedField, obj *model.QRRecord) (ret graphql.Marshaler) {
@@ -1183,7 +1809,7 @@ func (ec *executionContext) _QRRecord_tea(ctx context.Context, field graphql.Col
 	}
 	res := resTmp.(*model.Tea)
 	fc.Result = res
-	return ec.marshalNTea2ᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTea(ctx, field.Selections, res)
+	return ec.marshalNTea2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTea(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _QRRecord_bowlingTemp(ctx context.Context, field graphql.CollectedField, obj *model.QRRecord) (ret graphql.Marshaler) {
@@ -1295,7 +1921,7 @@ func (ec *executionContext) _Query_getTeas(ctx context.Context, field graphql.Co
 	}
 	res := resTmp.([]*model.Tea)
 	fc.Result = res
-	return ec.marshalNTea2ᚕᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTeaᚄ(ctx, field.Selections, res)
+	return ec.marshalNTea2ᚕᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTeaᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_getTea(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -1323,7 +1949,7 @@ func (ec *executionContext) _Query_getTea(ctx context.Context, field graphql.Col
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().GetTea(rctx, args["id"].(string))
+		return ec.resolvers.Query().GetTea(rctx, args["id"].(common.ID))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1334,7 +1960,7 @@ func (ec *executionContext) _Query_getTea(ctx context.Context, field graphql.Col
 	}
 	res := resTmp.(*model.Tea)
 	fc.Result = res
-	return ec.marshalOTea2ᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTea(ctx, field.Selections, res)
+	return ec.marshalOTea2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTea(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_getQrRecord(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -1362,7 +1988,7 @@ func (ec *executionContext) _Query_getQrRecord(ctx context.Context, field graphq
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().GetQrRecord(rctx, args["id"].(string))
+		return ec.resolvers.Query().GetQrRecord(rctx, args["id"].(common.ID))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1373,7 +1999,7 @@ func (ec *executionContext) _Query_getQrRecord(ctx context.Context, field graphq
 	}
 	res := resTmp.(*model.QRRecord)
 	fc.Result = res
-	return ec.marshalOQRRecord2ᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐQRRecord(ctx, field.Selections, res)
+	return ec.marshalOQRRecord2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐQRRecord(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_getTag(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -1401,7 +2027,7 @@ func (ec *executionContext) _Query_getTag(ctx context.Context, field graphql.Col
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().GetTag(rctx, args["id"].(string))
+		return ec.resolvers.Query().GetTag(rctx, args["id"].(common.ID))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1412,7 +2038,7 @@ func (ec *executionContext) _Query_getTag(ctx context.Context, field graphql.Col
 	}
 	res := resTmp.(*model.Tag)
 	fc.Result = res
-	return ec.marshalOTag2ᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTag(ctx, field.Selections, res)
+	return ec.marshalOTag2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTag(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_getTags(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -1440,7 +2066,7 @@ func (ec *executionContext) _Query_getTags(ctx context.Context, field graphql.Co
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().GetTags(rctx, args["name"].(*string))
+		return ec.resolvers.Query().GetTags(rctx, args["name"].(*string), args["category"].(*common.ID))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1454,7 +2080,49 @@ func (ec *executionContext) _Query_getTags(ctx context.Context, field graphql.Co
 	}
 	res := resTmp.([]*model.Tag)
 	fc.Result = res
-	return ec.marshalNTag2ᚕᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTagᚄ(ctx, field.Selections, res)
+	return ec.marshalNTag2ᚕᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTagᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_getTagsCategories(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_getTagsCategories_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetTagsCategories(rctx, args["name"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.TagCategory)
+	fc.Result = res
+	return ec.marshalNTagCategory2ᚕᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTagCategoryᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -1567,7 +2235,7 @@ func (ec *executionContext) _Subscription_onCreateTea(ctx context.Context, field
 			w.Write([]byte{'{'})
 			graphql.MarshalString(field.Alias).MarshalGQL(w)
 			w.Write([]byte{':'})
-			ec.marshalNTea2ᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTea(ctx, field.Selections, res).MarshalGQL(w)
+			ec.marshalNTea2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTea(ctx, field.Selections, res).MarshalGQL(w)
 			w.Write([]byte{'}'})
 		})
 	}
@@ -1612,7 +2280,7 @@ func (ec *executionContext) _Subscription_onUpdateTea(ctx context.Context, field
 			w.Write([]byte{'{'})
 			graphql.MarshalString(field.Alias).MarshalGQL(w)
 			w.Write([]byte{':'})
-			ec.marshalNTea2ᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTea(ctx, field.Selections, res).MarshalGQL(w)
+			ec.marshalNTea2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTea(ctx, field.Selections, res).MarshalGQL(w)
 			w.Write([]byte{'}'})
 		})
 	}
@@ -1649,7 +2317,7 @@ func (ec *executionContext) _Subscription_onDeleteTea(ctx context.Context, field
 		return nil
 	}
 	return func() graphql.Marshaler {
-		res, ok := <-resTmp.(<-chan string)
+		res, ok := <-resTmp.(<-chan common.ID)
 		if !ok {
 			return nil
 		}
@@ -1657,7 +2325,142 @@ func (ec *executionContext) _Subscription_onDeleteTea(ctx context.Context, field
 			w.Write([]byte{'{'})
 			graphql.MarshalString(field.Alias).MarshalGQL(w)
 			w.Write([]byte{':'})
-			ec.marshalNID2string(ctx, field.Selections, res).MarshalGQL(w)
+			ec.marshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, field.Selections, res).MarshalGQL(w)
+			w.Write([]byte{'}'})
+		})
+	}
+}
+
+func (ec *executionContext) _Subscription_onCreateTagCategory(ctx context.Context, field graphql.CollectedField) (ret func() graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = nil
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Subscription().OnCreateTagCategory(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return nil
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return nil
+	}
+	return func() graphql.Marshaler {
+		res, ok := <-resTmp.(<-chan *model.TagCategory)
+		if !ok {
+			return nil
+		}
+		return graphql.WriterFunc(func(w io.Writer) {
+			w.Write([]byte{'{'})
+			graphql.MarshalString(field.Alias).MarshalGQL(w)
+			w.Write([]byte{':'})
+			ec.marshalNTagCategory2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTagCategory(ctx, field.Selections, res).MarshalGQL(w)
+			w.Write([]byte{'}'})
+		})
+	}
+}
+
+func (ec *executionContext) _Subscription_onUpdateTagCategory(ctx context.Context, field graphql.CollectedField) (ret func() graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = nil
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Subscription().OnUpdateTagCategory(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return nil
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return nil
+	}
+	return func() graphql.Marshaler {
+		res, ok := <-resTmp.(<-chan *model.TagCategory)
+		if !ok {
+			return nil
+		}
+		return graphql.WriterFunc(func(w io.Writer) {
+			w.Write([]byte{'{'})
+			graphql.MarshalString(field.Alias).MarshalGQL(w)
+			w.Write([]byte{':'})
+			ec.marshalNTagCategory2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTagCategory(ctx, field.Selections, res).MarshalGQL(w)
+			w.Write([]byte{'}'})
+		})
+	}
+}
+
+func (ec *executionContext) _Subscription_onDeleteTagCategory(ctx context.Context, field graphql.CollectedField) (ret func() graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = nil
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Subscription().OnDeleteTagCategory(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return nil
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return nil
+	}
+	return func() graphql.Marshaler {
+		res, ok := <-resTmp.(<-chan common.ID)
+		if !ok {
+			return nil
+		}
+		return graphql.WriterFunc(func(w io.Writer) {
+			w.Write([]byte{'{'})
+			graphql.MarshalString(field.Alias).MarshalGQL(w)
+			w.Write([]byte{':'})
+			ec.marshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, field.Selections, res).MarshalGQL(w)
 			w.Write([]byte{'}'})
 		})
 	}
@@ -1702,7 +2505,7 @@ func (ec *executionContext) _Subscription_onCreateTag(ctx context.Context, field
 			w.Write([]byte{'{'})
 			graphql.MarshalString(field.Alias).MarshalGQL(w)
 			w.Write([]byte{':'})
-			ec.marshalNTag2ᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTag(ctx, field.Selections, res).MarshalGQL(w)
+			ec.marshalNTag2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTag(ctx, field.Selections, res).MarshalGQL(w)
 			w.Write([]byte{'}'})
 		})
 	}
@@ -1747,7 +2550,7 @@ func (ec *executionContext) _Subscription_onUpdateTag(ctx context.Context, field
 			w.Write([]byte{'{'})
 			graphql.MarshalString(field.Alias).MarshalGQL(w)
 			w.Write([]byte{':'})
-			ec.marshalNTag2ᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTag(ctx, field.Selections, res).MarshalGQL(w)
+			ec.marshalNTag2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTag(ctx, field.Selections, res).MarshalGQL(w)
 			w.Write([]byte{'}'})
 		})
 	}
@@ -1784,7 +2587,7 @@ func (ec *executionContext) _Subscription_onDeleteTag(ctx context.Context, field
 		return nil
 	}
 	return func() graphql.Marshaler {
-		res, ok := <-resTmp.(<-chan string)
+		res, ok := <-resTmp.(<-chan common.ID)
 		if !ok {
 			return nil
 		}
@@ -1792,7 +2595,97 @@ func (ec *executionContext) _Subscription_onDeleteTag(ctx context.Context, field
 			w.Write([]byte{'{'})
 			graphql.MarshalString(field.Alias).MarshalGQL(w)
 			w.Write([]byte{':'})
-			ec.marshalNID2string(ctx, field.Selections, res).MarshalGQL(w)
+			ec.marshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, field.Selections, res).MarshalGQL(w)
+			w.Write([]byte{'}'})
+		})
+	}
+}
+
+func (ec *executionContext) _Subscription_onAddTagToTea(ctx context.Context, field graphql.CollectedField) (ret func() graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = nil
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Subscription().OnAddTagToTea(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return nil
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return nil
+	}
+	return func() graphql.Marshaler {
+		res, ok := <-resTmp.(<-chan *model.Tea)
+		if !ok {
+			return nil
+		}
+		return graphql.WriterFunc(func(w io.Writer) {
+			w.Write([]byte{'{'})
+			graphql.MarshalString(field.Alias).MarshalGQL(w)
+			w.Write([]byte{':'})
+			ec.marshalNTea2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTea(ctx, field.Selections, res).MarshalGQL(w)
+			w.Write([]byte{'}'})
+		})
+	}
+}
+
+func (ec *executionContext) _Subscription_onDeleteTagFromTea(ctx context.Context, field graphql.CollectedField) (ret func() graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = nil
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Subscription().OnDeleteTagFromTea(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return nil
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return nil
+	}
+	return func() graphql.Marshaler {
+		res, ok := <-resTmp.(<-chan *model.Tea)
+		if !ok {
+			return nil
+		}
+		return graphql.WriterFunc(func(w io.Writer) {
+			w.Write([]byte{'{'})
+			graphql.MarshalString(field.Alias).MarshalGQL(w)
+			w.Write([]byte{':'})
+			ec.marshalNTea2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTea(ctx, field.Selections, res).MarshalGQL(w)
 			w.Write([]byte{'}'})
 		})
 	}
@@ -1828,9 +2721,9 @@ func (ec *executionContext) _Tag_id(ctx context.Context, field graphql.Collected
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(common.ID)
 	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
+	return ec.marshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Tag_name(ctx context.Context, field graphql.CollectedField, obj *model.Tag) (ret graphql.Marshaler) {
@@ -1903,6 +2796,111 @@ func (ec *executionContext) _Tag_color(ctx context.Context, field graphql.Collec
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Tag_category(ctx context.Context, field graphql.CollectedField, obj *model.Tag) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Tag",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Tag().Category(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.TagCategory)
+	fc.Result = res
+	return ec.marshalNTagCategory2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTagCategory(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _TagCategory_id(ctx context.Context, field graphql.CollectedField, obj *model.TagCategory) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "TagCategory",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(common.ID)
+	fc.Result = res
+	return ec.marshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _TagCategory_name(ctx context.Context, field graphql.CollectedField, obj *model.TagCategory) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "TagCategory",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Tea_id(ctx context.Context, field graphql.CollectedField, obj *model.Tea) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -1933,9 +2931,9 @@ func (ec *executionContext) _Tea_id(ctx context.Context, field graphql.Collected
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(common.ID)
 	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
+	return ec.marshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Tea_name(ctx context.Context, field graphql.CollectedField, obj *model.Tea) (ret graphql.Marshaler) {
@@ -2005,7 +3003,7 @@ func (ec *executionContext) _Tea_type(ctx context.Context, field graphql.Collect
 	}
 	res := resTmp.(model.Type)
 	fc.Result = res
-	return ec.marshalNType2githubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐType(ctx, field.Selections, res)
+	return ec.marshalNType2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐType(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Tea_description(ctx context.Context, field graphql.CollectedField, obj *model.Tea) (ret graphql.Marshaler) {
@@ -2041,6 +3039,41 @@ func (ec *executionContext) _Tea_description(ctx context.Context, field graphql.
 	res := resTmp.(string)
 	fc.Result = res
 	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Tea_tags(ctx context.Context, field graphql.CollectedField, obj *model.Tea) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Tea",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Tea().Tags(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Tag)
+	fc.Result = res
+	return ec.marshalNTag2ᚕᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTagᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Directive_name(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
@@ -3140,7 +4173,7 @@ func (ec *executionContext) unmarshalInputQRRecordData(ctx context.Context, obj 
 			var err error
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tea"))
-			it.Tea, err = ec.unmarshalNID2string(ctx, v)
+			it.Tea, err = ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -3184,7 +4217,7 @@ func (ec *executionContext) unmarshalInputTeaData(ctx context.Context, obj inter
 			var err error
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
-			it.Type, err = ec.unmarshalNType2githubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐType(ctx, v)
+			it.Type, err = ec.unmarshalNType2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐType(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -3235,6 +4268,16 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
+		case "addTagToTea":
+			out.Values[i] = ec._Mutation_addTagToTea(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "deleteTagFromTea":
+			out.Values[i] = ec._Mutation_deleteTagFromTea(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "deleteTea":
 			out.Values[i] = ec._Mutation_deleteTea(ctx, field)
 			if out.Values[i] == graphql.Null {
@@ -3245,12 +4288,41 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
+		case "createTagCategory":
+			out.Values[i] = ec._Mutation_createTagCategory(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "updateTagCategory":
+			out.Values[i] = ec._Mutation_updateTagCategory(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "deleteTagCategory":
+			out.Values[i] = ec._Mutation_deleteTagCategory(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "createTag":
 			out.Values[i] = ec._Mutation_createTag(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "updateTag":
 			out.Values[i] = ec._Mutation_updateTag(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "changeTagCategory":
+			out.Values[i] = ec._Mutation_changeTagCategory(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "deleteTag":
 			out.Values[i] = ec._Mutation_deleteTag(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -3380,6 +4452,20 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				}
 				return res
 			})
+		case "getTagsCategories":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getTagsCategories(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
 		case "__type":
 			out.Values[i] = ec._Query___type(ctx, field)
 		case "__schema":
@@ -3414,12 +4500,22 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 		return ec._Subscription_onUpdateTea(ctx, fields[0])
 	case "onDeleteTea":
 		return ec._Subscription_onDeleteTea(ctx, fields[0])
+	case "onCreateTagCategory":
+		return ec._Subscription_onCreateTagCategory(ctx, fields[0])
+	case "onUpdateTagCategory":
+		return ec._Subscription_onUpdateTagCategory(ctx, fields[0])
+	case "onDeleteTagCategory":
+		return ec._Subscription_onDeleteTagCategory(ctx, fields[0])
 	case "onCreateTag":
 		return ec._Subscription_onCreateTag(ctx, fields[0])
 	case "onUpdateTag":
 		return ec._Subscription_onUpdateTag(ctx, fields[0])
 	case "onDeleteTag":
 		return ec._Subscription_onDeleteTag(ctx, fields[0])
+	case "onAddTagToTea":
+		return ec._Subscription_onAddTagToTea(ctx, fields[0])
+	case "onDeleteTagFromTea":
+		return ec._Subscription_onDeleteTagFromTea(ctx, fields[0])
 	default:
 		panic("unknown field " + strconv.Quote(fields[0].Name))
 	}
@@ -3439,15 +4535,61 @@ func (ec *executionContext) _Tag(ctx context.Context, sel ast.SelectionSet, obj 
 		case "id":
 			out.Values[i] = ec._Tag_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "name":
 			out.Values[i] = ec._Tag_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "color":
 			out.Values[i] = ec._Tag_color(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "category":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Tag_category(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var tagCategoryImplementors = []string{"TagCategory"}
+
+func (ec *executionContext) _TagCategory(ctx context.Context, sel ast.SelectionSet, obj *model.TagCategory) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, tagCategoryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("TagCategory")
+		case "id":
+			out.Values[i] = ec._TagCategory_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "name":
+			out.Values[i] = ec._TagCategory_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -3476,23 +4618,37 @@ func (ec *executionContext) _Tea(ctx context.Context, sel ast.SelectionSet, obj 
 		case "id":
 			out.Values[i] = ec._Tea_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "name":
 			out.Values[i] = ec._Tea_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "type":
 			out.Values[i] = ec._Tea_type(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "description":
 			out.Values[i] = ec._Tea_description(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
+		case "tags":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Tea_tags(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -3779,19 +4935,14 @@ func (ec *executionContext) marshalNDate2timeᚐTime(ctx context.Context, sel as
 	return res
 }
 
-func (ec *executionContext) unmarshalNID2string(ctx context.Context, v interface{}) (string, error) {
-	res, err := graphql.UnmarshalID(v)
+func (ec *executionContext) unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx context.Context, v interface{}) (common.ID, error) {
+	var res common.ID
+	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNID2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
-	res := graphql.MarshalID(v)
-	if res == graphql.Null {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "must not be null")
-		}
-	}
-	return res
+func (ec *executionContext) marshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx context.Context, sel ast.SelectionSet, v common.ID) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v interface{}) (int, error) {
@@ -3809,11 +4960,11 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 	return res
 }
 
-func (ec *executionContext) marshalNQRRecord2githubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐQRRecord(ctx context.Context, sel ast.SelectionSet, v model.QRRecord) graphql.Marshaler {
+func (ec *executionContext) marshalNQRRecord2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐQRRecord(ctx context.Context, sel ast.SelectionSet, v model.QRRecord) graphql.Marshaler {
 	return ec._QRRecord(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNQRRecord2ᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐQRRecord(ctx context.Context, sel ast.SelectionSet, v *model.QRRecord) graphql.Marshaler {
+func (ec *executionContext) marshalNQRRecord2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐQRRecord(ctx context.Context, sel ast.SelectionSet, v *model.QRRecord) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
@@ -3823,7 +4974,7 @@ func (ec *executionContext) marshalNQRRecord2ᚖgithubᚗcomᚋlueurxaxᚋteaele
 	return ec._QRRecord(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNQRRecordData2githubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐQRRecordData(ctx context.Context, v interface{}) (model.QRRecordData, error) {
+func (ec *executionContext) unmarshalNQRRecordData2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐQRRecordData(ctx context.Context, v interface{}) (model.QRRecordData, error) {
 	res, err := ec.unmarshalInputQRRecordData(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
@@ -3843,11 +4994,11 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 	return res
 }
 
-func (ec *executionContext) marshalNTag2githubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTag(ctx context.Context, sel ast.SelectionSet, v model.Tag) graphql.Marshaler {
+func (ec *executionContext) marshalNTag2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTag(ctx context.Context, sel ast.SelectionSet, v model.Tag) graphql.Marshaler {
 	return ec._Tag(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNTag2ᚕᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTagᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Tag) graphql.Marshaler {
+func (ec *executionContext) marshalNTag2ᚕᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTagᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Tag) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -3871,7 +5022,7 @@ func (ec *executionContext) marshalNTag2ᚕᚖgithubᚗcomᚋlueurxaxᚋteaeleph
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNTag2ᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTag(ctx, sel, v[i])
+			ret[i] = ec.marshalNTag2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTag(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -3884,7 +5035,7 @@ func (ec *executionContext) marshalNTag2ᚕᚖgithubᚗcomᚋlueurxaxᚋteaeleph
 	return ret
 }
 
-func (ec *executionContext) marshalNTag2ᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTag(ctx context.Context, sel ast.SelectionSet, v *model.Tag) graphql.Marshaler {
+func (ec *executionContext) marshalNTag2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTag(ctx context.Context, sel ast.SelectionSet, v *model.Tag) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
@@ -3894,11 +5045,11 @@ func (ec *executionContext) marshalNTag2ᚖgithubᚗcomᚋlueurxaxᚋteaelephant
 	return ec._Tag(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNTea2githubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTea(ctx context.Context, sel ast.SelectionSet, v model.Tea) graphql.Marshaler {
-	return ec._Tea(ctx, sel, &v)
+func (ec *executionContext) marshalNTagCategory2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTagCategory(ctx context.Context, sel ast.SelectionSet, v model.TagCategory) graphql.Marshaler {
+	return ec._TagCategory(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNTea2ᚕᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTeaᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Tea) graphql.Marshaler {
+func (ec *executionContext) marshalNTagCategory2ᚕᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTagCategoryᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.TagCategory) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -3922,7 +5073,7 @@ func (ec *executionContext) marshalNTea2ᚕᚖgithubᚗcomᚋlueurxaxᚋteaeleph
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNTea2ᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTea(ctx, sel, v[i])
+			ret[i] = ec.marshalNTagCategory2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTagCategory(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -3935,7 +5086,58 @@ func (ec *executionContext) marshalNTea2ᚕᚖgithubᚗcomᚋlueurxaxᚋteaeleph
 	return ret
 }
 
-func (ec *executionContext) marshalNTea2ᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTea(ctx context.Context, sel ast.SelectionSet, v *model.Tea) graphql.Marshaler {
+func (ec *executionContext) marshalNTagCategory2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTagCategory(ctx context.Context, sel ast.SelectionSet, v *model.TagCategory) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._TagCategory(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNTea2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTea(ctx context.Context, sel ast.SelectionSet, v model.Tea) graphql.Marshaler {
+	return ec._Tea(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNTea2ᚕᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTeaᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Tea) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNTea2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTea(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNTea2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTea(ctx context.Context, sel ast.SelectionSet, v *model.Tea) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
@@ -3945,18 +5147,18 @@ func (ec *executionContext) marshalNTea2ᚖgithubᚗcomᚋlueurxaxᚋteaelephant
 	return ec._Tea(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNTeaData2githubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTeaData(ctx context.Context, v interface{}) (model.TeaData, error) {
+func (ec *executionContext) unmarshalNTeaData2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTeaData(ctx context.Context, v interface{}) (model.TeaData, error) {
 	res, err := ec.unmarshalInputTeaData(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNType2githubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐType(ctx context.Context, v interface{}) (model.Type, error) {
+func (ec *executionContext) unmarshalNType2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐType(ctx context.Context, v interface{}) (model.Type, error) {
 	var res model.Type
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNType2githubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐType(ctx context.Context, sel ast.SelectionSet, v model.Type) graphql.Marshaler {
+func (ec *executionContext) marshalNType2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐType(ctx context.Context, sel ast.SelectionSet, v model.Type) graphql.Marshaler {
 	return v
 }
 
@@ -4213,22 +5415,23 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	return graphql.MarshalBoolean(*v)
 }
 
-func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v interface{}) (*string, error) {
+func (ec *executionContext) unmarshalOID2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx context.Context, v interface{}) (*common.ID, error) {
 	if v == nil {
 		return nil, nil
 	}
-	res, err := graphql.UnmarshalID(v)
-	return &res, graphql.ErrorOnPath(ctx, err)
+	var res = new(common.ID)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.SelectionSet, v *string) graphql.Marshaler {
+func (ec *executionContext) marshalOID2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx context.Context, sel ast.SelectionSet, v *common.ID) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
-	return graphql.MarshalID(*v)
+	return v
 }
 
-func (ec *executionContext) marshalOQRRecord2ᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐQRRecord(ctx context.Context, sel ast.SelectionSet, v *model.QRRecord) graphql.Marshaler {
+func (ec *executionContext) marshalOQRRecord2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐQRRecord(ctx context.Context, sel ast.SelectionSet, v *model.QRRecord) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -4259,14 +5462,14 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	return graphql.MarshalString(*v)
 }
 
-func (ec *executionContext) marshalOTag2ᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTag(ctx context.Context, sel ast.SelectionSet, v *model.Tag) graphql.Marshaler {
+func (ec *executionContext) marshalOTag2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTag(ctx context.Context, sel ast.SelectionSet, v *model.Tag) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._Tag(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOTea2ᚖgithubᚗcomᚋlueurxaxᚋteaelephantmemoryᚋinternalᚋserverᚋapiᚋv2ᚋmodelsᚐTea(ctx context.Context, sel ast.SelectionSet, v *model.Tea) graphql.Marshaler {
+func (ec *executionContext) marshalOTea2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTea(ctx context.Context, sel ast.SelectionSet, v *model.Tea) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}

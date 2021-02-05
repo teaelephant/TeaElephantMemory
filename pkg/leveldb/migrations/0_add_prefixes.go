@@ -3,6 +3,8 @@ package migrations
 import (
 	"encoding/json"
 
+	uuid "github.com/satori/go.uuid"
+
 	"github.com/teaelephant/TeaElephantMemory/common"
 )
 
@@ -19,7 +21,7 @@ func (a *addPrefixes) Migrate(db MigratingDB) error {
 		if err = json.Unmarshal(record.Value, rec); err != nil {
 			return err
 		}
-		if _, err = db.Update(string(record.Key), rec); err != nil {
+		if _, err = db.Update(uuid.FromBytesOrNil(record.Key), rec); err != nil {
 			return err
 		}
 	}

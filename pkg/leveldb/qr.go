@@ -1,34 +1,33 @@
 package leveldb
 
 import (
-	"encoding/json"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
-	dbCommon "github.com/teaelephant/TeaElephantMemory/pkg/leveldb/common"
-	"github.com/teaelephant/TeaElephantMemory/pkg/leveldb/prefix"
+	"github.com/teaelephant/TeaElephantMemory/common/key_value/encoder"
 )
 
 type qr interface {
-	WriteQR(id string, data *common.QR) (err error)
-	ReadQR(id string) (record *common.QR, err error)
+	WriteQR(id uuid.UUID, data *common.QR) (err error)
+	ReadQR(id uuid.UUID) (record *common.QR, err error)
 }
 
-func (D *levelStorage) WriteQR(id string, qrData *common.QR) error {
-	data, err := json.Marshal(qrData)
+func (l *levelStorage) WriteQR(id uuid.UUID, qrData *common.QR) error {
+	data, err := (*encoder.QR)(qrData).Encode()
 	if err != nil {
 		return err
 	}
-	return D.db.Put(dbCommon.AppendPrefix(prefix.QR, []byte(id)), data, nil)
+	return l.db.Put(l.keyBuilder.QR(id), data, nil)
 }
 
-func (D *levelStorage) ReadQR(id string) (*common.QR, error) {
-	data, err := D.db.Get(dbCommon.AppendPrefix(prefix.QR, []byte(id)), nil)
+func (l *levelStorage) ReadQR(id uuid.UUID) (*common.QR, error) {
+	data, err := l.db.Get(l.keyBuilder.QR(id), nil)
 	if err != nil {
 		return nil, err
 	}
-	rec := new(common.QR)
-	if err = json.Unmarshal(data, rec); err != nil {
+	rec := new(encoder.QR)
+	if err = rec.Decode(data); err != nil {
 		return nil, err
 	}
-	return rec, nil
+	return (*common.QR)(rec), nil
 }

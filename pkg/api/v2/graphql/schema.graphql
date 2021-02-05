@@ -5,26 +5,43 @@ type Query {
     getTea(id: ID!): Tea
     getQrRecord(id: ID!): QRRecord
     getTag(id: ID!): Tag
-    getTags(name: String): [Tag!]!
+    getTags(name: String, category: ID): [Tag!]!
+    getTagsCategories(name: String): [TagCategory!]!
 }
 
 type Mutation {
     newTea(tea: TeaData!): Tea!
     updateTea(id: ID!, tea: TeaData!): Tea!
+    addTagToTea(teaID: ID!, tagID: ID!): Tea!
+    deleteTagFromTea(teaID: ID!, tagID: ID!): Tea!
     deleteTea(id: ID!): ID!
     writeToQR(id: ID!, data: QRRecordData!): QRRecord!
-    createTag(name: String!, color: String!): Tag
-    updateTag(id: ID!, name: String!, color: String!): Tag
-    deleteTag(id: ID!): ID
+    createTagCategory(name: String!): TagCategory!
+    updateTagCategory(id: ID!, name: String!): TagCategory!
+    deleteTagCategory(id:ID!): ID!
+    createTag(name: String!, color: String!, category: ID!): Tag!
+    updateTag(id: ID!, name: String!, color: String!): Tag!
+    changeTagCategory(id: ID!, category: ID!): Tag!
+    deleteTag(id: ID!): ID!
 }
 
 type Subscription {
     onCreateTea: Tea!
     onUpdateTea: Tea!
     onDeleteTea: ID!
+    onCreateTagCategory: TagCategory!
+    onUpdateTagCategory: TagCategory!
+    onDeleteTagCategory: ID!
     onCreateTag: Tag!
     onUpdateTag: Tag!
     onDeleteTag: ID!
+    onAddTagToTea: Tea!
+    onDeleteTagFromTea: Tea!
+}
+
+type TagCategory {
+    id: ID!
+    name: String!
 }
 
 type QRRecord {
@@ -45,6 +62,7 @@ type Tea {
     name: String!
     type: Type!
     description: String!
+    tags: [Tag!]!
 }
 
 input TeaData {
@@ -57,6 +75,7 @@ type Tag {
     id: ID!
     name: String!
     color: String!
+    category: TagCategory!
 }
 
 enum Type {

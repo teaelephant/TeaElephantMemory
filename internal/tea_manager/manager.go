@@ -3,28 +3,31 @@ package tea_manager
 import (
 	"sync"
 
+	uuid "github.com/satori/go.uuid"
+
 	"github.com/teaelephant/TeaElephantMemory/common"
-	model "github.com/teaelephant/TeaElephantMemory/internal/server/api/v2/models"
+	gqlCommon "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common"
+	model "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/models"
 )
 
 type TeaManager interface {
 	Create(data *common.TeaData) (tea *common.Tea, err error)
-	Update(id string, rec *common.TeaData) (record *common.Tea, err error)
-	Delete(id string) error
-	Get(id string) (record *common.Tea, err error)
+	Update(id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
+	Delete(id uuid.UUID) error
+	Get(id uuid.UUID) (record *common.Tea, err error)
 	List(search *string) ([]common.Tea, error)
 	SubscribeOnCreate() (<-chan *model.Tea, error)
 	SubscribeOnUpdate() (<-chan *model.Tea, error)
-	SubscribeOnDelete() (<-chan string, error)
+	SubscribeOnDelete() (<-chan gqlCommon.ID, error)
 	Start()
 }
 
 type storage interface {
 	WriteRecord(rec *common.TeaData) (record *common.Tea, err error)
-	ReadRecord(id string) (record *common.Tea, err error)
+	ReadRecord(id uuid.UUID) (record *common.Tea, err error)
 	ReadAllRecords(search string) ([]common.Tea, error)
-	Update(id string, rec *common.TeaData) (record *common.Tea, err error)
-	Delete(id string) error
+	Update(id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
+	Delete(id uuid.UUID) error
 }
 
 type manager struct {
@@ -34,10 +37,10 @@ type manager struct {
 	muUpdate          sync.RWMutex
 	updateSubscribers []chan<- *model.Tea
 	muDelete          sync.RWMutex
-	deleteSubscribers []chan<- string
+	deleteSubscribers []chan<- gqlCommon.ID
 	create            chan *common.Tea
 	update            chan *common.Tea
-	delete            chan string
+	delete            chan uuid.UUID
 }
 
 func (m *manager) SubscribeOnCreate() (<-chan *model.Tea, error) {
@@ -56,15 +59,15 @@ func (m *manager) SubscribeOnUpdate() (<-chan *model.Tea, error) {
 	return ch, nil
 }
 
-func (m *manager) SubscribeOnDelete() (<-chan string, error) {
-	ch := make(chan string)
+func (m *manager) SubscribeOnDelete() (<-chan gqlCommon.ID, error) {
+	ch := make(chan gqlCommon.ID)
 	m.muDelete.Lock()
 	defer m.muDelete.Unlock()
 	m.deleteSubscribers = append(m.deleteSubscribers, ch)
 	return ch, nil
 }
 
-func (m *manager) Get(id string) (record *common.Tea, err error) {
+func (m *manager) Get(id uuid.UUID) (record *common.Tea, err error) {
 	return m.ReadRecord(id)
 }
 
@@ -84,7 +87,7 @@ func (m *manager) Create(data *common.TeaData) (*common.Tea, error) {
 	return res, nil
 }
 
-func (m *manager) Update(id string, rec *common.TeaData) (*common.Tea, error) {
+func (m *manager) Update(id uuid.UUID, rec *common.TeaData) (*common.Tea, error) {
 	res, err := m.storage.Update(id, rec)
 	if err != nil {
 		return nil, err
@@ -93,7 +96,7 @@ func (m *manager) Update(id string, rec *common.TeaData) (*common.Tea, error) {
 	return res, nil
 }
 
-func (m *manager) Delete(id string) error {
+func (m *manager) Delete(id uuid.UUID) error {
 	if err := m.storage.Delete(id); err != nil {
 		return err
 	}
@@ -110,9 +113,9 @@ func NewManager(storage storage) TeaManager {
 		storage:           storage,
 		createSubscribers: make([]chan<- *model.Tea, 0),
 		updateSubscribers: make([]chan<- *model.Tea, 0),
-		deleteSubscribers: make([]chan<- string, 0),
+		deleteSubscribers: make([]chan<- gqlCommon.ID, 0),
 		create:            make(chan *common.Tea, 100),
 		update:            make(chan *common.Tea, 100),
-		delete:            make(chan string, 100),
+		delete:            make(chan uuid.UUID, 100),
 	}
 }

@@ -7,32 +7,41 @@ import (
 	"io"
 	"strconv"
 	"time"
+
+	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common"
 )
 
 type QRRecord struct {
-	ID             string    `json:"id"`
+	ID             common.ID `json:"id"`
 	Tea            *Tea      `json:"tea"`
 	BowlingTemp    int       `json:"bowlingTemp"`
 	ExpirationDate time.Time `json:"expirationDate"`
 }
 
 type QRRecordData struct {
-	Tea            string    `json:"tea"`
+	Tea            common.ID `json:"tea"`
 	BowlingTemp    int       `json:"bowlingTemp"`
 	ExpirationDate time.Time `json:"expirationDate"`
 }
 
 type Tag struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Color string `json:"color"`
+	ID       common.ID    `json:"id"`
+	Name     string       `json:"name"`
+	Color    string       `json:"color"`
+	Category *TagCategory `json:"category"`
+}
+
+type TagCategory struct {
+	ID   common.ID `json:"id"`
+	Name string    `json:"name"`
 }
 
 type Tea struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Type        Type   `json:"type"`
-	Description string `json:"description"`
+	ID          common.ID `json:"id"`
+	Name        string    `json:"name"`
+	Type        Type      `json:"type"`
+	Description string    `json:"description"`
+	Tags        []*Tag    `json:"tags"`
 }
 
 type TeaData struct {

@@ -7,19 +7,20 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	uuid "github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
 )
 
-var errorEmptyID = errors.New("empty id")
+var errorEmptyID = errors.New("is not id")
 
 type Storage interface {
 	WriteRecord(rec *common.TeaData) (record *common.Tea, err error)
-	ReadRecord(id string) (record *common.Tea, err error)
+	ReadRecord(id uuid.UUID) (record *common.Tea, err error)
 	ReadAllRecords(search string) ([]common.Tea, error)
-	Update(id string, rec *common.TeaData) (record *common.Tea, err error)
-	Delete(id string) error
+	Update(id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
+	Delete(id uuid.UUID) error
 }
 
 type errorCreator interface {
@@ -66,14 +67,15 @@ func (m *RecordManager) NewRecord(w http.ResponseWriter, r *http.Request) {
 
 // Read record from Storage by id
 func (m *RecordManager) ReadRecord(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-	logrus.WithField("id", id).Info("read record")
-	if id == "" {
-		logrus.Error("empty id")
+	id := new(uuid.UUID)
+	if err := id.UnmarshalText([]byte(mux.Vars(r)["id"])); err != nil {
+		logrus.Error("is not id")
 		m.ResponseError(w, common.Error{Code: http.StatusBadRequest, Msg: errorEmptyID})
 		return
 	}
-	rec, err := m.Storage.ReadRecord(id)
+	logrus.WithField("id", id).Info("read record")
+
+	rec, err := m.Storage.ReadRecord(*id)
 	if err != nil {
 		logrus.WithError(err).Error("read from Storage httperror")
 		m.ResponseError(w, common.Error{Code: http.StatusInternalServerError, Msg: err})
@@ -104,13 +106,13 @@ func (m *RecordManager) ReadAllRecords(w http.ResponseWriter, r *http.Request) {
 }
 
 func (m *RecordManager) UpdateRecord(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-	logrus.WithField("id", id).Info("update record")
-	if id == "" {
-		logrus.Error("empty id")
+	id := new(uuid.UUID)
+	if err := id.UnmarshalText([]byte(mux.Vars(r)["id"])); err != nil {
+		logrus.Error("is not id")
 		m.ResponseError(w, common.Error{Code: http.StatusBadRequest, Msg: errorEmptyID})
 		return
 	}
+	logrus.WithField("id", id).Info("update record")
 	record := new(common.TeaData)
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -123,7 +125,7 @@ func (m *RecordManager) UpdateRecord(w http.ResponseWriter, r *http.Request) {
 		m.ResponseError(w, common.Error{Code: http.StatusInternalServerError, Msg: err})
 		return
 	}
-	rec, err := m.Storage.Update(id, record)
+	rec, err := m.Storage.Update(*id, record)
 	if err != nil {
 		logrus.WithError(err).Error("read from Storage httperror")
 		m.ResponseError(w, common.Error{Code: http.StatusInternalServerError, Msg: err})
@@ -137,20 +139,20 @@ func (m *RecordManager) UpdateRecord(w http.ResponseWriter, r *http.Request) {
 }
 
 func (m *RecordManager) DeleteRecord(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-	logrus.WithField("id", id).Info("delete record")
-	if id == "" {
-		logrus.Error("empty id")
+	id := new(uuid.UUID)
+	if err := id.UnmarshalText([]byte(mux.Vars(r)["id"])); err != nil {
+		logrus.Error("is not id")
 		m.ResponseError(w, common.Error{Code: http.StatusBadRequest, Msg: errorEmptyID})
 		return
 	}
-	if err := m.Storage.Delete(id); err != nil {
+	logrus.WithField("id", id).Info("delete record")
+	if err := m.Storage.Delete(*id); err != nil {
 		logrus.WithError(err).Error("delete from Storage httperror")
 		m.ResponseError(w, common.Error{Code: http.StatusInternalServerError, Msg: err})
 	}
 	if err := m.transport.Response(w, struct {
 		ID string `json:"id"`
-	}{ID: id}); err != nil {
+	}{ID: id.String()}); err != nil {
 		logrus.WithError(err).Error("write response httperror")
 		m.ResponseError(w, common.Error{Code: http.StatusInternalServerError, Msg: err})
 		return

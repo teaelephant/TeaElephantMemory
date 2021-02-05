@@ -2,9 +2,9 @@ package leveldb
 
 import "github.com/teaelephant/TeaElephantMemory/pkg/leveldb/common"
 
-func (D *levelStorage) ReadAll() ([]common.KeyValue, error) {
+func (l *levelStorage) ReadAll() ([]common.KeyValue, error) {
 	res := make([]common.KeyValue, 0)
-	iter := D.db.NewIterator(nil, nil)
+	iter := l.db.NewIterator(nil, nil)
 	for iter.Next() {
 		key := make([]byte, len(iter.Key()))
 		value := make([]byte, len(iter.Value()))

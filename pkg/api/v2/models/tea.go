@@ -1,10 +1,15 @@
 package model
 
-import "github.com/teaelephant/TeaElephantMemory/common"
+import (
+	uuid "github.com/satori/go.uuid"
+
+	"github.com/teaelephant/TeaElephantMemory/common"
+	gqlCommon "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common"
+)
 
 func FromCommonTea(source *common.Tea) *Tea {
 	return &Tea{
-		ID:          source.ID,
+		ID:          gqlCommon.ID(source.ID),
 		Name:        source.Name,
 		Type:        Type(source.Type),
 		Description: source.Description,
@@ -13,7 +18,7 @@ func FromCommonTea(source *common.Tea) *Tea {
 
 func (t *Tea) ToCommonTea() common.Tea {
 	return common.Tea{
-		ID: t.ID,
+		ID: uuid.UUID(t.ID),
 		TeaData: &common.TeaData{
 			Name:        t.Name,
 			Type:        t.Type.String(),
