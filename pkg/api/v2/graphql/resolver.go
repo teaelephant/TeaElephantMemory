@@ -1,6 +1,8 @@
 package graphql
 
 import (
+	"context"
+
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
@@ -15,44 +17,44 @@ type logger interface {
 }
 
 type teaData interface {
-	Create(data *common.TeaData) (tea *common.Tea, err error)
-	Update(id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
-	Delete(id uuid.UUID) error
-	Get(id uuid.UUID) (record *common.Tea, err error)
-	List(search *string) ([]common.Tea, error)
-	SubscribeOnCreate() (<-chan *model.Tea, error)
-	SubscribeOnUpdate() (<-chan *model.Tea, error)
-	SubscribeOnDelete() (<-chan gqlCommon.ID, error)
+	Create(ctx context.Context, data *common.TeaData) (tea *common.Tea, err error)
+	Update(ctx context.Context, id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
+	Delete(ctx context.Context, id uuid.UUID) error
+	Get(ctx context.Context, id uuid.UUID) (record *common.Tea, err error)
+	List(ctx context.Context, search *string) ([]common.Tea, error)
+	SubscribeOnCreate(ctx context.Context) (<-chan *model.Tea, error)
+	SubscribeOnUpdate(ctx context.Context) (<-chan *model.Tea, error)
+	SubscribeOnDelete(ctx context.Context) (<-chan gqlCommon.ID, error)
 }
 
 type qrManager interface {
-	Set(id uuid.UUID, data *model.QRRecordData) (err error)
-	Get(id uuid.UUID) (*model.QRRecordData, error)
+	Set(ctx context.Context, id uuid.UUID, data *model.QRRecordData) (err error)
+	Get(ctx context.Context, id uuid.UUID) (*model.QRRecordData, error)
 }
 
 type tagManager interface {
-	CreateCategory(name string) (category *common.TagCategory, err error)
-	UpdateCategory(id uuid.UUID, name string) (category *common.TagCategory, err error)
-	DeleteCategory(id uuid.UUID) (err error)
-	GetCategory(id uuid.UUID) (category *common.TagCategory, err error)
-	ListCategory(search *string) (list []common.TagCategory, err error)
-	SubscribeOnCreateCategory() (<-chan *model.TagCategory, error)
-	SubscribeOnUpdateCategory() (<-chan *model.TagCategory, error)
-	SubscribeOnDeleteCategory() (<-chan gqlCommon.ID, error)
-	Create(name, color string, categoryID uuid.UUID) (*common.Tag, error)
-	Update(id uuid.UUID, name, color string) (*common.Tag, error)
-	ChangeCategory(id, categoryID uuid.UUID) (*common.Tag, error)
-	Delete(id uuid.UUID) error
-	Get(id uuid.UUID) (*common.Tag, error)
-	List(name *string, categoryID *uuid.UUID) (list []common.Tag, err error)
-	SubscribeOnCreate() (<-chan *model.Tag, error)
-	SubscribeOnUpdate() (<-chan *model.Tag, error)
-	SubscribeOnDelete() (<-chan gqlCommon.ID, error)
-	ListByTea(id uuid.UUID) (list []common.Tag, err error)
-	AddTagToTea(tea uuid.UUID, tag uuid.UUID) error
-	DeleteTagFromTea(tea uuid.UUID, tag uuid.UUID) error
-	SubscribeOnAddTagToTea() (<-chan *model.Tea, error)
-	SubscribeOnDeleteTagToTea() (<-chan *model.Tea, error)
+	CreateCategory(ctx context.Context, name string) (category *common.TagCategory, err error)
+	UpdateCategory(ctx context.Context, id uuid.UUID, name string) (category *common.TagCategory, err error)
+	DeleteCategory(ctx context.Context, id uuid.UUID) (err error)
+	GetCategory(ctx context.Context, id uuid.UUID) (category *common.TagCategory, err error)
+	ListCategory(ctx context.Context, search *string) (list []common.TagCategory, err error)
+	SubscribeOnCreateCategory(ctx context.Context) (<-chan *model.TagCategory, error)
+	SubscribeOnUpdateCategory(ctx context.Context) (<-chan *model.TagCategory, error)
+	SubscribeOnDeleteCategory(ctx context.Context) (<-chan gqlCommon.ID, error)
+	Create(ctx context.Context, name, color string, categoryID uuid.UUID) (*common.Tag, error)
+	Update(ctx context.Context, id uuid.UUID, name, color string) (*common.Tag, error)
+	ChangeCategory(ctx context.Context, id, categoryID uuid.UUID) (*common.Tag, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+	Get(ctx context.Context, id uuid.UUID) (*common.Tag, error)
+	List(ctx context.Context, name *string, categoryID *uuid.UUID) (list []common.Tag, err error)
+	SubscribeOnCreate(ctx context.Context) (<-chan *model.Tag, error)
+	SubscribeOnUpdate(ctx context.Context) (<-chan *model.Tag, error)
+	SubscribeOnDelete(ctx context.Context) (<-chan gqlCommon.ID, error)
+	ListByTea(ctx context.Context, id uuid.UUID) (list []common.Tag, err error)
+	AddTagToTea(ctx context.Context, tea uuid.UUID, tag uuid.UUID) error
+	DeleteTagFromTea(ctx context.Context, tea uuid.UUID, tag uuid.UUID) error
+	SubscribeOnAddTagToTea(ctx context.Context) (<-chan *model.Tea, error)
+	SubscribeOnDeleteTagToTea(ctx context.Context) (<-chan *model.Tea, error)
 }
 
 type Resolver struct {

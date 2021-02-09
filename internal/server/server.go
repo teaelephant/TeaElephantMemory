@@ -1,11 +1,15 @@
 package server
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
 	uuid "github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 
@@ -20,27 +24,27 @@ import (
 )
 
 type storage interface {
-	WriteQR(id uuid.UUID, data *common.QR) (err error)
-	ReadQR(id uuid.UUID) (record *common.QR, err error)
-	WriteRecord(rec *common.TeaData) (record *common.Tea, err error)
-	ReadRecord(id uuid.UUID) (record *common.Tea, err error)
-	ReadAllRecords(search string) ([]common.Tea, error)
-	Update(id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
-	Delete(id uuid.UUID) error
-	CreateTagCategory(name string) (category *common.TagCategory, err error)
-	UpdateTagCategory(id uuid.UUID, name string) error
-	DeleteTagCategory(id uuid.UUID) (removedTags []uuid.UUID, err error)
-	GetTagCategory(id uuid.UUID) (category *common.TagCategory, err error)
-	ListTagCategories(search *string) (list []common.TagCategory, err error)
-	CreateTag(name, color string, categoryID uuid.UUID) (*common.Tag, error)
-	UpdateTag(id uuid.UUID, name, color string) (*common.Tag, error)
-	ChangeTagCategory(id, categoryID uuid.UUID) (*common.Tag, error)
-	DeleteTag(id uuid.UUID) error
-	GetTag(id uuid.UUID) (*common.Tag, error)
-	ListTags(name *string, categoryID *uuid.UUID) (list []common.Tag, err error)
-	AddTagToTea(tea uuid.UUID, tag uuid.UUID) error
-	DeleteTagFromTea(tea uuid.UUID, tag uuid.UUID) error
-	ListByTea(id uuid.UUID) ([]common.Tag, error)
+	WriteQR(ctx context.Context, id uuid.UUID, data *common.QR) (err error)
+	ReadQR(ctx context.Context, id uuid.UUID) (record *common.QR, err error)
+	WriteRecord(ctx context.Context, rec *common.TeaData) (record *common.Tea, err error)
+	ReadRecord(ctx context.Context, id uuid.UUID) (record *common.Tea, err error)
+	ReadAllRecords(ctx context.Context, search string) ([]common.Tea, error)
+	Update(ctx context.Context, id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
+	Delete(ctx context.Context, id uuid.UUID) error
+	CreateTagCategory(ctx context.Context, name string) (category *common.TagCategory, err error)
+	UpdateTagCategory(ctx context.Context, id uuid.UUID, name string) error
+	DeleteTagCategory(ctx context.Context, id uuid.UUID) (removedTags []uuid.UUID, err error)
+	GetTagCategory(ctx context.Context, id uuid.UUID) (category *common.TagCategory, err error)
+	ListTagCategories(ctx context.Context, search *string) (list []common.TagCategory, err error)
+	CreateTag(ctx context.Context, name, color string, categoryID uuid.UUID) (*common.Tag, error)
+	UpdateTag(ctx context.Context, id uuid.UUID, name, color string) (*common.Tag, error)
+	ChangeTagCategory(ctx context.Context, id, categoryID uuid.UUID) (*common.Tag, error)
+	DeleteTag(ctx context.Context, id uuid.UUID) error
+	GetTag(ctx context.Context, id uuid.UUID) (*common.Tag, error)
+	ListTags(ctx context.Context, name *string, categoryID *uuid.UUID) (list []common.Tag, err error)
+	AddTagToTea(ctx context.Context, tea uuid.UUID, tag uuid.UUID) error
+	DeleteTagFromTea(ctx context.Context, tea uuid.UUID, tag uuid.UUID) error
+	ListByTea(ctx context.Context, id uuid.UUID) ([]common.Tag, error)
 }
 
 type Server struct {
@@ -68,6 +72,17 @@ func (s *Server) Run() error {
 		generated.NewExecutableSchema(
 			generated.Config{Resolvers: resolvers}))
 
+	srv.AddTransport(&transport.Websocket{
+		Upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				// Check against your desired domains here
+				return true
+			},
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+		},
+	})
+
 	r.Handle("/v2/", playground.Handler("GraphQL playground", "/v2/query"))
 	r.Handle("/v2/query", srv)
 
@@ -75,7 +90,10 @@ func (s *Server) Run() error {
 
 	teaManager.Start()
 	tagManager.Start()
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+
+	originsOk := handlers.AllowedOrigins([]string{"*"})
+	logrus.Info("server start on port 8080")
+	if err := http.ListenAndServe(":8080", handlers.CORS(originsOk)(r)); err != nil {
 		logrus.WithError(err).Panic("server httperror")
 	}
 	return nil

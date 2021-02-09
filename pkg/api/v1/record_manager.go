@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -16,11 +17,11 @@ import (
 var errorEmptyID = errors.New("is not id")
 
 type Storage interface {
-	WriteRecord(rec *common.TeaData) (record *common.Tea, err error)
-	ReadRecord(id uuid.UUID) (record *common.Tea, err error)
-	ReadAllRecords(search string) ([]common.Tea, error)
-	Update(id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
-	Delete(id uuid.UUID) error
+	WriteRecord(ctx context.Context, rec *common.TeaData) (record *common.Tea, err error)
+	ReadRecord(ctx context.Context, id uuid.UUID) (record *common.Tea, err error)
+	ReadAllRecords(ctx context.Context, search string) ([]common.Tea, error)
+	Update(ctx context.Context, id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 type errorCreator interface {
@@ -52,7 +53,7 @@ func (m *RecordManager) NewRecord(w http.ResponseWriter, r *http.Request) {
 		m.ResponseError(w, common.Error{Code: http.StatusBadRequest, Msg: err})
 		return
 	}
-	recWithID, err := m.Storage.WriteRecord(record)
+	recWithID, err := m.Storage.WriteRecord(context.TODO(), record)
 	if err != nil {
 		logrus.WithError(err).Error("write request httperror")
 		m.ResponseError(w, common.Error{Code: http.StatusInternalServerError, Msg: err})
@@ -75,7 +76,7 @@ func (m *RecordManager) ReadRecord(w http.ResponseWriter, r *http.Request) {
 	}
 	logrus.WithField("id", id).Info("read record")
 
-	rec, err := m.Storage.ReadRecord(*id)
+	rec, err := m.Storage.ReadRecord(context.TODO(), *id)
 	if err != nil {
 		logrus.WithError(err).Error("read from Storage httperror")
 		m.ResponseError(w, common.Error{Code: http.StatusInternalServerError, Msg: err})
@@ -92,7 +93,7 @@ func (m *RecordManager) ReadAllRecords(w http.ResponseWriter, r *http.Request) {
 	logrus.Info("read record")
 	name := r.URL.Query().Get("name")
 	logrus.WithField("name", name).Info("search record by name")
-	rec, err := m.Storage.ReadAllRecords(name)
+	rec, err := m.Storage.ReadAllRecords(context.TODO(), name)
 	if err != nil {
 		logrus.WithError(err).Error("read from Storage httperror")
 		m.ResponseError(w, common.Error{Code: http.StatusBadRequest, Msg: err})
@@ -125,7 +126,7 @@ func (m *RecordManager) UpdateRecord(w http.ResponseWriter, r *http.Request) {
 		m.ResponseError(w, common.Error{Code: http.StatusInternalServerError, Msg: err})
 		return
 	}
-	rec, err := m.Storage.Update(*id, record)
+	rec, err := m.Storage.Update(context.TODO(), *id, record)
 	if err != nil {
 		logrus.WithError(err).Error("read from Storage httperror")
 		m.ResponseError(w, common.Error{Code: http.StatusInternalServerError, Msg: err})
@@ -146,7 +147,7 @@ func (m *RecordManager) DeleteRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logrus.WithField("id", id).Info("delete record")
-	if err := m.Storage.Delete(*id); err != nil {
+	if err := m.Storage.Delete(context.TODO(), *id); err != nil {
 		logrus.WithError(err).Error("delete from Storage httperror")
 		m.ResponseError(w, common.Error{Code: http.StatusInternalServerError, Msg: err})
 	}

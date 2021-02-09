@@ -21,12 +21,13 @@ RUN ./fdb-go-install.sh install --fdbver 6.2.28
 
 ENV CGO_CPPFLAGS="-I/go/src/github.com/apple/foundationdb/bindings/c" CGO_CFLAGS="-g -O2" CGO_LDFLAGS="-L/usr/lib"
 
-#RUN go build -a -tags netgo -ldflags '-w -extldflags "-static"' -o ./app/ ./...
 RUN go build -o ./app/ ./...
+#RUN find / -name libfdb_c.so
 
-FROM scratch
+FROM debian:buster-slim
 
 COPY --from=0 build/app /app
+COPY --from=0 /usr/lib/libfdb_c.so /usr/lib
 #COPY --from=0 etc/ca-certificates.crt /etc/ssl/certs/
 COPY --from=0 etc/passwd /etc/passwd
 

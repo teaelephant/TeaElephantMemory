@@ -9,23 +9,15 @@ func (m *manager) loop() {
 	for {
 		select {
 		case tea := <-m.create:
-			m.muCreate.RLock()
-			for _, el := range m.createSubscribers {
-				el <- model.FromCommonTea(tea)
-			}
-			m.muCreate.RUnlock()
+			m.createSubscribers.SendAll(model.FromCommonTea(tea))
 		case tea := <-m.update:
-			m.muUpdate.RLock()
-			for _, el := range m.updateSubscribers {
-				el <- model.FromCommonTea(tea)
-			}
-			m.muUpdate.RUnlock()
+			m.updateSubscribers.SendAll(model.FromCommonTea(tea))
 		case id := <-m.delete:
-			m.muDelete.RLock()
-			for _, el := range m.deleteSubscribers {
-				el <- common.ID(id)
-			}
-			m.muDelete.RUnlock()
+			m.deleteSubscribers.SendAll(common.ID(id))
 		}
+		// remove closed connections
+		m.createSubscribers.CleanDone()
+		m.updateSubscribers.CleanDone()
+		m.deleteSubscribers.CleanDone()
 	}
 }

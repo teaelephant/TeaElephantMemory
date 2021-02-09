@@ -1,10 +1,12 @@
 package migrator
 
+import "context"
+
 const (
 	currentVersion = 1
 )
 
 type versionDB interface {
-	WriteVersion(version uint32) error
-	GetVersion() (uint32, error)
+	WriteVersion(ctx context.Context, version uint32) error
+	GetVersion(ctx context.Context) (uint32, error)
 }

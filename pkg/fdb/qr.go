@@ -1,6 +1,8 @@
 package fdb
 
 import (
+	"context"
+
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
@@ -8,29 +10,29 @@ import (
 )
 
 type qr interface {
-	WriteQR(id uuid.UUID, data *common.QR) (err error)
-	ReadQR(id uuid.UUID) (record *common.QR, err error)
+	WriteQR(ctx context.Context, id uuid.UUID, data *common.QR) (err error)
+	ReadQR(ctx context.Context, id uuid.UUID) (record *common.QR, err error)
 }
 
-func (d *db) WriteQR(id uuid.UUID, data *common.QR) error {
+func (d *db) WriteQR(ctx context.Context, id uuid.UUID, data *common.QR) error {
 	el, err := (*encoder.QR)(data).Encode()
 	if err != nil {
 		return err
 	}
-	tr, err := d.fdb.CreateTransaction()
+	tr, err := d.db.NewTransaction(ctx)
 	if err != nil {
 		return err
 	}
 	tr.Set(d.keyBuilder.QR(id), el)
-	return tr.Commit().Get()
+	return tr.Commit()
 }
 
-func (d *db) ReadQR(id uuid.UUID) (record *common.QR, err error) {
-	tr, err := d.fdb.CreateTransaction()
+func (d *db) ReadQR(ctx context.Context, id uuid.UUID) (record *common.QR, err error) {
+	tr, err := d.db.NewTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
-	data, err := tr.Get(d.keyBuilder.QR(id)).Get()
+	data, err := tr.Get(d.keyBuilder.QR(id))
 	if err != nil {
 		return nil, err
 	}

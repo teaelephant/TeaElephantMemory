@@ -1,56 +1,57 @@
 package tag_manager
 
 import (
-	"sync"
+	"context"
 
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
+	"github.com/teaelephant/TeaElephantMemory/internal/tag_manager/subscribers"
 	gqlCommon "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common"
 	model "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/models"
 )
 
 type Manager interface {
-	CreateCategory(name string) (category *common.TagCategory, err error)
-	UpdateCategory(id uuid.UUID, name string) (category *common.TagCategory, err error)
-	DeleteCategory(id uuid.UUID) (err error)
-	GetCategory(id uuid.UUID) (category *common.TagCategory, err error)
-	ListCategory(search *string) (list []common.TagCategory, err error)
-	SubscribeOnCreateCategory() (<-chan *model.TagCategory, error)
-	SubscribeOnUpdateCategory() (<-chan *model.TagCategory, error)
-	SubscribeOnDeleteCategory() (<-chan gqlCommon.ID, error)
-	Create(name, color string, categoryID uuid.UUID) (*common.Tag, error)
-	Update(id uuid.UUID, name, color string) (*common.Tag, error)
-	ChangeCategory(id, categoryID uuid.UUID) (*common.Tag, error)
-	Delete(id uuid.UUID) error
-	Get(id uuid.UUID) (*common.Tag, error)
-	List(name *string, categoryID *uuid.UUID) (list []common.Tag, err error)
-	AddTagToTea(tea uuid.UUID, tag uuid.UUID) error
-	DeleteTagFromTea(tea uuid.UUID, tag uuid.UUID) error
-	SubscribeOnCreate() (<-chan *model.Tag, error)
-	SubscribeOnUpdate() (<-chan *model.Tag, error)
-	SubscribeOnDelete() (<-chan gqlCommon.ID, error)
-	SubscribeOnAddTagToTea() (<-chan *model.Tea, error)
-	SubscribeOnDeleteTagToTea() (<-chan *model.Tea, error)
-	ListByTea(id uuid.UUID) (list []common.Tag, err error)
+	CreateCategory(ctx context.Context, name string) (category *common.TagCategory, err error)
+	UpdateCategory(ctx context.Context, id uuid.UUID, name string) (category *common.TagCategory, err error)
+	DeleteCategory(ctx context.Context, id uuid.UUID) (err error)
+	GetCategory(ctx context.Context, id uuid.UUID) (category *common.TagCategory, err error)
+	ListCategory(ctx context.Context, search *string) (list []common.TagCategory, err error)
+	SubscribeOnCreateCategory(ctx context.Context) (<-chan *model.TagCategory, error)
+	SubscribeOnUpdateCategory(ctx context.Context) (<-chan *model.TagCategory, error)
+	SubscribeOnDeleteCategory(ctx context.Context) (<-chan gqlCommon.ID, error)
+	Create(ctx context.Context, name, color string, categoryID uuid.UUID) (*common.Tag, error)
+	Update(ctx context.Context, id uuid.UUID, name, color string) (*common.Tag, error)
+	ChangeCategory(ctx context.Context, id, categoryID uuid.UUID) (*common.Tag, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+	Get(ctx context.Context, id uuid.UUID) (*common.Tag, error)
+	List(ctx context.Context, name *string, categoryID *uuid.UUID) (list []common.Tag, err error)
+	AddTagToTea(ctx context.Context, tea uuid.UUID, tag uuid.UUID) error
+	DeleteTagFromTea(ctx context.Context, tea uuid.UUID, tag uuid.UUID) error
+	SubscribeOnCreate(ctx context.Context) (<-chan *model.Tag, error)
+	SubscribeOnUpdate(ctx context.Context) (<-chan *model.Tag, error)
+	SubscribeOnDelete(ctx context.Context) (<-chan gqlCommon.ID, error)
+	SubscribeOnAddTagToTea(ctx context.Context) (<-chan *model.Tea, error)
+	SubscribeOnDeleteTagToTea(ctx context.Context) (<-chan *model.Tea, error)
+	ListByTea(ctx context.Context, id uuid.UUID) (list []common.Tag, err error)
 	Start()
 }
 
 type storage interface {
-	CreateTagCategory(name string) (category *common.TagCategory, err error)
-	UpdateTagCategory(id uuid.UUID, name string) error
-	DeleteTagCategory(id uuid.UUID) (removedTags []uuid.UUID, err error)
-	GetTagCategory(id uuid.UUID) (category *common.TagCategory, err error)
-	ListTagCategories(search *string) (list []common.TagCategory, err error)
-	CreateTag(name, color string, categoryID uuid.UUID) (*common.Tag, error)
-	UpdateTag(id uuid.UUID, name, color string) (*common.Tag, error)
-	ChangeTagCategory(id, categoryID uuid.UUID) (*common.Tag, error)
-	DeleteTag(id uuid.UUID) error
-	GetTag(id uuid.UUID) (*common.Tag, error)
-	ListTags(name *string, categoryID *uuid.UUID) (list []common.Tag, err error)
-	AddTagToTea(tea uuid.UUID, tag uuid.UUID) error
-	DeleteTagFromTea(tea uuid.UUID, tag uuid.UUID) error
-	ListByTea(id uuid.UUID) ([]common.Tag, error)
+	CreateTagCategory(ctx context.Context, name string) (category *common.TagCategory, err error)
+	UpdateTagCategory(ctx context.Context, id uuid.UUID, name string) error
+	DeleteTagCategory(ctx context.Context, id uuid.UUID) (removedTags []uuid.UUID, err error)
+	GetTagCategory(ctx context.Context, id uuid.UUID) (category *common.TagCategory, err error)
+	ListTagCategories(ctx context.Context, search *string) (list []common.TagCategory, err error)
+	CreateTag(ctx context.Context, name, color string, categoryID uuid.UUID) (*common.Tag, error)
+	UpdateTag(ctx context.Context, id uuid.UUID, name, color string) (*common.Tag, error)
+	ChangeTagCategory(ctx context.Context, id, categoryID uuid.UUID) (*common.Tag, error)
+	DeleteTag(ctx context.Context, id uuid.UUID) error
+	GetTag(ctx context.Context, id uuid.UUID) (*common.Tag, error)
+	ListTags(ctx context.Context, name *string, categoryID *uuid.UUID) (list []common.Tag, err error)
+	AddTagToTea(ctx context.Context, tea uuid.UUID, tag uuid.UUID) error
+	DeleteTagFromTea(ctx context.Context, tea uuid.UUID, tag uuid.UUID) error
+	ListByTea(ctx context.Context, id uuid.UUID) ([]common.Tag, error)
 }
 
 type logger interface {
@@ -58,64 +59,56 @@ type logger interface {
 }
 
 type teaManager interface {
-	Get(id uuid.UUID) (*common.Tea, error)
+	Get(ctx context.Context, id uuid.UUID) (*common.Tea, error)
 }
 
 type manager struct {
 	teaManager
 	storage
-	muCreate          sync.RWMutex
-	createSubscribers []chan<- *model.Tag
-	muUpdate          sync.RWMutex
-	updateSubscribers []chan<- *model.Tag
-	muDelete          sync.RWMutex
-	deleteSubscribers []chan<- gqlCommon.ID
+	createSubscribers subscribers.TagSubscribers
+	updateSubscribers subscribers.TagSubscribers
+	deleteSubscribers subscribers.IDSubscribers
 	create            chan *common.Tag
 	update            chan *common.Tag
 	delete            chan uuid.UUID
 
-	muCreateCategory          sync.RWMutex
-	createSubscribersCategory []chan<- *model.TagCategory
-	muUpdateCategory          sync.RWMutex
-	updateSubscribersCategory []chan<- *model.TagCategory
-	muDeleteCategory          sync.RWMutex
-	deleteSubscribersCategory []chan<- gqlCommon.ID
+	createSubscribersCategory subscribers.TagCategorySubscribers
+	updateSubscribersCategory subscribers.TagCategorySubscribers
+	deleteSubscribersCategory subscribers.IDSubscribers
 	createCategory            chan *common.TagCategory
 	updateCategory            chan *common.TagCategory
 	deleteCategory            chan uuid.UUID
 
 	addTagToTea               chan uuid.UUID
 	deleteTagFromTea          chan uuid.UUID
-	muAddTagToTea             sync.RWMutex
-	addTagToTeaSubscribers    []chan<- *model.Tea
-	muDeleteTagToTea          sync.RWMutex
-	deleteTagToTeaSubscribers []chan<- *model.Tea
+	addTagToTeaSubscribers    subscribers.TeaSubscribers
+	deleteTagToTeaSubscribers subscribers.TeaSubscribers
 
 	log logger
 }
 
-func (m *manager) AddTagToTea(tea uuid.UUID, tag uuid.UUID) error {
-	if err := m.storage.AddTagToTea(tea, tag); err != nil {
+func (m *manager) AddTagToTea(ctx context.Context, tea uuid.UUID, tag uuid.UUID) error {
+	if err := m.storage.AddTagToTea(ctx, tea, tag); err != nil {
 		return err
 	}
 	m.addTagToTea <- tea
 	return nil
 }
 
-func (m *manager) DeleteTagFromTea(tea uuid.UUID, tag uuid.UUID) error {
-	if err := m.storage.DeleteTagFromTea(tea, tag); err != nil {
+func (m *manager) DeleteTagFromTea(ctx context.Context, tea uuid.UUID, tag uuid.UUID) error {
+	if err := m.storage.DeleteTagFromTea(ctx, tea, tag); err != nil {
 		return err
 	}
 	m.deleteTagFromTea <- tea
 	return nil
 }
 
-func (m *manager) ListByTea(id uuid.UUID) (list []common.Tag, err error) {
-	return m.storage.ListByTea(id)
+func (m *manager) ListByTea(ctx context.Context, id uuid.UUID) (list []common.Tag, err error) {
+	return m.storage.ListByTea(ctx, id)
 }
 
-func (m *manager) CreateCategory(name string) (category *common.TagCategory, err error) {
-	cat, err := m.storage.CreateTagCategory(name)
+func (m *manager) CreateCategory(ctx context.Context, name string) (category *common.TagCategory, err error) {
+	cat, err := m.storage.CreateTagCategory(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -123,8 +116,8 @@ func (m *manager) CreateCategory(name string) (category *common.TagCategory, err
 	return cat, nil
 }
 
-func (m *manager) DeleteCategory(id uuid.UUID) error {
-	tags, err := m.storage.DeleteTagCategory(id)
+func (m *manager) DeleteCategory(ctx context.Context, id uuid.UUID) error {
+	tags, err := m.storage.DeleteTagCategory(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -135,16 +128,16 @@ func (m *manager) DeleteCategory(id uuid.UUID) error {
 	return nil
 }
 
-func (m *manager) GetCategory(id uuid.UUID) (category *common.TagCategory, err error) {
-	return m.storage.GetTagCategory(id)
+func (m *manager) GetCategory(ctx context.Context, id uuid.UUID) (category *common.TagCategory, err error) {
+	return m.storage.GetTagCategory(ctx, id)
 }
 
-func (m *manager) ListCategory(search *string) (list []common.TagCategory, err error) {
-	return m.storage.ListTagCategories(search)
+func (m *manager) ListCategory(ctx context.Context, search *string) (list []common.TagCategory, err error) {
+	return m.storage.ListTagCategories(ctx, search)
 }
 
-func (m *manager) Create(name, color string, categoryID uuid.UUID) (*common.Tag, error) {
-	tag, err := m.storage.CreateTag(name, color, categoryID)
+func (m *manager) Create(ctx context.Context, name, color string, categoryID uuid.UUID) (*common.Tag, error) {
+	tag, err := m.storage.CreateTag(ctx, name, color, categoryID)
 	if err != nil {
 		return nil, err
 	}
@@ -152,8 +145,8 @@ func (m *manager) Create(name, color string, categoryID uuid.UUID) (*common.Tag,
 	return tag, nil
 }
 
-func (m *manager) Update(id uuid.UUID, name, color string) (*common.Tag, error) {
-	tag, err := m.storage.UpdateTag(id, name, color)
+func (m *manager) Update(ctx context.Context, id uuid.UUID, name, color string) (*common.Tag, error) {
+	tag, err := m.storage.UpdateTag(ctx, id, name, color)
 	if err != nil {
 		return nil, err
 	}
@@ -161,8 +154,8 @@ func (m *manager) Update(id uuid.UUID, name, color string) (*common.Tag, error) 
 	return tag, nil
 }
 
-func (m *manager) ChangeCategory(id, categoryID uuid.UUID) (*common.Tag, error) {
-	tag, err := m.storage.ChangeTagCategory(id, categoryID)
+func (m *manager) ChangeCategory(ctx context.Context, id, categoryID uuid.UUID) (*common.Tag, error) {
+	tag, err := m.storage.ChangeTagCategory(ctx, id, categoryID)
 	if err != nil {
 		return nil, err
 	}
@@ -170,24 +163,24 @@ func (m *manager) ChangeCategory(id, categoryID uuid.UUID) (*common.Tag, error) 
 	return tag, nil
 }
 
-func (m *manager) Delete(id uuid.UUID) error {
-	if err := m.storage.DeleteTag(id); err != nil {
+func (m *manager) Delete(ctx context.Context, id uuid.UUID) error {
+	if err := m.storage.DeleteTag(ctx, id); err != nil {
 		return err
 	}
 	m.delete <- id
 	return nil
 }
 
-func (m *manager) Get(id uuid.UUID) (*common.Tag, error) {
-	return m.storage.GetTag(id)
+func (m *manager) Get(ctx context.Context, id uuid.UUID) (*common.Tag, error) {
+	return m.storage.GetTag(ctx, id)
 }
 
-func (m *manager) List(name *string, categoryID *uuid.UUID) (list []common.Tag, err error) {
-	return m.storage.ListTags(name, categoryID)
+func (m *manager) List(ctx context.Context, name *string, categoryID *uuid.UUID) (list []common.Tag, err error) {
+	return m.storage.ListTags(ctx, name, categoryID)
 }
 
-func (m *manager) UpdateCategory(id uuid.UUID, name string) (category *common.TagCategory, err error) {
-	if err = m.storage.UpdateTagCategory(id, name); err != nil {
+func (m *manager) UpdateCategory(ctx context.Context, id uuid.UUID, name string) (category *common.TagCategory, err error) {
+	if err = m.storage.UpdateTagCategory(ctx, id, name); err != nil {
 		return nil, err
 	}
 	res := &common.TagCategory{
@@ -198,67 +191,51 @@ func (m *manager) UpdateCategory(id uuid.UUID, name string) (category *common.Ta
 	return res, nil
 }
 
-func (m *manager) SubscribeOnCreateCategory() (<-chan *model.TagCategory, error) {
+func (m *manager) SubscribeOnCreateCategory(ctx context.Context) (<-chan *model.TagCategory, error) {
 	ch := make(chan *model.TagCategory)
-	m.muCreateCategory.Lock()
-	defer m.muCreateCategory.Unlock()
-	m.createSubscribersCategory = append(m.createSubscribersCategory, ch)
+	m.createSubscribersCategory.Push(ctx, ch)
 	return ch, nil
 }
 
-func (m *manager) SubscribeOnUpdateCategory() (<-chan *model.TagCategory, error) {
+func (m *manager) SubscribeOnUpdateCategory(ctx context.Context) (<-chan *model.TagCategory, error) {
 	ch := make(chan *model.TagCategory)
-	m.muUpdateCategory.Lock()
-	defer m.muUpdateCategory.Unlock()
-	m.updateSubscribersCategory = append(m.updateSubscribersCategory, ch)
+	m.updateSubscribersCategory.Push(ctx, ch)
 	return ch, nil
 }
 
-func (m *manager) SubscribeOnDeleteCategory() (<-chan gqlCommon.ID, error) {
+func (m *manager) SubscribeOnDeleteCategory(ctx context.Context) (<-chan gqlCommon.ID, error) {
 	ch := make(chan gqlCommon.ID)
-	m.muDeleteCategory.Lock()
-	defer m.muDeleteCategory.Unlock()
-	m.deleteSubscribersCategory = append(m.deleteSubscribersCategory, ch)
+	m.deleteSubscribersCategory.Push(ctx, ch)
 	return ch, nil
 }
 
-func (m *manager) SubscribeOnCreate() (<-chan *model.Tag, error) {
+func (m *manager) SubscribeOnCreate(ctx context.Context) (<-chan *model.Tag, error) {
 	ch := make(chan *model.Tag)
-	m.muCreate.Lock()
-	defer m.muCreate.Unlock()
-	m.createSubscribers = append(m.createSubscribers, ch)
+	m.createSubscribers.Push(ctx, ch)
 	return ch, nil
 }
 
-func (m *manager) SubscribeOnUpdate() (<-chan *model.Tag, error) {
+func (m *manager) SubscribeOnUpdate(ctx context.Context) (<-chan *model.Tag, error) {
 	ch := make(chan *model.Tag)
-	m.muUpdate.Lock()
-	defer m.muUpdate.Unlock()
-	m.updateSubscribers = append(m.updateSubscribers, ch)
+	m.updateSubscribers.Push(ctx, ch)
 	return ch, nil
 }
 
-func (m *manager) SubscribeOnDelete() (<-chan gqlCommon.ID, error) {
+func (m *manager) SubscribeOnDelete(ctx context.Context) (<-chan gqlCommon.ID, error) {
 	ch := make(chan gqlCommon.ID)
-	m.muDelete.Lock()
-	defer m.muDelete.Unlock()
-	m.deleteSubscribers = append(m.deleteSubscribers, ch)
+	m.deleteSubscribers.Push(ctx, ch)
 	return ch, nil
 }
 
-func (m *manager) SubscribeOnAddTagToTea() (<-chan *model.Tea, error) {
+func (m *manager) SubscribeOnAddTagToTea(ctx context.Context) (<-chan *model.Tea, error) {
 	ch := make(chan *model.Tea)
-	m.muAddTagToTea.Lock()
-	defer m.muAddTagToTea.Unlock()
-	m.addTagToTeaSubscribers = append(m.addTagToTeaSubscribers, ch)
+	m.addTagToTeaSubscribers.Push(ctx, ch)
 	return ch, nil
 }
 
-func (m *manager) SubscribeOnDeleteTagToTea() (<-chan *model.Tea, error) {
+func (m *manager) SubscribeOnDeleteTagToTea(ctx context.Context) (<-chan *model.Tea, error) {
 	ch := make(chan *model.Tea)
-	m.muDeleteTagToTea.Lock()
-	defer m.muDeleteTagToTea.Unlock()
-	m.deleteTagToTeaSubscribers = append(m.deleteTagToTeaSubscribers, ch)
+	m.deleteTagToTeaSubscribers.Push(ctx, ch)
 	return ch, nil
 }
 
@@ -270,30 +247,22 @@ func NewManager(storage storage, teaManager teaManager, log logger) Manager {
 	return &manager{
 		teaManager:                teaManager,
 		storage:                   storage,
-		muCreate:                  sync.RWMutex{},
-		createSubscribers:         make([]chan<- *model.Tag, 0),
-		muUpdate:                  sync.RWMutex{},
-		updateSubscribers:         make([]chan<- *model.Tag, 0),
-		muDelete:                  sync.RWMutex{},
-		deleteSubscribers:         make([]chan<- gqlCommon.ID, 0),
+		createSubscribers:         subscribers.NewTagSubscribers(),
+		updateSubscribers:         subscribers.NewTagSubscribers(),
+		deleteSubscribers:         subscribers.NewIDSubscribers(),
+		createSubscribersCategory: subscribers.NewTagCategorySubscribers(),
+		updateSubscribersCategory: subscribers.NewTagCategorySubscribers(),
+		deleteSubscribersCategory: subscribers.NewIDSubscribers(),
+		addTagToTeaSubscribers:    subscribers.NewTeaSubscribers(),
+		deleteTagToTeaSubscribers: subscribers.NewTeaSubscribers(),
 		create:                    make(chan *common.Tag, 100),
 		update:                    make(chan *common.Tag, 100),
 		delete:                    make(chan uuid.UUID, 100),
-		muCreateCategory:          sync.RWMutex{},
-		createSubscribersCategory: make([]chan<- *model.TagCategory, 0),
-		muUpdateCategory:          sync.RWMutex{},
-		updateSubscribersCategory: make([]chan<- *model.TagCategory, 0),
-		muDeleteCategory:          sync.RWMutex{},
-		deleteSubscribersCategory: make([]chan<- gqlCommon.ID, 0),
 		createCategory:            make(chan *common.TagCategory, 100),
 		updateCategory:            make(chan *common.TagCategory, 100),
 		deleteCategory:            make(chan uuid.UUID, 100),
 		addTagToTea:               make(chan uuid.UUID, 100),
 		deleteTagFromTea:          make(chan uuid.UUID, 100),
-		muAddTagToTea:             sync.RWMutex{},
-		addTagToTeaSubscribers:    make([]chan<- *model.Tea, 0),
-		muDeleteTagToTea:          sync.RWMutex{},
-		deleteTagToTeaSubscribers: make([]chan<- *model.Tea, 0),
 		log:                       log,
 	}
 }

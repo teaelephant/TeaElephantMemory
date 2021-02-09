@@ -9,10 +9,10 @@ type Transport interface {
 	Response(w http.ResponseWriter, answer interface{}) error
 }
 
-type transport struct {
+type restTransport struct {
 }
 
-func (t *transport) Response(w http.ResponseWriter, answer interface{}) error {
+func (t *restTransport) Response(w http.ResponseWriter, answer interface{}) error {
 	w.Header().Set("Content-Type", "application/json")
 	data, err := json.Marshal(answer)
 	if err != nil {
@@ -23,5 +23,5 @@ func (t *transport) Response(w http.ResponseWriter, answer interface{}) error {
 }
 
 func NewTransport() Transport {
-	return &transport{}
+	return &restTransport{}
 }

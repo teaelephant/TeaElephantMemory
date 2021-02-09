@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"context"
 	"encoding/json"
 
 	uuid "github.com/satori/go.uuid"
@@ -12,7 +13,7 @@ type addPrefixes struct {
 }
 
 func (a *addPrefixes) Migrate(db MigratingDB) error {
-	records, err := db.ReadAll()
+	records, err := db.ReadAll(context.TODO())
 	if err != nil {
 		return err
 	}
@@ -21,7 +22,7 @@ func (a *addPrefixes) Migrate(db MigratingDB) error {
 		if err = json.Unmarshal(record.Value, rec); err != nil {
 			return err
 		}
-		if _, err = db.Update(uuid.FromBytesOrNil(record.Key), rec); err != nil {
+		if _, err = db.Update(context.TODO(), uuid.FromBytesOrNil(record.Key), rec); err != nil {
 			return err
 		}
 	}

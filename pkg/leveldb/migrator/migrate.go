@@ -1,6 +1,8 @@
 package migrator
 
 import (
+	"context"
+
 	"github.com/syndtr/goleveldb/leveldb"
 
 	"github.com/teaelephant/TeaElephantMemory/pkg/leveldb/migrations"
@@ -21,7 +23,7 @@ type manager struct {
 }
 
 func (m *manager) Migrate() error {
-	ver, err := m.db.GetVersion()
+	ver, err := m.db.GetVersion(context.TODO())
 	if err != nil && err != leveldb.ErrNotFound {
 		return err
 	}
@@ -30,7 +32,7 @@ func (m *manager) Migrate() error {
 			return err
 		}
 	}
-	return m.db.WriteVersion(currentVersion)
+	return m.db.WriteVersion(context.TODO(), currentVersion)
 }
 
 func NewManager(migrations map[uint32]migrations.Migration, db db) Manager {

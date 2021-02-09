@@ -1,6 +1,8 @@
 package tag_manager
 
 import (
+	"context"
+
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common"
 	model "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/models"
 )
@@ -9,95 +11,73 @@ func (m *manager) loop() {
 	for {
 		select {
 		case tag := <-m.create:
-			cat, err := m.storage.GetTagCategory(tag.CategoryID)
+			cat, err := m.storage.GetTagCategory(context.TODO(), tag.CategoryID)
 			if err != nil {
 				m.log.Error(err)
 				continue
 			}
-			m.muCreate.RLock()
-			for _, el := range m.createSubscribers {
-				el <- &model.Tag{
-					ID:    common.ID(tag.ID),
-					Name:  tag.Name,
-					Color: tag.Color,
-					Category: &model.TagCategory{
-						ID:   common.ID(cat.ID),
-						Name: cat.Name,
-					},
-				}
-			}
-			m.muCreate.RUnlock()
+			m.createSubscribers.SendAll(&model.Tag{
+				ID:    common.ID(tag.ID),
+				Name:  tag.Name,
+				Color: tag.Color,
+				Category: &model.TagCategory{
+					ID:   common.ID(cat.ID),
+					Name: cat.Name,
+				},
+			})
 		case tag := <-m.update:
-			cat, err := m.storage.GetTagCategory(tag.CategoryID)
+			cat, err := m.storage.GetTagCategory(context.TODO(), tag.CategoryID)
 			if err != nil {
 				m.log.Error(err)
 				continue
 			}
-			m.muUpdate.RLock()
-			for _, el := range m.updateSubscribers {
-				el <- &model.Tag{
-					ID:    common.ID(tag.ID),
-					Name:  tag.Name,
-					Color: tag.Color,
-					Category: &model.TagCategory{
-						ID:   common.ID(cat.ID),
-						Name: cat.Name,
-					},
-				}
-			}
-			m.muUpdate.RUnlock()
+			m.updateSubscribers.SendAll(&model.Tag{
+				ID:    common.ID(tag.ID),
+				Name:  tag.Name,
+				Color: tag.Color,
+				Category: &model.TagCategory{
+					ID:   common.ID(cat.ID),
+					Name: cat.Name,
+				},
+			})
 		case id := <-m.delete:
-			m.muDelete.RLock()
-			for _, el := range m.deleteSubscribers {
-				el <- common.ID(id)
-			}
-			m.muDelete.RUnlock()
+			m.deleteSubscribers.SendAll(common.ID(id))
 		case tag := <-m.createCategory:
-			m.muCreateCategory.RLock()
-			for _, el := range m.createSubscribersCategory {
-				el <- &model.TagCategory{
-					ID:   common.ID(tag.ID),
-					Name: tag.Name,
-				}
-			}
-			m.muCreateCategory.RUnlock()
+			m.createSubscribersCategory.SendAll(&model.TagCategory{
+				ID:   common.ID(tag.ID),
+				Name: tag.Name,
+			})
 		case tag := <-m.updateCategory:
-			m.muUpdateCategory.RLock()
-			for _, el := range m.updateSubscribersCategory {
-				el <- &model.TagCategory{
-					ID:   common.ID(tag.ID),
-					Name: tag.Name,
-				}
-			}
-			m.muUpdateCategory.RUnlock()
+			m.updateSubscribersCategory.SendAll(&model.TagCategory{
+				ID:   common.ID(tag.ID),
+				Name: tag.Name,
+			})
 		case id := <-m.deleteCategory:
-			m.muDeleteCategory.RLock()
-			for _, el := range m.deleteSubscribersCategory {
-				el <- common.ID(id)
-			}
-			m.muDeleteCategory.RUnlock()
+			m.deleteSubscribersCategory.SendAll(common.ID(id))
 		case id := <-m.addTagToTea:
-			tea, err := m.teaManager.Get(id)
+			tea, err := m.teaManager.Get(context.TODO(), id)
 			if err != nil {
 				m.log.Error(err)
 				continue
 			}
-			m.muAddTagToTea.RLock()
-			for _, el := range m.addTagToTeaSubscribers {
-				el <- model.FromCommonTea(tea)
-			}
-			m.muAddTagToTea.RUnlock()
+			m.addTagToTeaSubscribers.SendAll(model.FromCommonTea(tea))
 		case id := <-m.deleteTagFromTea:
-			tea, err := m.teaManager.Get(id)
+			tea, err := m.teaManager.Get(context.TODO(), id)
 			if err != nil {
 				m.log.Error(err)
 				continue
 			}
-			m.muDeleteTagToTea.RLock()
-			for _, el := range m.deleteTagToTeaSubscribers {
-				el <- model.FromCommonTea(tea)
-			}
-			m.muDeleteTagToTea.RUnlock()
+			m.deleteTagToTeaSubscribers.SendAll(model.FromCommonTea(tea))
 		}
+
+		// remove closed connection
+		m.createSubscribersCategory.CleanDone()
+		m.updateSubscribersCategory.CleanDone()
+		m.deleteSubscribersCategory.CleanDone()
+		m.deleteSubscribers.CleanDone()
+		m.createSubscribers.CleanDone()
+		m.updateSubscribers.CleanDone()
+		m.addTagToTeaSubscribers.CleanDone()
+		m.deleteTagToTeaSubscribers.CleanDone()
 	}
 }

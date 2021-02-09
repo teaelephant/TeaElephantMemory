@@ -1,6 +1,8 @@
 package migrations
 
 import (
+	"context"
+
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
@@ -8,8 +10,8 @@ import (
 )
 
 type MigratingDB interface {
-	ReadAll() ([]dbCommon.KeyValue, error)
-	Update(id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
+	ReadAll(ctx context.Context) ([]dbCommon.KeyValue, error)
+	Update(ctx context.Context, id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
 }
 
 type Migration interface {

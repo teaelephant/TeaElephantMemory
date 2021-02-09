@@ -1,7 +1,29 @@
 version: '3.7'
 services:
   server:
-    image: lueurxax/teaelephant:latest
+    image: lueurxax/teaelephant:1.1.2
     ports:
       - 8009:8080
-    entrypoint: ls -la
+    volumes:
+      - ~/database:/app/database
+      - /Users/xax/go/src/github.com/lueurxax/teaelephantmemory/config:/etc/foundationdb
+    networks:
+      tea:
+        ipv4_address: 10.5.0.5
+
+    depends_on:
+      - fdb
+  fdb:
+    image: foundationdb/foundationdb
+    ports:
+      - 4500:4500
+    networks:
+      tea:
+        ipv4_address: 10.5.0.6
+networks:
+  tea:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.5.0.0/16
+          gateway: 10.5.0.1

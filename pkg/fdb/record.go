@@ -1,31 +1,34 @@
 package fdb
 
 import (
+	"context"
+
 	"github.com/apple/foundationdb/bindings/go/src/fdb"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
 	"github.com/teaelephant/TeaElephantMemory/common/key_value/encoder"
 	common2 "github.com/teaelephant/TeaElephantMemory/pkg/fdb/common"
+	"github.com/teaelephant/TeaElephantMemory/pkg/fdbclient"
 	dbCommon "github.com/teaelephant/TeaElephantMemory/pkg/leveldb/common"
 )
 
 type record interface {
-	WriteRecord(rec *common.TeaData) (record *common.Tea, err error)
-	ReadRecord(id uuid.UUID) (record *common.Tea, err error)
-	ReadAllRecords(search string) ([]common.Tea, error)
-	Update(id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
-	Delete(id uuid.UUID) error
-	ReadAll() ([]dbCommon.KeyValue, error)
+	WriteRecord(ctx context.Context, rec *common.TeaData) (record *common.Tea, err error)
+	ReadRecord(ctx context.Context, id uuid.UUID) (record *common.Tea, err error)
+	ReadAllRecords(ctx context.Context, search string) ([]common.Tea, error)
+	Update(ctx context.Context, id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
+	Delete(ctx context.Context, id uuid.UUID) error
+	ReadAll(ctx context.Context) ([]dbCommon.KeyValue, error)
 }
 
-func (d *db) ReadAll() ([]dbCommon.KeyValue, error) {
+func (d *db) ReadAll(ctx context.Context) ([]dbCommon.KeyValue, error) {
 	res := make([]dbCommon.KeyValue, 0)
-	tr, err := d.fdb.CreateTransaction()
+	tr, err := d.db.NewTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
-	kvs, err := tr.GetRange(fdb.KeyRange{Begin: fdb.Key(""), End: fdb.Key{0xFF}}, fdb.RangeOptions{}).GetSliceWithError()
+	kvs, err := tr.GetRange(fdb.KeyRange{Begin: fdb.Key(""), End: fdb.Key{0xFF}})
 	if err != nil {
 		return nil, err
 	}
@@ -42,21 +45,21 @@ func (d *db) ReadAll() ([]dbCommon.KeyValue, error) {
 	return res, nil
 }
 
-func (d *db) WriteRecord(rec *common.TeaData) (record *common.Tea, err error) {
-	return d.writeRecord(uuid.NewV4(), rec)
+func (d *db) WriteRecord(ctx context.Context, rec *common.TeaData) (record *common.Tea, err error) {
+	return d.writeRecord(ctx, uuid.NewV4(), rec)
 }
 
-func (d *db) ReadRecord(id uuid.UUID) (*common.Tea, error) {
-	tr, err := d.fdb.CreateTransaction()
+func (d *db) ReadRecord(ctx context.Context, id uuid.UUID) (*common.Tea, error) {
+	tr, err := d.db.NewTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return d.readRecord(id, tr)
 }
 
-func (d *db) ReadAllRecords(search string) ([]common.Tea, error) {
+func (d *db) ReadAllRecords(ctx context.Context, search string) ([]common.Tea, error) {
 	records := make([]common.Tea, 0)
-	tr, err := d.fdb.CreateTransaction()
+	tr, err := d.db.NewTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +68,7 @@ func (d *db) ReadAllRecords(search string) ([]common.Tea, error) {
 		if err != nil {
 			return nil, err
 		}
-		kvs, err := tr.GetRange(pr, fdb.RangeOptions{}).GetSliceWithError()
+		kvs, err := tr.GetRange(pr)
 		if err != nil {
 			return nil, err
 		}
@@ -85,7 +88,7 @@ func (d *db) ReadAllRecords(search string) ([]common.Tea, error) {
 	if err != nil {
 		return nil, err
 	}
-	kvs, err := tr.GetRange(pr, fdb.RangeOptions{}).GetSliceWithError()
+	kvs, err := tr.GetRange(pr)
 	if err != nil {
 		return nil, err
 	}
@@ -103,12 +106,12 @@ func (d *db) ReadAllRecords(search string) ([]common.Tea, error) {
 	return records, nil
 }
 
-func (d *db) Update(id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error) {
-	return d.writeRecord(id, rec)
+func (d *db) Update(ctx context.Context, id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error) {
+	return d.writeRecord(ctx, id, rec)
 }
 
-func (d *db) Delete(id uuid.UUID) error {
-	tr, err := d.fdb.CreateTransaction()
+func (d *db) Delete(ctx context.Context, id uuid.UUID) error {
+	tr, err := d.db.NewTransaction(ctx)
 	if err != nil {
 		return err
 	}
@@ -118,22 +121,25 @@ func (d *db) Delete(id uuid.UUID) error {
 	}
 	tr.Clear(d.keyBuilder.Record(id))
 	tr.Clear(d.keyBuilder.RecordsByName(rec.Name))
-	return tr.Commit().Get()
+	return tr.Commit()
 }
 
-func (d *db) writeRecord(id uuid.UUID, rec *common.TeaData) (*common.Tea, error) {
+func (d *db) writeRecord(ctx context.Context, id uuid.UUID, rec *common.TeaData) (*common.Tea, error) {
 	data, err := (*encoder.TeaData)(rec).Encode()
 	if err != nil {
 		return nil, err
 	}
-	_, err = d.fdb.Transact(func(tr fdb.Transaction) (interface{}, error) {
-		tr.Set(d.keyBuilder.Record(id), data)
-		tr.Set(d.keyBuilder.RecordsByName(rec.Name), id.Bytes())
-		return tr.Get(d.keyBuilder.Record(id)).Get()
-		// db.Transact automatically commits (and if necessary,
-		// retries) the transaction
-	})
+	tr, err := d.db.NewTransaction(ctx)
 	if err != nil {
+		return nil, err
+	}
+	if err = tr.Set(d.keyBuilder.Record(id), data); err != nil {
+		return nil, err
+	}
+	if err = tr.Set(d.keyBuilder.RecordsByName(rec.Name), id.Bytes()); err != nil {
+		return nil, err
+	}
+	if err = tr.Commit(); err != nil {
 		return nil, err
 	}
 	return &common.Tea{
@@ -142,8 +148,8 @@ func (d *db) writeRecord(id uuid.UUID, rec *common.TeaData) (*common.Tea, error)
 	}, nil
 }
 
-func (d *db) readRecord(id uuid.UUID, tr fdb.Transaction) (*common.Tea, error) {
-	data, err := tr.Get(d.keyBuilder.Record(id)).Get()
+func (d *db) readRecord(id uuid.UUID, tr fdbclient.Transaction) (*common.Tea, error) {
+	data, err := tr.Get(d.keyBuilder.Record(id))
 	if err != nil {
 		return nil, err
 	}
