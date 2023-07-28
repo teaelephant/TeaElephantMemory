@@ -47,6 +47,10 @@ models:
     fields:
       tags:
         resolver: true
+  TagCategory:
+    fields:
+      tags:
+        resolver: true
   Tag:
     fields:
       category:

@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
+
 	foundeationDB "github.com/apple/foundationdb/bindings/go/src/fdb"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/teaelephant/TeaElephantMemory/common/key_value/key_builder"
-	"github.com/teaelephant/TeaElephantMemory/pkg/fdb"
+	"github.com/teaelephant/TeaElephantMemory/pkg/fdbclient"
 	"github.com/teaelephant/TeaElephantMemory/pkg/leveldb"
 )
 
@@ -24,11 +26,12 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	tr, err := db.CreateTransaction()
+	wrappedDB := fdbclient.NewDatabase(db)
+	tr, err := wrappedDB.NewTransaction(context.TODO())
 	if err != nil {
 		panic(err)
 	}
-	keyBuilder := fdb.NewKeyBuilder(key_builder.NewBuilder())
+	keyBuilder := key_builder.NewBuilder()
 	for _, pair := range pairs {
 		switch pair.Key[0] {
 		case keyBuilder.Records()[0]:
@@ -43,14 +46,14 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
-			tr.Set(foundeationDB.Key(pair.Key), id.Bytes())
+			tr.Set(pair.Key, id.Bytes())
 		default:
-			tr.Set(foundeationDB.Key(pair.Key), pair.Value)
+			tr.Set(pair.Key, pair.Value)
 			continue
 		}
 
 	}
-	if err = tr.Commit().Get(); err != nil {
+	if err = tr.Commit(); err != nil {
 		panic(err)
 	}
 }

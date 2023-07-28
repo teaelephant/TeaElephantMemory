@@ -37,6 +37,7 @@ func (m *manager) Get(ctx context.Context, id uuid.UUID) (*model.QRRecordData, e
 	if err != nil {
 		return nil, err
 	}
+
 	return &model.QRRecordData{
 		Tea:            gqlCommon.ID(data.Tea),
 		BowlingTemp:    data.BowlingTemp,

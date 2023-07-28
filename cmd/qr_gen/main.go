@@ -1,15 +1,23 @@
 package main
 
 import (
-	uuid "github.com/satori/go.uuid"
-	"github.com/skip2/go-qrcode"
+	"github.com/kelseyhightower/envconfig"
+
+	"github.com/teaelephant/TeaElephantMemory/printqr"
 )
 
+type configuration struct {
+	UnidocLicenseApiKey string `required:"true"`
+}
+
 func main() {
-	for i := 0; i < 50; i++ {
-		id := uuid.NewV4()
-		if err := qrcode.WriteFile(id.String(), qrcode.Highest, 512, id.String()+".png"); err != nil {
-			panic(err)
-		}
+	cfg := new(configuration)
+	if err := envconfig.Process("", cfg); err != nil {
+		panic(err)
+	}
+	gen := printqr.NewGenerator(cfg.UnidocLicenseApiKey)
+
+	if err := gen.GenerateAndSave(10); err != nil {
+		panic(err)
 	}
 }

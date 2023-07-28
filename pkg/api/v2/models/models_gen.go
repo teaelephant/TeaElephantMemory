@@ -34,6 +34,7 @@ type Tag struct {
 type TagCategory struct {
 	ID   common.ID `json:"id"`
 	Name string    `json:"name"`
+	Tags []*Tag    `json:"tags"`
 }
 
 type Tea struct {

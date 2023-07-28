@@ -1,78 +1,55 @@
 package server
 
 import (
-	"context"
 	"net/http"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/apollotracing"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
+	"github.com/99designs/gqlgen/graphql/handler/lru"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	uuid "github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 
-	"github.com/teaelephant/TeaElephantMemory/common"
-	"github.com/teaelephant/TeaElephantMemory/internal/httperror"
-	"github.com/teaelephant/TeaElephantMemory/internal/qr_manager"
-	"github.com/teaelephant/TeaElephantMemory/internal/tag_manager"
-	"github.com/teaelephant/TeaElephantMemory/internal/tea_manager"
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v1"
-	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/graphql"
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/graphql/generated"
 )
 
-type storage interface {
-	WriteQR(ctx context.Context, id uuid.UUID, data *common.QR) (err error)
-	ReadQR(ctx context.Context, id uuid.UUID) (record *common.QR, err error)
-	WriteRecord(ctx context.Context, rec *common.TeaData) (record *common.Tea, err error)
-	ReadRecord(ctx context.Context, id uuid.UUID) (record *common.Tea, err error)
-	ReadAllRecords(ctx context.Context, search string) ([]common.Tea, error)
-	Update(ctx context.Context, id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
-	Delete(ctx context.Context, id uuid.UUID) error
-	CreateTagCategory(ctx context.Context, name string) (category *common.TagCategory, err error)
-	UpdateTagCategory(ctx context.Context, id uuid.UUID, name string) error
-	DeleteTagCategory(ctx context.Context, id uuid.UUID) (removedTags []uuid.UUID, err error)
-	GetTagCategory(ctx context.Context, id uuid.UUID) (category *common.TagCategory, err error)
-	ListTagCategories(ctx context.Context, search *string) (list []common.TagCategory, err error)
-	CreateTag(ctx context.Context, name, color string, categoryID uuid.UUID) (*common.Tag, error)
-	UpdateTag(ctx context.Context, id uuid.UUID, name, color string) (*common.Tag, error)
-	ChangeTagCategory(ctx context.Context, id, categoryID uuid.UUID) (*common.Tag, error)
-	DeleteTag(ctx context.Context, id uuid.UUID) error
-	GetTag(ctx context.Context, id uuid.UUID) (*common.Tag, error)
-	ListTags(ctx context.Context, name *string, categoryID *uuid.UUID) (list []common.Tag, err error)
-	AddTagToTea(ctx context.Context, tea uuid.UUID, tag uuid.UUID) error
-	DeleteTagFromTea(ctx context.Context, tea uuid.UUID, tag uuid.UUID) error
-	ListByTea(ctx context.Context, id uuid.UUID) ([]common.Tag, error)
-}
-
 type Server struct {
-	db storage
+	apiV1     *v1.RecordManager
+	resolvers generated.ResolverRoot
+	router    *mux.Router
 }
 
 func (s *Server) Run() error {
-	errorCreator := httperror.NewCreator(logrus.WithField("pkg", "http_error"))
-	tr := NewTransport()
-	a := v1.New(s.db, errorCreator, tr)
-	r := mux.NewRouter()
-	r.HandleFunc("/v1/new_record", a.NewRecord).Methods("POST")
-	r.HandleFunc("/v1/all", a.ReadAllRecords).Methods("GET")
-	r.HandleFunc("/v1/{id}", a.ReadRecord).Methods("GET")
-	r.HandleFunc("/v1/{id}", a.UpdateRecord).Methods("POST")
-	r.HandleFunc("/v1/{id}", a.DeleteRecord).Methods("DELETE")
+	http.Handle("/", s.router)
+	originsOk := handlers.AllowedOrigins([]string{"*"})
+	logrus.Info("server start on port 8080")
+	if err := http.ListenAndServe(":8080", handlers.CORS(originsOk)(s.router)); err != nil {
+		logrus.WithError(err).Panic("server httperror")
+	}
+	return nil
+}
 
-	teaManager := tea_manager.NewManager(s.db)
-	qrManager := qr_manager.NewManager(s.db)
-	tagManager := tag_manager.NewManager(s.db, teaManager, logrus.New())
+func (s *Server) InitV1Api() {
+	s.router.HandleFunc("/v1/new_record", s.apiV1.NewRecord).Methods("POST")
+	s.router.HandleFunc("/v1/all", s.apiV1.ReadAllRecords).Methods("GET")
+	s.router.HandleFunc("/v1/{id}", s.apiV1.ReadRecord).Methods("GET")
+	s.router.HandleFunc("/v1/{id}", s.apiV1.UpdateRecord).Methods("POST")
+	s.router.HandleFunc("/v1/{id}", s.apiV1.DeleteRecord).Methods("DELETE")
+}
 
-	resolvers := graphql.NewResolver(logrus.WithField("pkg", "graphql"), teaManager, qrManager, tagManager)
-
-	srv := handler.NewDefaultServer(
+func (s *Server) InitV2Api() {
+	srv := handler.New(
 		generated.NewExecutableSchema(
-			generated.Config{Resolvers: resolvers}))
+			generated.Config{Resolvers: s.resolvers}))
 
 	srv.AddTransport(&transport.Websocket{
+		KeepAlivePingInterval: 10 * time.Second,
 		Upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				// Check against your desired domains here
@@ -82,23 +59,24 @@ func (s *Server) Run() error {
 			WriteBufferSize: 1024,
 		},
 	})
+	srv.AddTransport(transport.Options{})
+	srv.AddTransport(transport.GET{})
+	srv.AddTransport(transport.POST{})
+	srv.AddTransport(transport.MultipartForm{})
 
-	r.Handle("/v2/", playground.Handler("GraphQL playground", "/v2/query"))
-	r.Handle("/v2/query", srv)
+	srv.SetQueryCache(lru.New(1000))
 
-	http.Handle("/", r)
+	srv.Use(apollotracing.Tracer{})
+	srv.Use(extension.Introspection{})
+	srv.Use(extension.AutomaticPersistedQuery{
+		Cache: lru.New(100),
+	})
+	// srv.Use(extension.FixedComplexityLimit(100))
 
-	teaManager.Start()
-	tagManager.Start()
-
-	originsOk := handlers.AllowedOrigins([]string{"*"})
-	logrus.Info("server start on port 8080")
-	if err := http.ListenAndServe(":8080", handlers.CORS(originsOk)(r)); err != nil {
-		logrus.WithError(err).Panic("server httperror")
-	}
-	return nil
+	s.router.Handle("/v2/", playground.Handler("GraphQL playground", "/v2/query"))
+	s.router.Handle("/v2/query", srv)
 }
 
-func NewServer(db storage) *Server {
-	return &Server{db}
+func NewServer(apiV1 *v1.RecordManager, resolvers generated.ResolverRoot) *Server {
+	return &Server{apiV1: apiV1, resolvers: resolvers, router: mux.NewRouter()}
 }

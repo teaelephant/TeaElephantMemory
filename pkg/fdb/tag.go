@@ -304,6 +304,7 @@ func (d *db) ListTags(ctx context.Context, name *string, categoryID *uuid.UUID) 
 		if records, err = d.readTagsByCategoryID(tr, *categoryID); err != nil {
 			return nil, err
 		}
+		return records, nil
 	}
 	if records, err = d.readTagsByNameAndCategoryID(tr, *name, *categoryID); err != nil {
 		return nil, err

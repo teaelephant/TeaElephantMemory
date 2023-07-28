@@ -1,12 +1,23 @@
 scalar Date
 
 type Query {
-    getTeas(prefix: String): [Tea!]!
-    getTea(id: ID!): Tea
-    getQrRecord(id: ID!): QRRecord
-    getTag(id: ID!): Tag
-    getTags(name: String, category: ID): [Tag!]!
-    getTagsCategories(name: String): [TagCategory!]!
+    "Get information about teas."
+    teas(prefix: String): [Tea!]!
+    "Get information about tea by id."
+    tea(id: ID!): Tea
+    "Get tea meta information by qr code"
+    qrRecord(id: ID!): QRRecord
+    "Get tag by id."
+    tag(id: ID!): Tag
+    "Get categories of tags"
+    tagsCategories(name: String): [TagCategory!]!
+
+    getTeas(prefix: String): [Tea!]! @deprecated(reason: "Use teas instead")
+    getTea(id: ID!): Tea @deprecated(reason: "Use tea instead")
+    getQrRecord(id: ID!): QRRecord @deprecated(reason: "Use qrRecord instead")
+    getTags(name: String, category: ID): [Tag!]! @deprecated(reason: "Use tagsCategories instead")
+    getTagsCategories(name: String): [TagCategory!]! @deprecated(reason: "Use tagsCategories instead")
+    getTag(id: ID!): Tag @deprecated(reason: "Use tag instead")
 }
 
 type Mutation {
@@ -42,6 +53,7 @@ type Subscription {
 type TagCategory {
     id: ID!
     name: String!
+    tags(name: String): [Tag!]!
 }
 
 type QRRecord {
