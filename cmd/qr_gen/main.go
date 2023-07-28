@@ -7,7 +7,7 @@ import (
 )
 
 type configuration struct {
-	UnidocLicenseApiKey string `required:"true"`
+	UnidocLicenseAPIKey string `required:"true"`
 }
 
 func main() {
@@ -15,7 +15,8 @@ func main() {
 	if err := envconfig.Process("", cfg); err != nil {
 		panic(err)
 	}
-	gen := printqr.NewGenerator(cfg.UnidocLicenseApiKey)
+
+	gen := printqr.NewGenerator(cfg.UnidocLicenseAPIKey)
 
 	if err := gen.GenerateAndSave(10); err != nil {
 		panic(err)
