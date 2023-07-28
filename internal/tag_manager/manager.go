@@ -11,6 +11,10 @@ import (
 	model "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/models"
 )
 
+const (
+	defaultChanSize = 100
+)
+
 type Manager interface {
 	CreateCategory(ctx context.Context, name string) (category *common.TagCategory, err error)
 	UpdateCategory(ctx context.Context, id uuid.UUID, name string) (category *common.TagCategory, err error)
@@ -255,14 +259,14 @@ func NewManager(storage storage, teaManager teaManager, log logger) Manager {
 		deleteSubscribersCategory: subscribers.NewIDSubscribers(),
 		addTagToTeaSubscribers:    subscribers.NewTeaSubscribers(),
 		deleteTagToTeaSubscribers: subscribers.NewTeaSubscribers(),
-		create:                    make(chan *common.Tag, 100),
-		update:                    make(chan *common.Tag, 100),
-		delete:                    make(chan uuid.UUID, 100),
-		createCategory:            make(chan *common.TagCategory, 100),
-		updateCategory:            make(chan *common.TagCategory, 100),
-		deleteCategory:            make(chan uuid.UUID, 100),
-		addTagToTea:               make(chan uuid.UUID, 100),
-		deleteTagFromTea:          make(chan uuid.UUID, 100),
+		create:                    make(chan *common.Tag, defaultChanSize),
+		update:                    make(chan *common.Tag, defaultChanSize),
+		delete:                    make(chan uuid.UUID, defaultChanSize),
+		createCategory:            make(chan *common.TagCategory, defaultChanSize),
+		updateCategory:            make(chan *common.TagCategory, defaultChanSize),
+		deleteCategory:            make(chan uuid.UUID, defaultChanSize),
+		addTagToTea:               make(chan uuid.UUID, defaultChanSize),
+		deleteTagFromTea:          make(chan uuid.UUID, defaultChanSize),
 		log:                       log,
 	}
 }

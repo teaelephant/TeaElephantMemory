@@ -19,7 +19,7 @@ type db struct {
 	db         fdbclient.Database
 }
 
-func NewDb(fdb fdb.Database) DB {
+func NewDB(fdb fdb.Database) DB {
 	return &db{
 		keyBuilder: key_builder.NewBuilder(),
 		db:         fdbclient.NewDatabase(fdb),

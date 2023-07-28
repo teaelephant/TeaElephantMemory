@@ -24,14 +24,17 @@ type record interface {
 
 func (d *db) ReadAll(ctx context.Context) ([]dbCommon.KeyValue, error) {
 	res := make([]dbCommon.KeyValue, 0)
+
 	tr, err := d.db.NewTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
+
 	kvs, err := tr.GetRange(fdb.KeyRange{Begin: fdb.Key(""), End: fdb.Key{0xFF}})
 	if err != nil {
 		return nil, err
 	}
+
 	for _, kv := range kvs {
 		key := make([]byte, len(kv.Key))
 		value := make([]byte, len(kv.Value))
@@ -42,6 +45,7 @@ func (d *db) ReadAll(ctx context.Context) ([]dbCommon.KeyValue, error) {
 			Value: value,
 		})
 	}
+
 	return res, nil
 }
 
@@ -54,55 +58,68 @@ func (d *db) ReadRecord(ctx context.Context, id uuid.UUID) (*common.Tea, error) 
 	if err != nil {
 		return nil, err
 	}
+
 	return d.readRecord(id, tr)
 }
 
 func (d *db) ReadAllRecords(ctx context.Context, search string) ([]common.Tea, error) {
 	records := make([]common.Tea, 0)
+
 	tr, err := d.db.NewTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
+
 	if search == "" {
 		pr, err := fdb.PrefixRange(d.keyBuilder.Records())
 		if err != nil {
 			return nil, err
 		}
+
 		kvs, err := tr.GetRange(pr)
 		if err != nil {
 			return nil, err
 		}
+
 		for _, kv := range kvs {
 			rec := new(encoder.TeaData)
 			if err = rec.Decode(kv.Value); err != nil {
 				return nil, err
 			}
+
 			records = append(records, common.Tea{
 				ID:      uuid.FromBytesOrNil(kv.Key[1:]),
 				TeaData: (*common.TeaData)(rec),
 			})
 		}
+
 		return records, nil
 	}
+
 	pr, err := fdb.PrefixRange(d.keyBuilder.RecordsByName(search))
 	if err != nil {
 		return nil, err
 	}
+
 	kvs, err := tr.GetRange(pr)
 	if err != nil {
 		return nil, err
 	}
+
 	for _, kv := range kvs {
 		id := new(uuid.UUID)
 		if err = id.UnmarshalBinary(kv.Value); err != nil {
 			return nil, err
 		}
+
 		rec, err := d.readRecord(*id, tr)
 		if err != nil {
 			return nil, err
 		}
+
 		records = append(records, *rec)
 	}
+
 	return records, nil
 }
 
@@ -115,12 +132,15 @@ func (d *db) Delete(ctx context.Context, id uuid.UUID) error {
 	if err != nil {
 		return err
 	}
+
 	rec, err := d.readRecord(id, tr)
 	if err != nil {
 		return err
 	}
+
 	tr.Clear(d.keyBuilder.Record(id))
 	tr.Clear(d.keyBuilder.RecordsByName(rec.Name))
+
 	return tr.Commit()
 }
 
@@ -129,19 +149,24 @@ func (d *db) writeRecord(ctx context.Context, id uuid.UUID, rec *common.TeaData)
 	if err != nil {
 		return nil, err
 	}
+
 	tr, err := d.db.NewTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
+
 	if err = tr.Set(d.keyBuilder.Record(id), data); err != nil {
 		return nil, err
 	}
+
 	if err = tr.Set(d.keyBuilder.RecordsByName(rec.Name), id.Bytes()); err != nil {
 		return nil, err
 	}
+
 	if err = tr.Commit(); err != nil {
 		return nil, err
 	}
+
 	return &common.Tea{
 		ID:      id,
 		TeaData: rec,
@@ -153,16 +178,19 @@ func (d *db) readRecord(id uuid.UUID, tr fdbclient.Transaction) (*common.Tea, er
 	if err != nil {
 		return nil, err
 	}
+
 	if data == nil {
 		return nil, common2.ErrNotFound{
 			Type: "tea",
 			ID:   id.String(),
 		}
 	}
+
 	rec := new(encoder.TeaData)
 	if err = rec.Decode(data); err != nil {
 		return nil, err
 	}
+
 	return &common.Tea{
 		ID:      id,
 		TeaData: (*common.TeaData)(rec),

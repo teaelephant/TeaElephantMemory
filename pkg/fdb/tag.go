@@ -8,7 +8,7 @@ import (
 
 	"github.com/teaelephant/TeaElephantMemory/common"
 	"github.com/teaelephant/TeaElephantMemory/common/key_value/encoder"
-	common2 "github.com/teaelephant/TeaElephantMemory/pkg/fdb/common"
+	fdbCommon "github.com/teaelephant/TeaElephantMemory/pkg/fdb/common"
 	"github.com/teaelephant/TeaElephantMemory/pkg/fdbclient"
 )
 
@@ -34,6 +34,7 @@ func (d *db) CreateTagCategory(ctx context.Context, name string) (category *comm
 	if err = d.writeCategory(ctx, id, name); err != nil {
 		return nil, err
 	}
+
 	return &common.TagCategory{
 		ID:   id,
 		Name: name,
@@ -49,24 +50,31 @@ func (d *db) DeleteTagCategory(ctx context.Context, id uuid.UUID) (removedTags [
 	if err != nil {
 		return nil, err
 	}
+
 	cat, err := d.readCategory(id, tr)
 	if err != nil {
 		return nil, err
 	}
+
 	tags, err := d.readTagsByCategoryID(tr, id)
 	if err != nil {
 		return nil, err
 	}
+
 	removedTags = make([]uuid.UUID, len(tags))
+
 	for i, t := range tags {
 		d.deleteTag(tr, id, t.TagData)
 		removedTags[i] = t.ID
 	}
+
 	tr.Clear(d.keyBuilder.TagCategory(id))
 	tr.Clear(d.keyBuilder.TagCategoryByName(cat.Name))
+
 	if err = tr.Commit(); err != nil {
 		return nil, err
 	}
+
 	return removedTags, nil
 }
 
@@ -75,73 +83,90 @@ func (d *db) GetTagCategory(ctx context.Context, id uuid.UUID) (category *common
 	if err != nil {
 		return nil, err
 	}
+
 	return d.readCategory(id, tr)
 }
 
 func (d *db) ListTagCategories(ctx context.Context, search *string) (list []common.TagCategory, err error) {
 	records := make([]common.TagCategory, 0)
+
 	tr, err := d.db.NewTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
+
 	if search == nil || *search == "" {
 		pr, err := fdb.PrefixRange(d.keyBuilder.TagCategories())
 		if err != nil {
 			return nil, err
 		}
+
 		kvs, err := tr.GetRange(pr)
 		if err != nil {
 			return nil, err
 		}
+
 		for _, kv := range kvs {
 			records = append(records, common.TagCategory{
 				ID:   uuid.FromBytesOrNil(kv.Key[1:]),
 				Name: string(kv.Value),
 			})
 		}
+
 		return records, nil
 	}
+
 	pr, err := fdb.PrefixRange(d.keyBuilder.TagCategoryByName(*search))
 	if err != nil {
 		return nil, err
 	}
+
 	kvs, err := tr.GetRange(pr)
 	if err != nil {
 		return nil, err
 	}
+
 	for _, kv := range kvs {
 		id := new(uuid.UUID)
+
 		if err = id.UnmarshalBinary(kv.Value); err != nil {
 			return nil, err
 		}
+
 		rec, err := d.readCategory(*id, tr)
 		if err != nil {
 			return nil, err
 		}
+
 		records = append(records, *rec)
 	}
+
 	return records, nil
 }
 
 func (d *db) CreateTag(ctx context.Context, name, color string, categoryID uuid.UUID) (*common.Tag, error) {
 	id := uuid.NewV4()
+
 	tr, err := d.db.NewTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
+
 	tags, err := d.readTagsByNameAndCategoryID(tr, name, categoryID)
 	if err != nil {
 		return nil, err
 	}
+
 	for _, t := range tags {
 		if t.Name == name {
-			return nil, common2.ErrTagExist{Name: name, CategoryID: categoryID}
+			return nil, fdbCommon.ErrTagExist{Name: name, CategoryID: categoryID}
 		}
 	}
 
 	if _, err := d.readCategory(categoryID, tr); err != nil {
 		return nil, err
 	}
+
 	tag := &common.Tag{
 		ID: id,
 		TagData: &common.TagData{
@@ -150,12 +175,15 @@ func (d *db) CreateTag(ctx context.Context, name, color string, categoryID uuid.
 			CategoryID: categoryID,
 		},
 	}
+
 	if err = d.writeTag(tr, tag); err != nil {
 		return nil, err
 	}
+
 	if err = tr.Commit(); err != nil {
 		return nil, err
 	}
+
 	return tag, nil
 }
 
@@ -164,14 +192,17 @@ func (d *db) UpdateTag(ctx context.Context, id uuid.UUID, name, color string) (*
 	if err != nil {
 		return nil, err
 	}
+
 	data, err := tr.Get(d.keyBuilder.Tag(id))
 	if err != nil {
 		return nil, err
 	}
+
 	tagData := new(encoder.TagData)
 	if err = tagData.Decode(data); err != nil {
 		return nil, err
 	}
+
 	newTag := &common.Tag{
 		ID: id,
 		TagData: &common.TagData{
@@ -180,12 +211,15 @@ func (d *db) UpdateTag(ctx context.Context, id uuid.UUID, name, color string) (*
 			CategoryID: tagData.CategoryID,
 		},
 	}
+
 	if err = d.writeTag(tr, newTag); err != nil {
 		return nil, err
 	}
+
 	if err = tr.Commit(); err != nil {
 		return nil, err
 	}
+
 	return newTag, nil
 }
 
@@ -194,14 +228,17 @@ func (d *db) ChangeTagCategory(ctx context.Context, id, categoryID uuid.UUID) (*
 	if err != nil {
 		return nil, err
 	}
+
 	data, err := tr.Get(d.keyBuilder.Tag(id))
 	if err != nil {
 		return nil, err
 	}
+
 	tagData := new(encoder.TagData)
 	if err = tagData.Decode(data); err != nil {
 		return nil, err
 	}
+
 	newTag := &common.Tag{
 		ID: id,
 		TagData: &common.TagData{
@@ -210,12 +247,15 @@ func (d *db) ChangeTagCategory(ctx context.Context, id, categoryID uuid.UUID) (*
 			CategoryID: categoryID,
 		},
 	}
+
 	if err = d.writeTag(tr, newTag); err != nil {
 		return nil, err
 	}
+
 	if err = tr.Commit(); err != nil {
 		return nil, err
 	}
+
 	return newTag, nil
 }
 
@@ -224,11 +264,14 @@ func (d *db) DeleteTag(ctx context.Context, id uuid.UUID) error {
 	if err != nil {
 		return err
 	}
+
 	tag, err := d.readTag(id, tr)
 	if err != nil {
 		return err
 	}
+
 	d.deleteTag(tr, id, tag)
+
 	return tr.Commit()
 }
 
@@ -237,10 +280,12 @@ func (d *db) GetTag(ctx context.Context, id uuid.UUID) (*common.Tag, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	tagData, err := d.readTag(id, tr)
 	if err != nil {
 		return nil, err
 	}
+
 	return &common.Tag{
 		ID:      id,
 		TagData: tagData,
@@ -249,63 +294,78 @@ func (d *db) GetTag(ctx context.Context, id uuid.UUID) (*common.Tag, error) {
 
 func (d *db) ListTags(ctx context.Context, name *string, categoryID *uuid.UUID) (list []common.Tag, err error) {
 	records := make([]common.Tag, 0)
+
 	tr, err := d.db.NewTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
+
 	hasFilterByName := name != nil && *name != ""
 	if !hasFilterByName && categoryID == nil {
 		pr, err := fdb.PrefixRange(d.keyBuilder.Tags())
 		if err != nil {
 			return nil, err
 		}
+
 		kvs, err := tr.GetRange(pr)
 		if err != nil {
 			return nil, err
 		}
+
 		for _, kv := range kvs {
 			tagData := new(encoder.TagData)
 			if err = tagData.Decode(kv.Value); err != nil {
 				return nil, err
 			}
+
 			records = append(records, common.Tag{
 				ID:      uuid.FromBytesOrNil(kv.Key[1:]),
 				TagData: (*common.TagData)(tagData),
 			})
 		}
+
 		return records, nil
 	}
+
 	if categoryID == nil {
 		pr, err := fdb.PrefixRange(d.keyBuilder.TagsByName(*name))
 		if err != nil {
 			return nil, err
 		}
+
 		kvs, err := tr.GetRange(pr)
 		if err != nil {
 			return nil, err
 		}
+
 		for _, kv := range kvs {
 			id := new(uuid.UUID)
 			if err = id.UnmarshalBinary(kv.Value); err != nil {
 				return nil, err
 			}
+
 			rec, err := d.readTag(*id, tr)
 			if err != nil {
 				return nil, err
 			}
+
 			records = append(records, common.Tag{
 				ID:      *id,
 				TagData: rec,
 			})
 		}
+
 		return records, nil
 	}
+
 	if !hasFilterByName {
 		if records, err = d.readTagsByCategoryID(tr, *categoryID); err != nil {
 			return nil, err
 		}
+
 		return records, nil
 	}
+
 	if records, err = d.readTagsByNameAndCategoryID(tr, *name, *categoryID); err != nil {
 		return nil, err
 	}
@@ -318,14 +378,23 @@ func (d *db) AddTagToTea(ctx context.Context, tea uuid.UUID, tag uuid.UUID) erro
 	if err != nil {
 		return err
 	}
+
 	if _, err = d.readRecord(tea, tr); err != nil {
 		return err
 	}
+
 	if _, err = d.readTag(tag, tr); err != nil {
 		return err
 	}
-	tr.Set(d.keyBuilder.TeaTagPair(tea, tag), tag.Bytes())
-	tr.Set(d.keyBuilder.TagTeaPair(tag, tea), tea.Bytes())
+
+	if err = tr.Set(d.keyBuilder.TeaTagPair(tea, tag), tag.Bytes()); err != nil {
+		return err
+	}
+
+	if err = tr.Set(d.keyBuilder.TagTeaPair(tag, tea), tea.Bytes()); err != nil {
+		return err
+	}
+
 	return tr.Commit()
 }
 
@@ -334,45 +403,56 @@ func (d *db) DeleteTagFromTea(ctx context.Context, tea uuid.UUID, tag uuid.UUID)
 	if err != nil {
 		return err
 	}
+
 	if _, err = d.readRecord(tea, tr); err != nil {
 		return err
 	}
+
 	if _, err = d.readTag(tag, tr); err != nil {
 		return err
 	}
+
 	tr.Clear(d.keyBuilder.TeaTagPair(tea, tag))
 	tr.Clear(d.keyBuilder.TagTeaPair(tag, tea))
+
 	return tr.Commit()
 }
 
 func (d *db) ListByTea(ctx context.Context, id uuid.UUID) ([]common.Tag, error) {
 	records := make([]common.Tag, 0)
+
 	tr, err := d.db.NewTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
+
 	pr, err := fdb.PrefixRange(d.keyBuilder.TagsByTea(id))
 	if err != nil {
 		return nil, err
 	}
+
 	kvs, err := tr.GetRange(pr)
 	if err != nil {
 		return nil, err
 	}
+
 	for _, kv := range kvs {
 		id := new(uuid.UUID)
 		if err = id.UnmarshalBinary(kv.Value); err != nil {
 			return nil, err
 		}
+
 		rec, err := d.readTag(*id, tr)
 		if err != nil {
 			return nil, err
 		}
+
 		records = append(records, common.Tag{
 			ID:      *id,
 			TagData: rec,
 		})
 	}
+
 	return records, nil
 }
 
@@ -381,8 +461,15 @@ func (d *db) writeCategory(ctx context.Context, id uuid.UUID, name string) error
 	if err != nil {
 		return err
 	}
-	tx.Set(d.keyBuilder.TagCategory(id), []byte(name))
-	tx.Set(d.keyBuilder.TagCategoryByName(name), id.Bytes())
+
+	if err = tx.Set(d.keyBuilder.TagCategory(id), []byte(name)); err != nil {
+		return err
+	}
+
+	if err = tx.Set(d.keyBuilder.TagCategoryByName(name), id.Bytes()); err != nil {
+		return err
+	}
+
 	return tx.Commit()
 }
 
@@ -391,9 +478,19 @@ func (d *db) writeTag(tr fdbclient.Transaction, tag *common.Tag) error {
 	if err != nil {
 		return err
 	}
-	tr.Set(d.keyBuilder.Tag(tag.ID), data)
-	tr.Set(d.keyBuilder.TagsByName(tag.Name), tag.ID.Bytes())
-	tr.Set(d.keyBuilder.TagsByNameAndCategory(tag.CategoryID, tag.Name), tag.ID.Bytes())
+
+	if err = tr.Set(d.keyBuilder.Tag(tag.ID), data); err != nil {
+		return err
+	}
+
+	if err = tr.Set(d.keyBuilder.TagsByName(tag.Name), tag.ID.Bytes()); err != nil {
+		return err
+	}
+
+	if err = tr.Set(d.keyBuilder.TagsByNameAndCategory(tag.CategoryID, tag.Name), tag.ID.Bytes()); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -402,16 +499,19 @@ func (d *db) readTag(id uuid.UUID, tr fdbclient.Transaction) (*common.TagData, e
 	if err != nil {
 		return nil, err
 	}
+
 	if data == nil {
-		return nil, common2.ErrNotFound{
+		return nil, fdbCommon.ErrNotFound{
 			Type: "tag",
 			ID:   id.String(),
 		}
 	}
+
 	tagData := new(encoder.TagData)
 	if err = tagData.Decode(data); err != nil {
 		return nil, err
 	}
+
 	return (*common.TagData)(tagData), nil
 }
 
@@ -420,12 +520,14 @@ func (d *db) readCategory(id uuid.UUID, tr fdbclient.Transaction) (*common.TagCa
 	if err != nil {
 		return nil, err
 	}
+
 	if data == nil {
-		return nil, common2.ErrNotFound{
+		return nil, fdbCommon.ErrNotFound{
 			Type: "category",
 			ID:   id.String(),
 		}
 	}
+
 	return &common.TagCategory{
 		ID:   id,
 		Name: string(data),
@@ -442,28 +544,34 @@ func (d *db) readTagsByCategoryID(tr fdbclient.Transaction, categoryID uuid.UUID
 
 func (d *db) readTagsByPrefix(tr fdbclient.Transaction, prefix []byte) ([]common.Tag, error) {
 	records := make([]common.Tag, 0)
+
 	pr, err := fdb.PrefixRange(prefix)
 	if err != nil {
 		return nil, err
 	}
+
 	kvs, err := tr.GetRange(pr)
 	if err != nil {
 		return nil, err
 	}
+
 	for _, kv := range kvs {
 		id := new(uuid.UUID)
 		if err = id.UnmarshalBinary(kv.Value); err != nil {
 			return nil, err
 		}
+
 		rec, err := d.readTag(*id, tr)
 		if err != nil {
 			return nil, err
 		}
+
 		records = append(records, common.Tag{
 			ID:      *id,
 			TagData: rec,
 		})
 	}
+
 	return records, nil
 }
 

@@ -17,6 +17,11 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/pkg/leveldb/migrator"
 )
 
+const (
+	foundationDBVersion = 710
+	pkgKey              = "pkg"
+)
+
 type configuration struct {
 	LogLevel uint32 `default:"4"`
 }
@@ -26,20 +31,25 @@ func main() {
 	if err := envconfig.Process("", cfg); err != nil {
 		panic(err)
 	}
+
 	logrusLogger := logrus.New()
 	logrusLogger.SetLevel(logrus.Level(cfg.LogLevel))
-	foundeationDB.MustAPIVersion(710)
+	foundeationDB.MustAPIVersion(foundationDBVersion)
+
 	db, err := foundeationDB.OpenDatabase("/usr/local/etc/foundationdb/fdb.cluster")
 	if err != nil {
 		panic(err)
 	}
-	st := fdb.NewDb(db)
+
+	st := fdb.NewDB(db)
+
 	mig := migrator.NewManager(migrations.Migrations, st)
+
 	if err := mig.Migrate(); err != nil {
 		panic(err)
 	}
 
-	errorCreator := httperror.NewCreator(logrus.WithField("pkg", "http_error"))
+	errorCreator := httperror.NewCreator(logrus.WithField(pkgKey, "http_error"))
 	tr := server.NewTransport()
 	apiV1 := v1.New(st, errorCreator, tr)
 
@@ -47,7 +57,7 @@ func main() {
 	qrManager := qr_manager.NewManager(st)
 	tagManager := tag_manager.NewManager(st, teaManager, logrusLogger)
 
-	resolvers := graphql.NewResolver(logrusLogger.WithField("pkg", "graphql"), teaManager, qrManager, tagManager)
+	resolvers := graphql.NewResolver(logrusLogger.WithField(pkgKey, "graphql"), teaManager, qrManager, tagManager)
 
 	s := server.NewServer(apiV1, resolvers)
 	s.InitV1Api()
