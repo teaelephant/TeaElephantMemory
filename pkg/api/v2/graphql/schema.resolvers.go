@@ -6,7 +6,6 @@ package graphql
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/satori/go.uuid"
 
@@ -67,8 +66,25 @@ func (r *mutationResolver) DeleteTea(ctx context.Context, id common.ID) (common.
 }
 
 // WriteToQR is the resolver for the writeToQR field.
-func (r *mutationResolver) WriteToQR(context.Context, common.ID, model.QRRecordData) (*model.QRRecord, error) {
-	panic(fmt.Errorf("not implemented: WriteToQR - writeToQR"))
+func (r *mutationResolver) WriteToQR(ctx context.Context, id common.ID, data model.QRRecordData) (*model.QRRecord, error) {
+	if err := r.qrManager.Set(ctx, uuid.UUID(id), &data); err != nil {
+		return nil, err
+	}
+	tea, err := r.teaData.Get(ctx, uuid.UUID(data.Tea))
+	if err != nil {
+		return nil, err
+	}
+	return &model.QRRecord{
+		ID: id,
+		Tea: &model.Tea{
+			ID:          common.ID(tea.ID),
+			Name:        tea.Name,
+			Type:        model.Type(tea.Type),
+			Description: tea.Description,
+		},
+		BowlingTemp:    data.BowlingTemp,
+		ExpirationDate: data.ExpirationDate,
+	}, nil
 }
 
 // CreateTagCategory is the resolver for the createTagCategory field.
@@ -245,8 +261,26 @@ func (r *queryResolver) GetTea(ctx context.Context, id common.ID) (*model.Tea, e
 }
 
 // GetQRRecord is the resolver for the getQrRecord field.
-func (r *queryResolver) GetQRRecord(context.Context, common.ID) (*model.QRRecord, error) {
-	panic(fmt.Errorf("not implemented: GetQRRecord - getQrRecord"))
+func (r *queryResolver) GetQRRecord(ctx context.Context, id common.ID) (*model.QRRecord, error) {
+	data, err := r.qrManager.Get(ctx, uuid.UUID(id))
+	if err != nil {
+		return nil, err
+	}
+	tea, err := r.teaData.Get(ctx, uuid.UUID(data.Tea))
+	if err != nil {
+		return nil, err
+	}
+	return &model.QRRecord{
+		ID: id,
+		Tea: &model.Tea{
+			ID:          common.ID(tea.ID),
+			Name:        tea.Name,
+			Type:        model.Type(tea.Type),
+			Description: tea.Description,
+		},
+		BowlingTemp:    data.BowlingTemp,
+		ExpirationDate: data.ExpirationDate,
+	}, nil
 }
 
 // GetTags is the resolver for the getTags field.
@@ -469,72 +503,3 @@ type subscriptionResolver struct{ *Resolver }
 type tagResolver struct{ *Resolver }
 type tagCategoryResolver struct{ *Resolver }
 type teaResolver struct{ *Resolver }
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//   - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//     it when you're done.
-//   - You have helper methods in this file. Move them out to keep these resolver files clean.
-func (r *mutationResolver) WriteToQr(ctx context.Context, id common.ID, data model.QRRecordData) (*model.QRRecord, error) {
-	if err := r.qrManager.Set(ctx, uuid.UUID(id), &data); err != nil {
-		return nil, err
-	}
-	tea, err := r.teaData.Get(ctx, uuid.UUID(data.Tea))
-	if err != nil {
-		return nil, err
-	}
-	return &model.QRRecord{
-		ID: id,
-		Tea: &model.Tea{
-			ID:          common.ID(tea.ID),
-			Name:        tea.Name,
-			Type:        model.Type(tea.Type),
-			Description: tea.Description,
-		},
-		BowlingTemp:    data.BowlingTemp,
-		ExpirationDate: data.ExpirationDate,
-	}, nil
-}
-func (r *queryResolver) QrRecord(ctx context.Context, id common.ID) (*model.QRRecord, error) {
-	data, err := r.qrManager.Get(ctx, uuid.UUID(id))
-	if err != nil {
-		return nil, err
-	}
-	tea, err := r.teaData.Get(ctx, uuid.UUID(data.Tea))
-	if err != nil {
-		return nil, err
-	}
-	return &model.QRRecord{
-		ID: id,
-		Tea: &model.Tea{
-			ID:          common.ID(tea.ID),
-			Name:        tea.Name,
-			Type:        model.Type(tea.Type),
-			Description: tea.Description,
-		},
-		BowlingTemp:    data.BowlingTemp,
-		ExpirationDate: data.ExpirationDate,
-	}, nil
-}
-func (r *queryResolver) GetQrRecord(ctx context.Context, id common.ID) (*model.QRRecord, error) {
-	data, err := r.qrManager.Get(ctx, uuid.UUID(id))
-	if err != nil {
-		return nil, err
-	}
-	tea, err := r.teaData.Get(ctx, uuid.UUID(data.Tea))
-	if err != nil {
-		return nil, err
-	}
-	return &model.QRRecord{
-		ID: id,
-		Tea: &model.Tea{
-			ID:          common.ID(tea.ID),
-			Name:        tea.Name,
-			Type:        model.Type(tea.Type),
-			Description: tea.Description,
-		},
-		BowlingTemp:    data.BowlingTemp,
-		ExpirationDate: data.ExpirationDate,
-	}, nil
-}
