@@ -194,7 +194,7 @@ func (r *queryResolver) QRRecord(ctx context.Context, id common.ID) (*model.QRRe
 	if err != nil {
 		return nil, err
 	}
-	res, err := r.teaData.Get(ctx, uuid.UUID(id))
+	res, err := r.teaData.Get(ctx, uuid.UUID(qr.Tea))
 	if err != nil {
 		return nil, err
 	}
