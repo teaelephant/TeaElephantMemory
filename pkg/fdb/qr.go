@@ -2,6 +2,7 @@ package fdb
 
 import (
 	"context"
+	"errors"
 
 	uuid "github.com/satori/go.uuid"
 
@@ -19,11 +20,16 @@ func (d *db) WriteQR(ctx context.Context, id uuid.UUID, data *common.QR) error {
 	if err != nil {
 		return err
 	}
+
 	tr, err := d.db.NewTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	tr.Set(d.keyBuilder.QR(id), el)
+
+	if err := tr.Set(d.keyBuilder.QR(id), el); err != nil {
+		return err
+	}
+
 	return tr.Commit()
 }
 
@@ -32,13 +38,19 @@ func (d *db) ReadQR(ctx context.Context, id uuid.UUID) (record *common.QR, err e
 	if err != nil {
 		return nil, err
 	}
+
 	data, err := tr.Get(d.keyBuilder.QR(id))
 	if err != nil {
 		return nil, err
 	}
+	if data == nil {
+		return nil, errors.New("data not exist")
+	}
+
 	rec := new(encoder.QR)
 	if err = rec.Decode(data); err != nil {
 		return nil, err
 	}
+
 	return (*common.QR)(rec), nil
 }

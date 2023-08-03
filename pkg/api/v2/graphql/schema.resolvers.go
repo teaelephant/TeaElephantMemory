@@ -173,8 +173,21 @@ func (r *queryResolver) Tea(ctx context.Context, id common.ID) (*model.Tea, erro
 }
 
 // QRRecord is the resolver for the qrRecord field.
-func (r *queryResolver) QRRecord(context.Context, common.ID) (*model.QRRecord, error) {
-	panic(fmt.Errorf("not implemented: QRRecord - qrRecord"))
+func (r *queryResolver) QRRecord(ctx context.Context, id common.ID) (*model.QRRecord, error) {
+	qr, err := r.qrManager.Get(ctx, uuid.UUID(id))
+	if err != nil {
+		return nil, err
+	}
+	res, err := r.teaData.Get(ctx, uuid.UUID(id))
+	if err != nil {
+		return nil, err
+	}
+	return &model.QRRecord{
+		ID:             id,
+		Tea:            model.FromCommonTea(res),
+		BowlingTemp:    qr.BowlingTemp,
+		ExpirationDate: qr.ExpirationDate,
+	}, nil
 }
 
 // Tag is the resolver for the tag field.
