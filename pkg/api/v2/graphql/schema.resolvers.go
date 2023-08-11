@@ -14,6 +14,11 @@ import (
 	model "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/models"
 )
 
+// Teas is the resolver for the teas field.
+func (r *collectionResolver) Teas(ctx context.Context, obj *model.Collection) ([]*model.Tea, error) {
+	return r.collectionManager.ListTeas(ctx, uuid.UUID(obj.ID), uuid.UUID(obj.UserID))
+}
+
 // NewTea is the resolver for the newTea field.
 func (r *mutationResolver) NewTea(ctx context.Context, tea model.TeaData) (*model.Tea, error) {
 	res, err := r.teaData.Create(ctx, tea.ToCommonTeaData())
@@ -166,6 +171,55 @@ func (r *mutationResolver) DeleteTag(ctx context.Context, id common.ID) (common.
 	return id, nil
 }
 
+// CreateCollection is the resolver for the createCollection field.
+func (r *mutationResolver) CreateCollection(ctx context.Context, token string, name string) (*model.Collection, error) {
+	userID, err := r.auth.CheckToken(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+	return r.collectionManager.Create(ctx, userID, name)
+}
+
+// AddToCollection is the resolver for the addToCollection field.
+func (r *mutationResolver) AddToCollection(ctx context.Context, id common.ID, teas []common.ID, token string) (*model.Collection, error) {
+	userID, err := r.auth.CheckToken(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+
+	ids := make([]uuid.UUID, len(teas))
+	for i, uid := range teas {
+		ids[i] = uuid.UUID(uid)
+	}
+
+	return r.collectionManager.AddTea(ctx, userID, uuid.UUID(id), ids)
+}
+
+// DeleteTeaFromCollection is the resolver for the deleteTeaFromCollection field.
+func (r *mutationResolver) DeleteTeaFromCollection(ctx context.Context, id common.ID, teas []common.ID, token string) (*model.Collection, error) {
+	userID, err := r.auth.CheckToken(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+
+	ids := make([]uuid.UUID, len(teas))
+	for i, uid := range teas {
+		ids[i] = uuid.UUID(uid)
+	}
+
+	return r.collectionManager.DeleteTea(ctx, userID, uuid.UUID(id), ids)
+}
+
+// DeleteCollection is the resolver for the deleteCollection field.
+func (r *mutationResolver) DeleteCollection(ctx context.Context, token string, id common.ID) (common.ID, error) {
+	userID, err := r.auth.CheckToken(ctx, token)
+	if err != nil {
+		return id, err
+	}
+
+	return id, r.collectionManager.Delete(ctx, userID, uuid.UUID(id))
+}
+
 // Teas is the resolver for the teas field.
 func (r *queryResolver) Teas(ctx context.Context, prefix *string) ([]*model.Tea, error) {
 	res, err := r.teaData.List(ctx, prefix)
@@ -236,6 +290,15 @@ func (r *queryResolver) TagsCategories(ctx context.Context, name *string) ([]*mo
 		}
 	}
 	return result, nil
+}
+
+// Collections is the resolver for the collections field.
+func (r *queryResolver) Collections(ctx context.Context, token string) ([]*model.Collection, error) {
+	userID, err := r.auth.CheckToken(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+	return r.collectionManager.List(ctx, userID)
 }
 
 // GetTeas is the resolver for the getTeas field.
@@ -479,6 +542,9 @@ func (r *teaResolver) Tags(ctx context.Context, obj *model.Tea) ([]*model.Tag, e
 	return result, nil
 }
 
+// Collection returns generated.CollectionResolver implementation.
+func (r *Resolver) Collection() generated.CollectionResolver { return &collectionResolver{r} }
+
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
 
@@ -497,6 +563,7 @@ func (r *Resolver) TagCategory() generated.TagCategoryResolver { return &tagCate
 // Tea returns generated.TeaResolver implementation.
 func (r *Resolver) Tea() generated.TeaResolver { return &teaResolver{r} }
 
+type collectionResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subscriptionResolver struct{ *Resolver }

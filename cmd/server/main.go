@@ -5,11 +5,13 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	"github.com/sirupsen/logrus"
 
+	"github.com/teaelephant/TeaElephantMemory/internal/auth"
 	"github.com/teaelephant/TeaElephantMemory/internal/httperror"
-	"github.com/teaelephant/TeaElephantMemory/internal/qr_manager"
+	"github.com/teaelephant/TeaElephantMemory/internal/managers/collection"
+	"github.com/teaelephant/TeaElephantMemory/internal/managers/qr"
+	"github.com/teaelephant/TeaElephantMemory/internal/managers/tag"
+	"github.com/teaelephant/TeaElephantMemory/internal/managers/tea"
 	"github.com/teaelephant/TeaElephantMemory/internal/server"
-	"github.com/teaelephant/TeaElephantMemory/internal/tag_manager"
-	"github.com/teaelephant/TeaElephantMemory/internal/tea_manager"
 	v1 "github.com/teaelephant/TeaElephantMemory/pkg/api/v1"
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/graphql"
 	"github.com/teaelephant/TeaElephantMemory/pkg/fdb"
@@ -53,11 +55,13 @@ func main() {
 	tr := server.NewTransport()
 	apiV1 := v1.New(st, errorCreator, tr)
 
-	teaManager := tea_manager.NewManager(st)
-	qrManager := qr_manager.NewManager(st)
-	tagManager := tag_manager.NewManager(st, teaManager, logrusLogger)
+	teaManager := tea.NewManager(st)
+	qrManager := qr.NewManager(st)
+	tagManager := tag.NewManager(st, teaManager, logrusLogger)
+	collectionManager := collection.NewManager(st)
+	authM := auth.NewAuth()
 
-	resolvers := graphql.NewResolver(logrusLogger.WithField(pkgKey, "graphql"), teaManager, qrManager, tagManager)
+	resolvers := graphql.NewResolver(logrusLogger.WithField(pkgKey, "graphql"), teaManager, qrManager, tagManager, collectionManager, authM)
 
 	s := server.NewServer(apiV1, resolvers)
 	s.InitV1Api()

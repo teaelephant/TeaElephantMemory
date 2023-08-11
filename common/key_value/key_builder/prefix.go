@@ -7,6 +7,8 @@ const (
 	qr          = 'q'
 	tagCategory = 'c'
 	tag         = 't'
+	collection  = 'l'
+	user        = 'u'
 	// indexes
 	recordNameIndex = 'n'
 )
@@ -17,4 +19,5 @@ var (
 	tagIndexName         = []byte{'i', 'n'}
 	tagIndexTea          = []byte{'i', 'a'}
 	teaIndexTag          = []byte{'i', 'b'}
+	collectionIndexTea   = []byte{'i', 'l'}
 )

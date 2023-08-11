@@ -57,19 +57,43 @@ type tagManager interface {
 	SubscribeOnDeleteTagToTea(ctx context.Context) (<-chan *model.Tea, error)
 }
 
+type collectionManager interface {
+	Create(ctx context.Context, userID uuid.UUID, name string) (*model.Collection, error)
+	AddTea(ctx context.Context, userID uuid.UUID, id uuid.UUID, teas []uuid.UUID) (*model.Collection, error)
+	DeleteTea(ctx context.Context, userID uuid.UUID, id uuid.UUID, teas []uuid.UUID) (*model.Collection, error)
+	Delete(ctx context.Context, userID uuid.UUID, id uuid.UUID) error
+	List(ctx context.Context, userID uuid.UUID) ([]*model.Collection, error)
+	ListTeas(ctx context.Context, id, userID uuid.UUID) ([]*model.Tea, error)
+}
+
+type auth interface {
+	CheckToken(ctx context.Context, token string) (uuid.UUID, error)
+}
+
 type Resolver struct {
 	teaData
 	qrManager
 	tagManager
+	collectionManager
+	auth
 
 	log logger
 }
 
-func NewResolver(logger logger, teaData teaData, qrManager qrManager, tagManager tagManager) *Resolver {
+func NewResolver(
+	logger logger,
+	teaData teaData,
+	qrManager qrManager,
+	tagManager tagManager,
+	manager collectionManager,
+	auth auth,
+) *Resolver {
 	return &Resolver{
-		teaData:    teaData,
-		qrManager:  qrManager,
-		tagManager: tagManager,
-		log:        logger,
+		teaData:           teaData,
+		qrManager:         qrManager,
+		tagManager:        tagManager,
+		collectionManager: manager,
+		auth:              auth,
+		log:               logger,
 	}
 }

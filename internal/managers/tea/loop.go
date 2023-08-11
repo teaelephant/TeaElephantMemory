@@ -1,4 +1,4 @@
-package tea_manager
+package tea
 
 import (
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common"

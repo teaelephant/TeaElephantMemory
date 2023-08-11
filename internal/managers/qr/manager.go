@@ -1,4 +1,4 @@
-package qr_manager
+package qr
 
 import (
 	"context"

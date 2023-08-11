@@ -12,6 +12,7 @@ type DB interface {
 	record
 	version
 	tag
+	collection
 }
 
 type db struct {

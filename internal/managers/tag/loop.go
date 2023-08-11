@@ -1,4 +1,4 @@
-package tag_manager
+package tag
 
 import (
 	"context"

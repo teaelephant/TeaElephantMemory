@@ -1,4 +1,4 @@
-package tea_manager
+package tea
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
-	"github.com/teaelephant/TeaElephantMemory/internal/tea_manager/subscribers"
+	subscribers2 "github.com/teaelephant/TeaElephantMemory/internal/managers/tea/subscribers"
 	gqlCommon "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common"
 	model "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/models"
 )
@@ -33,9 +33,9 @@ type storage interface {
 
 type manager struct {
 	storage
-	createSubscribers subscribers.TeaSubscribers
-	updateSubscribers subscribers.TeaSubscribers
-	deleteSubscribers subscribers.IDSubscribers
+	createSubscribers subscribers2.TeaSubscribers
+	updateSubscribers subscribers2.TeaSubscribers
+	deleteSubscribers subscribers2.IDSubscribers
 	create            chan *common.Tea
 	update            chan *common.Tea
 	delete            chan uuid.UUID
@@ -103,9 +103,9 @@ func (m *manager) Start() {
 func NewManager(storage storage) TeaManager {
 	return &manager{
 		storage:           storage,
-		createSubscribers: subscribers.NewTeaSubscribers(),
-		updateSubscribers: subscribers.NewTeaSubscribers(),
-		deleteSubscribers: subscribers.NewIDSubscribers(),
+		createSubscribers: subscribers2.NewTeaSubscribers(),
+		updateSubscribers: subscribers2.NewTeaSubscribers(),
+		deleteSubscribers: subscribers2.NewIDSubscribers(),
 		create:            make(chan *common.Tea, 100),
 		update:            make(chan *common.Tea, 100),
 		delete:            make(chan uuid.UUID, 100),

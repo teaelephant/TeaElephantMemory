@@ -22,9 +22,29 @@ type Builder interface {
 	TeasByTag(tag uuid.UUID) []byte
 	TagTeaPair(tag, tea uuid.UUID) []byte
 	TeaTagPair(tea, tag uuid.UUID) []byte
+	Collection(id, userID uuid.UUID) []byte
+	UserCollections(id uuid.UUID) []byte
+	CollectionsTeas(id, teaID uuid.UUID) []byte
+	TeaByCollection(id uuid.UUID) []byte
 }
 
 type builder struct {
+}
+
+func (b *builder) TeaByCollection(id uuid.UUID) []byte {
+	return appendIndex(collectionIndexTea, id.Bytes())
+}
+
+func (b *builder) Collection(id, userID uuid.UUID) []byte {
+	return appendIndex(appendUUID(collection, userID), id.Bytes())
+}
+
+func (b *builder) UserCollections(id uuid.UUID) []byte {
+	return appendUUID(collection, id)
+}
+
+func (b *builder) CollectionsTeas(id, teaID uuid.UUID) []byte {
+	return appendIndex(collectionIndexTea, append(id.Bytes(), teaID.Bytes()...))
 }
 
 func (b *builder) TagTeaPair(tag, tea uuid.UUID) []byte {
@@ -98,9 +118,11 @@ func (b *builder) TagsByCategory(category uuid.UUID) []byte {
 func appendPrefix(prefix byte, data []byte) []byte {
 	res := make([]byte, len(data)+1)
 	res[0] = prefix
+
 	for i := 1; i < len(data)+1; i++ {
 		res[i] = data[i-1]
 	}
+
 	return res
 }
 

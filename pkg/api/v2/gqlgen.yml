@@ -55,6 +55,10 @@ models:
     fields:
       category:
         resolver: true
+  Collection:
+    fields:
+      teas:
+        resolver: true
   ID:
     model:
       - github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common.ID

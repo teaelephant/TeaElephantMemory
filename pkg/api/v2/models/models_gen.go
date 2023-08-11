@@ -11,6 +11,13 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common"
 )
 
+type Collection struct {
+	ID     common.ID `json:"id"`
+	Name   string    `json:"name"`
+	UserID common.ID `json:"userID"`
+	Teas   []*Tea    `json:"teas"`
+}
+
 type QRRecord struct {
 	ID             common.ID `json:"id"`
 	Tea            *Tea      `json:"tea"`

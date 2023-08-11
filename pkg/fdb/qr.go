@@ -43,6 +43,7 @@ func (d *db) ReadQR(ctx context.Context, id uuid.UUID) (record *common.QR, err e
 	if err != nil {
 		return nil, err
 	}
+
 	if data == nil {
 		return nil, errors.New("data not exist")
 	}

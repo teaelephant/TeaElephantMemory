@@ -3,6 +3,8 @@ package encoder
 import (
 	"encoding/json"
 
+	uuid "github.com/satori/go.uuid"
+
 	"github.com/teaelephant/TeaElephantMemory/common"
 )
 
@@ -49,4 +51,17 @@ func (t *TagData) Encode() ([]byte, error) {
 
 func (t *TagData) Decode(data []byte) error {
 	return json.Unmarshal(data, t)
+}
+
+type Collection struct {
+	Name   string
+	UserID uuid.UUID
+}
+
+func (c *Collection) Encode() ([]byte, error) {
+	return json.Marshal(c)
+}
+
+func (c *Collection) Decode(data []byte) error {
+	return json.Unmarshal(data, c)
 }

@@ -11,6 +11,8 @@ type Query {
     tag(id: ID!): Tag
     "Get categories of tags"
     tagsCategories(name: String): [TagCategory!]!
+    "Collection of teas, authorization required"
+    collections(token: String!): [Collection!]!
 
     getTeas(prefix: String): [Tea!]! @deprecated(reason: "Use teas instead")
     getTea(id: ID!): Tea @deprecated(reason: "Use tea instead")
@@ -34,6 +36,10 @@ type Mutation {
     updateTag(id: ID!, name: String!, color: String!): Tag!
     changeTagCategory(id: ID!, category: ID!): Tag!
     deleteTag(id: ID!): ID!
+    createCollection(token: String!, name: String!): Collection!
+    addToCollection(id: ID!, teas: [ID!]!, token: String!): Collection!
+    deleteTeaFromCollection(id: ID!, teas: [ID!]!, token: String!): Collection!
+    deleteCollection(token: String!, id: ID!): ID!
 }
 
 type Subscription {
@@ -96,4 +102,11 @@ enum Type {
     coffee
     herb
     other
+}
+
+type Collection {
+    id: ID!
+    name: String!
+    userID: ID!
+    teas: [Tea!]!
 }

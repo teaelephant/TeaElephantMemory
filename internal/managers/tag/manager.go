@@ -1,4 +1,4 @@
-package tag_manager
+package tag
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
-	"github.com/teaelephant/TeaElephantMemory/internal/tag_manager/subscribers"
+	subscribers2 "github.com/teaelephant/TeaElephantMemory/internal/managers/tag/subscribers"
 	gqlCommon "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common"
 	model "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/models"
 )
@@ -69,24 +69,24 @@ type teaManager interface {
 type manager struct {
 	teaManager
 	storage
-	createSubscribers subscribers.TagSubscribers
-	updateSubscribers subscribers.TagSubscribers
-	deleteSubscribers subscribers.IDSubscribers
+	createSubscribers subscribers2.TagSubscribers
+	updateSubscribers subscribers2.TagSubscribers
+	deleteSubscribers subscribers2.IDSubscribers
 	create            chan *common.Tag
 	update            chan *common.Tag
 	delete            chan uuid.UUID
 
-	createSubscribersCategory subscribers.TagCategorySubscribers
-	updateSubscribersCategory subscribers.TagCategorySubscribers
-	deleteSubscribersCategory subscribers.IDSubscribers
+	createSubscribersCategory subscribers2.TagCategorySubscribers
+	updateSubscribersCategory subscribers2.TagCategorySubscribers
+	deleteSubscribersCategory subscribers2.IDSubscribers
 	createCategory            chan *common.TagCategory
 	updateCategory            chan *common.TagCategory
 	deleteCategory            chan uuid.UUID
 
 	addTagToTea               chan uuid.UUID
 	deleteTagFromTea          chan uuid.UUID
-	addTagToTeaSubscribers    subscribers.TeaSubscribers
-	deleteTagToTeaSubscribers subscribers.TeaSubscribers
+	addTagToTeaSubscribers    subscribers2.TeaSubscribers
+	deleteTagToTeaSubscribers subscribers2.TeaSubscribers
 
 	log logger
 }
@@ -251,14 +251,14 @@ func NewManager(storage storage, teaManager teaManager, log logger) Manager {
 	return &manager{
 		teaManager:                teaManager,
 		storage:                   storage,
-		createSubscribers:         subscribers.NewTagSubscribers(),
-		updateSubscribers:         subscribers.NewTagSubscribers(),
-		deleteSubscribers:         subscribers.NewIDSubscribers(),
-		createSubscribersCategory: subscribers.NewTagCategorySubscribers(),
-		updateSubscribersCategory: subscribers.NewTagCategorySubscribers(),
-		deleteSubscribersCategory: subscribers.NewIDSubscribers(),
-		addTagToTeaSubscribers:    subscribers.NewTeaSubscribers(),
-		deleteTagToTeaSubscribers: subscribers.NewTeaSubscribers(),
+		createSubscribers:         subscribers2.NewTagSubscribers(),
+		updateSubscribers:         subscribers2.NewTagSubscribers(),
+		deleteSubscribers:         subscribers2.NewIDSubscribers(),
+		createSubscribersCategory: subscribers2.NewTagCategorySubscribers(),
+		updateSubscribersCategory: subscribers2.NewTagCategorySubscribers(),
+		deleteSubscribersCategory: subscribers2.NewIDSubscribers(),
+		addTagToTeaSubscribers:    subscribers2.NewTeaSubscribers(),
+		deleteTagToTeaSubscribers: subscribers2.NewTeaSubscribers(),
 		create:                    make(chan *common.Tag, defaultChanSize),
 		update:                    make(chan *common.Tag, defaultChanSize),
 		delete:                    make(chan uuid.UUID, defaultChanSize),
