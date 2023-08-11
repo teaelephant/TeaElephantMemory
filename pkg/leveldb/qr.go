@@ -17,6 +17,7 @@ func (l *levelStorage) WriteQR(id uuid.UUID, qrData *common.QR) error {
 	if err != nil {
 		return err
 	}
+
 	return l.db.Put(l.keyBuilder.QR(id), data, nil)
 }
 
@@ -25,9 +26,13 @@ func (l *levelStorage) ReadQR(id uuid.UUID) (*common.QR, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	rec := new(encoder.QR)
 	if err = rec.Decode(data); err != nil {
 		return nil, err
 	}
+
+	rec.ID = id
+
 	return (*common.QR)(rec), nil
 }

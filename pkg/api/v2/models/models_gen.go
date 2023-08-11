@@ -12,10 +12,10 @@ import (
 )
 
 type Collection struct {
-	ID     common.ID `json:"id"`
-	Name   string    `json:"name"`
-	UserID common.ID `json:"userID"`
-	Teas   []*Tea    `json:"teas"`
+	ID      common.ID   `json:"id"`
+	Name    string      `json:"name"`
+	UserID  common.ID   `json:"userID"`
+	Records []*QRRecord `json:"records"`
 }
 
 type QRRecord struct {

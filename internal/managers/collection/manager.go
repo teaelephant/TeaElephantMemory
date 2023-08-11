@@ -12,11 +12,11 @@ import (
 
 type Manager interface {
 	Create(ctx context.Context, userID uuid.UUID, name string) (*model.Collection, error)
-	AddTea(ctx context.Context, userID uuid.UUID, id uuid.UUID, teas []uuid.UUID) (*model.Collection, error)
-	DeleteTea(ctx context.Context, userID uuid.UUID, id uuid.UUID, teas []uuid.UUID) (*model.Collection, error)
+	AddRecords(ctx context.Context, userID uuid.UUID, id uuid.UUID, teas []uuid.UUID) (*model.Collection, error)
+	DeleteRecords(ctx context.Context, userID uuid.UUID, id uuid.UUID, teas []uuid.UUID) (*model.Collection, error)
 	Delete(ctx context.Context, userID uuid.UUID, id uuid.UUID) error
 	List(ctx context.Context, userID uuid.UUID) ([]*model.Collection, error)
-	ListTeas(ctx context.Context, id, userID uuid.UUID) ([]*model.Tea, error)
+	ListRecords(ctx context.Context, id, userID uuid.UUID) ([]*model.QRRecord, error)
 }
 
 type storage interface {
@@ -26,30 +26,30 @@ type storage interface {
 	DeleteCollection(ctx context.Context, id, userID uuid.UUID) error
 	Collections(ctx context.Context, userID uuid.UUID) ([]*common.Collection, error)
 	Collection(ctx context.Context, id, userID uuid.UUID) (*common.Collection, error)
-	CollectionTeas(ctx context.Context, id uuid.UUID) ([]*common.Tea, error)
+	CollectionRecords(ctx context.Context, id uuid.UUID) ([]*common.CollectionRecord, error)
 }
 
 type manager struct {
 	storage
 }
 
-func (m *manager) ListTeas(ctx context.Context, id, userID uuid.UUID) ([]*model.Tea, error) {
+func (m *manager) ListRecords(ctx context.Context, id, userID uuid.UUID) ([]*model.QRRecord, error) {
 	if _, err := m.storage.Collection(ctx, id, userID); err != nil {
 		return nil, err
 	}
 
-	teas, err := m.storage.CollectionTeas(ctx, id)
+	records, err := m.storage.CollectionRecords(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	list := make([]*model.Tea, len(teas))
-	for i, tea := range teas {
-		list[i] = &model.Tea{
-			ID:          gqlCommon.ID(tea.ID),
-			Name:        tea.Name,
-			Type:        model.Type(tea.Type),
-			Description: tea.Description,
+	list := make([]*model.QRRecord, len(records))
+	for i, record := range records {
+		list[i] = &model.QRRecord{
+			ID:             gqlCommon.ID(record.ID),
+			Tea:            model.FromCommonTea(record.Tea),
+			BowlingTemp:    record.BowlingTemp,
+			ExpirationDate: record.ExpirationDate,
 		}
 	}
 
@@ -69,7 +69,7 @@ func (m *manager) Create(ctx context.Context, userID uuid.UUID, name string) (*m
 	}, nil
 }
 
-func (m *manager) AddTea(ctx context.Context, userID, id uuid.UUID, teas []uuid.UUID) (*model.Collection, error) {
+func (m *manager) AddRecords(ctx context.Context, userID, id uuid.UUID, teas []uuid.UUID) (*model.Collection, error) {
 	if _, err := m.storage.Collection(ctx, id, userID); err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (m *manager) AddTea(ctx context.Context, userID, id uuid.UUID, teas []uuid.
 	}, nil
 }
 
-func (m *manager) DeleteTea(ctx context.Context, userID uuid.UUID, id uuid.UUID, teas []uuid.UUID) (*model.Collection, error) {
+func (m *manager) DeleteRecords(ctx context.Context, userID uuid.UUID, id uuid.UUID, teas []uuid.UUID) (*model.Collection, error) {
 	if _, err := m.storage.Collection(ctx, id, userID); err != nil {
 		return nil, err
 	}

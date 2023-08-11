@@ -14,9 +14,9 @@ import (
 	model "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/models"
 )
 
-// Teas is the resolver for the teas field.
-func (r *collectionResolver) Teas(ctx context.Context, obj *model.Collection) ([]*model.Tea, error) {
-	return r.collectionManager.ListTeas(ctx, uuid.UUID(obj.ID), uuid.UUID(obj.UserID))
+// Records is the resolver for the records field.
+func (r *collectionResolver) Records(ctx context.Context, obj *model.Collection) ([]*model.QRRecord, error) {
+	return r.collectionManager.ListRecords(ctx, uuid.UUID(obj.ID), uuid.UUID(obj.UserID))
 }
 
 // NewTea is the resolver for the newTea field.
@@ -180,34 +180,34 @@ func (r *mutationResolver) CreateCollection(ctx context.Context, token string, n
 	return r.collectionManager.Create(ctx, userID, name)
 }
 
-// AddToCollection is the resolver for the addToCollection field.
-func (r *mutationResolver) AddToCollection(ctx context.Context, id common.ID, teas []common.ID, token string) (*model.Collection, error) {
+// AddRecordsToCollection is the resolver for the addRecordsToCollection field.
+func (r *mutationResolver) AddRecordsToCollection(ctx context.Context, id common.ID, records []common.ID, token string) (*model.Collection, error) {
 	userID, err := r.auth.CheckToken(ctx, token)
 	if err != nil {
 		return nil, err
 	}
 
-	ids := make([]uuid.UUID, len(teas))
-	for i, uid := range teas {
+	ids := make([]uuid.UUID, len(records))
+	for i, uid := range records {
 		ids[i] = uuid.UUID(uid)
 	}
 
-	return r.collectionManager.AddTea(ctx, userID, uuid.UUID(id), ids)
+	return r.collectionManager.AddRecords(ctx, userID, uuid.UUID(id), ids)
 }
 
-// DeleteTeaFromCollection is the resolver for the deleteTeaFromCollection field.
-func (r *mutationResolver) DeleteTeaFromCollection(ctx context.Context, id common.ID, teas []common.ID, token string) (*model.Collection, error) {
+// DeleteRecordsFromCollection is the resolver for the deleteRecordsFromCollection field.
+func (r *mutationResolver) DeleteRecordsFromCollection(ctx context.Context, id common.ID, records []common.ID, token string) (*model.Collection, error) {
 	userID, err := r.auth.CheckToken(ctx, token)
 	if err != nil {
 		return nil, err
 	}
 
-	ids := make([]uuid.UUID, len(teas))
-	for i, uid := range teas {
+	ids := make([]uuid.UUID, len(records))
+	for i, uid := range records {
 		ids[i] = uuid.UUID(uid)
 	}
 
-	return r.collectionManager.DeleteTea(ctx, userID, uuid.UUID(id), ids)
+	return r.collectionManager.DeleteRecords(ctx, userID, uuid.UUID(id), ids)
 }
 
 // DeleteCollection is the resolver for the deleteCollection field.

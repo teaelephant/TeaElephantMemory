@@ -8,6 +8,7 @@ import (
 
 	"github.com/teaelephant/TeaElephantMemory/common"
 	"github.com/teaelephant/TeaElephantMemory/common/key_value/encoder"
+	"github.com/teaelephant/TeaElephantMemory/pkg/fdbclient"
 )
 
 type qr interface {
@@ -39,6 +40,10 @@ func (d *db) ReadQR(ctx context.Context, id uuid.UUID) (record *common.QR, err e
 		return nil, err
 	}
 
+	return d.readQR(id, tr)
+}
+
+func (d *db) readQR(id uuid.UUID, tr fdbclient.Transaction) (*common.QR, error) {
 	data, err := tr.Get(d.keyBuilder.QR(id))
 	if err != nil {
 		return nil, err

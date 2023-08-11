@@ -59,11 +59,11 @@ type tagManager interface {
 
 type collectionManager interface {
 	Create(ctx context.Context, userID uuid.UUID, name string) (*model.Collection, error)
-	AddTea(ctx context.Context, userID uuid.UUID, id uuid.UUID, teas []uuid.UUID) (*model.Collection, error)
-	DeleteTea(ctx context.Context, userID uuid.UUID, id uuid.UUID, teas []uuid.UUID) (*model.Collection, error)
+	AddRecords(ctx context.Context, userID uuid.UUID, id uuid.UUID, teas []uuid.UUID) (*model.Collection, error)
+	DeleteRecords(ctx context.Context, userID uuid.UUID, id uuid.UUID, teas []uuid.UUID) (*model.Collection, error)
 	Delete(ctx context.Context, userID uuid.UUID, id uuid.UUID) error
 	List(ctx context.Context, userID uuid.UUID) ([]*model.Collection, error)
-	ListTeas(ctx context.Context, id, userID uuid.UUID) ([]*model.Tea, error)
+	ListRecords(ctx context.Context, id, userID uuid.UUID) ([]*model.QRRecord, error)
 }
 
 type auth interface {

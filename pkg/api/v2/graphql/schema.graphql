@@ -37,8 +37,8 @@ type Mutation {
     changeTagCategory(id: ID!, category: ID!): Tag!
     deleteTag(id: ID!): ID!
     createCollection(token: String!, name: String!): Collection!
-    addToCollection(id: ID!, teas: [ID!]!, token: String!): Collection!
-    deleteTeaFromCollection(id: ID!, teas: [ID!]!, token: String!): Collection!
+    addRecordsToCollection(id: ID!, records: [ID!]!, token: String!): Collection!
+    deleteRecordsFromCollection(id: ID!, records: [ID!]!, token: String!): Collection!
     deleteCollection(token: String!, id: ID!): ID!
 }
 
@@ -108,5 +108,5 @@ type Collection {
     id: ID!
     name: String!
     userID: ID!
-    teas: [Tea!]!
+    records: [QRRecord!]!
 }

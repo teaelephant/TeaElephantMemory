@@ -25,13 +25,13 @@ type Builder interface {
 	Collection(id, userID uuid.UUID) []byte
 	UserCollections(id uuid.UUID) []byte
 	CollectionsTeas(id, teaID uuid.UUID) []byte
-	TeaByCollection(id uuid.UUID) []byte
+	RecordsByCollection(id uuid.UUID) []byte
 }
 
 type builder struct {
 }
 
-func (b *builder) TeaByCollection(id uuid.UUID) []byte {
+func (b *builder) RecordsByCollection(id uuid.UUID) []byte {
 	return appendIndex(collectionIndexTea, id.Bytes())
 }
 

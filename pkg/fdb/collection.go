@@ -18,7 +18,7 @@ type collection interface {
 	DeleteCollection(ctx context.Context, id, userID uuid.UUID) error
 	Collections(ctx context.Context, userID uuid.UUID) ([]*common.Collection, error)
 	Collection(ctx context.Context, id, userID uuid.UUID) (*common.Collection, error)
-	CollectionTeas(ctx context.Context, id uuid.UUID) ([]*common.Tea, error)
+	CollectionRecords(ctx context.Context, id uuid.UUID) ([]*common.CollectionRecord, error)
 }
 
 func (d *db) CreateCollection(ctx context.Context, userID uuid.UUID, name string) (uuid.UUID, error) {
@@ -84,7 +84,7 @@ func (d *db) DeleteCollection(ctx context.Context, id, userID uuid.UUID) error {
 
 	tr.Clear(d.keyBuilder.Collection(id, userID))
 
-	pr, err := fdb.PrefixRange(d.keyBuilder.TeaByCollection(id))
+	pr, err := fdb.PrefixRange(d.keyBuilder.RecordsByCollection(id))
 	if err != nil {
 		return err
 	}
@@ -157,19 +157,19 @@ func (d *db) Collection(ctx context.Context, id, userID uuid.UUID) (*common.Coll
 	return d.readCollection(tr, id, userID)
 }
 
-func (d *db) CollectionTeas(ctx context.Context, id uuid.UUID) ([]*common.Tea, error) {
+func (d *db) CollectionRecords(ctx context.Context, id uuid.UUID) ([]*common.CollectionRecord, error) {
 	tr, err := d.db.NewTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return d.collectionsTeas(tr, id)
+	return d.collectionRecords(tr, id)
 }
 
-func (d *db) collectionsTeas(tr fdbclient.Transaction, id uuid.UUID) ([]*common.Tea, error) {
-	records := make([]*common.Tea, 0)
+func (d *db) collectionRecords(tr fdbclient.Transaction, id uuid.UUID) ([]*common.CollectionRecord, error) {
+	records := make([]*common.CollectionRecord, 0)
 
-	pr, err := fdb.PrefixRange(d.keyBuilder.TeaByCollection(id))
+	pr, err := fdb.PrefixRange(d.keyBuilder.RecordsByCollection(id))
 	if err != nil {
 		return nil, err
 	}
@@ -185,12 +185,22 @@ func (d *db) collectionsTeas(tr fdbclient.Transaction, id uuid.UUID) ([]*common.
 			return nil, err
 		}
 
-		rec, err := d.readRecord(*id, tr)
+		rec, err := d.readQR(*id, tr)
 		if err != nil {
 			return nil, err
 		}
 
-		records = append(records, rec)
+		tea, err := d.readRecord(rec.Tea, tr)
+		if err != nil {
+			return nil, err
+		}
+
+		records = append(records, &common.CollectionRecord{
+			ID:             *id,
+			Tea:            tea,
+			BowlingTemp:    rec.BowlingTemp,
+			ExpirationDate: rec.ExpirationDate,
+		})
 	}
 
 	return records, nil

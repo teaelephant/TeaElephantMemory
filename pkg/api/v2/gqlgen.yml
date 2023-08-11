@@ -57,7 +57,7 @@ models:
         resolver: true
   Collection:
     fields:
-      teas:
+      records:
         resolver: true
   ID:
     model:
