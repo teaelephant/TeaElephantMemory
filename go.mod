@@ -4,6 +4,7 @@ go 1.21
 
 require (
 	github.com/99designs/gqlgen v0.17.35
+	github.com/Timothylock/go-signin-with-apple v0.2.0
 	github.com/apple/foundationdb/bindings/go v0.0.0-20230508183941-1098aa0251f4
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
@@ -22,6 +23,7 @@ require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/felixge/httpsnoop v1.0.1 // indirect
+	github.com/golang-jwt/jwt/v4 v4.4.2 // indirect
 	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
 	github.com/gorilla/i18n v0.0.0-20150820051429-8b358169da46 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.3 // indirect
@@ -29,6 +31,8 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/stretchr/testify v1.8.2 // indirect
+	github.com/tideland/golib v4.24.2+incompatible // indirect
+	github.com/tideland/gorest v2.15.5+incompatible // indirect
 	github.com/unidoc/pkcs7 v0.1.0 // indirect
 	github.com/unidoc/timestamp v0.0.0-20200412005513-91597fd3793a // indirect
 	github.com/unidoc/unichart v0.1.0 // indirect

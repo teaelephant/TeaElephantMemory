@@ -32,7 +32,5 @@ func (l *levelStorage) ReadQR(id uuid.UUID) (*common.QR, error) {
 		return nil, err
 	}
 
-	rec.ID = id
-
 	return (*common.QR)(rec), nil
 }
