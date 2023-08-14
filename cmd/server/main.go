@@ -24,7 +24,8 @@ const (
 )
 
 type configuration struct {
-	LogLevel uint32 `default:"4"`
+	LogLevel     uint32 `default:"4"`
+	DatabasePath string `default:"/usr/local/etc/foundationdb/fdb.cluster"`
 }
 
 func main() {
@@ -37,7 +38,7 @@ func main() {
 	logrusLogger.SetLevel(logrus.Level(cfg.LogLevel))
 	foundeationDB.MustAPIVersion(foundationDBVersion)
 
-	db, err := foundeationDB.OpenDatabase("/usr/local/etc/foundationdb/fdb.cluster")
+	db, err := foundeationDB.OpenDatabase(cfg.DatabasePath)
 	if err != nil {
 		panic(err)
 	}
