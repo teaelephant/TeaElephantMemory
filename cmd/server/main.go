@@ -37,6 +37,7 @@ func main() {
 	logrusLogger := logrus.New()
 	logrusLogger.SetLevel(logrus.Level(cfg.LogLevel))
 	foundeationDB.MustAPIVersion(foundationDBVersion)
+	logrus.Info(cfg)
 
 	db, err := foundeationDB.OpenDatabase(cfg.DatabasePath)
 	if err != nil {
