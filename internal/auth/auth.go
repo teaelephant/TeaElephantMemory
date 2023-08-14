@@ -63,7 +63,7 @@ func (a *auth) Start() (err error) {
 }
 
 func (a *auth) CheckToken(ctx context.Context, token string) (uuid.UUID, error) {
-	vReq := apple.AppValidationTokenRequest{
+	vReq := apple.WebValidationTokenRequest{
 		ClientID:     a.cfg.ClientID,
 		ClientSecret: a.secret,
 		Code:         token,
@@ -72,7 +72,7 @@ func (a *auth) CheckToken(ctx context.Context, token string) (uuid.UUID, error) 
 	var resp apple.ValidationResponse
 
 	// Do the verification
-	if err := a.appleClient.VerifyAppToken(ctx, vReq, &resp); err != nil {
+	if err := a.appleClient.VerifyWebToken(ctx, vReq, &resp); err != nil {
 		return uuid.UUID{}, err
 	}
 
@@ -97,5 +97,6 @@ func GetUser(ctx context.Context) (*common.User, error) {
 	if user, ok := (value).(*common.User); ok {
 		return user, nil
 	}
+
 	return nil, common.ErrUserNotFound
 }
