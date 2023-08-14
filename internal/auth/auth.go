@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
@@ -52,7 +53,14 @@ func (a *auth) Validate(_ context.Context, jwtToken string) (*common.User, error
 		}
 
 		// hmacSampleSecret is a []byte containing your secret, e.g. []byte("my_secret_key")
-		return a.getSecret()
+		key, err := a.getSecret()
+		if err != nil {
+			return nil, err
+		}
+		if privKey, ok := key.(*ecdsa.PrivateKey); ok {
+			return &privKey.PublicKey, nil
+		}
+		return key, nil
 	})
 	if err != nil {
 		return nil, err
