@@ -12,17 +12,11 @@ type Query {
     "Get categories of tags"
     tagsCategories(name: String): [TagCategory!]!
     "Collection of teas, authorization required"
-    collections(token: String!): [Collection!]!
-
-    getTeas(prefix: String): [Tea!]! @deprecated(reason: "Use teas instead")
-    getTea(id: ID!): Tea @deprecated(reason: "Use tea instead")
-    getQrRecord(id: ID!): QRRecord @deprecated(reason: "Use qrRecord instead")
-    getTags(name: String, category: ID): [Tag!]! @deprecated(reason: "Use tagsCategories instead")
-    getTagsCategories(name: String): [TagCategory!]! @deprecated(reason: "Use tagsCategories instead")
-    getTag(id: ID!): Tag @deprecated(reason: "Use tag instead")
+    collections: [Collection!]!
 }
 
 type Mutation {
+    authApple(appleCode:String!): Session!
     newTea(tea: TeaData!): Tea!
     updateTea(id: ID!, tea: TeaData!): Tea!
     addTagToTea(teaID: ID!, tagID: ID!): Tea!
@@ -36,10 +30,14 @@ type Mutation {
     updateTag(id: ID!, name: String!, color: String!): Tag!
     changeTagCategory(id: ID!, category: ID!): Tag!
     deleteTag(id: ID!): ID!
-    createCollection(token: String!, name: String!): Collection!
-    addRecordsToCollection(id: ID!, records: [ID!]!, token: String!): Collection!
-    deleteRecordsFromCollection(id: ID!, records: [ID!]!, token: String!): Collection!
-    deleteCollection(token: String!, id: ID!): ID!
+    "authorization required"
+    createCollection(name: String!): Collection!
+    "authorization required"
+    addRecordsToCollection(id: ID!, records: [ID!]!): Collection!
+    "authorization required"
+    deleteRecordsFromCollection(id: ID!, records: [ID!]!): Collection!
+    "authorization required"
+    deleteCollection(id: ID!): ID!
 }
 
 type Subscription {
@@ -109,4 +107,9 @@ type Collection {
     name: String!
     userID: ID!
     records: [QRRecord!]!
+}
+
+type Session {
+    token: String!
+    expiredAt: Date!
 }

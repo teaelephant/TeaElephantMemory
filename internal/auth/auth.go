@@ -3,20 +3,29 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Timothylock/go-signin-with-apple/apple"
+	"github.com/golang-jwt/jwt/v5"
 	uuid "github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
 )
 
-const userCtxKey = "user"
+const (
+	userCtxKey      = "user"
+	JwtDurationHour = 24
+)
+
+var signingMethod = jwt.SigningMethodEdDSA
 
 type Auth interface {
-	CheckToken(ctx context.Context, token string) (uuid.UUID, error)
+	Auth(ctx context.Context, token string) (*common.Session, error)
+	Validate(ctx context.Context, jwt string) (*common.User, error)
 	Middleware(http.Handler) http.Handler
 	Start() error
 }
@@ -34,6 +43,49 @@ type auth struct {
 	log *logrus.Entry
 }
 
+func (a *auth) Validate(_ context.Context, jwtToken string) (*common.User, error) {
+	result, err := jwt.Parse(jwtToken, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodEd25519); !ok {
+			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		}
+
+		// hmacSampleSecret is a []byte containing your secret, e.g. []byte("my_secret_key")
+		return a.secret, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	claims, ok := result.Claims.(jwt.MapClaims)
+	if !ok || !result.Valid {
+		return nil, common.ErrInvalidToken
+	}
+
+	exp, err := claims.GetExpirationTime()
+	if err != nil {
+		return nil, err
+	}
+
+	if time.Now().After(exp.Time) {
+		return nil, common.ErrExpiredToken
+	}
+
+	userIDStr, err := claims.GetIssuer()
+	if err != nil {
+		return nil, err
+	}
+
+	userID, err := uuid.FromString(userIDStr)
+	if err != nil {
+		return nil, err
+	}
+
+	return &common.User{
+		// todo read from storage full user
+		ID: userID,
+	}, nil
+}
+
 func (a *auth) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		header := r.Header.Get("Authorization")
@@ -45,16 +97,14 @@ func (a *auth) Middleware(next http.Handler) http.Handler {
 
 		token := strings.Replace(header, "Bearer ", "", 1)
 
-		userID, err := a.CheckToken(r.Context(), token)
+		user, err := a.Validate(r.Context(), token)
 		if err != nil {
 			http.Error(w, "Invalid cookie", http.StatusForbidden)
 			return
 		}
 
 		// and call the next with our new context
-		r = r.WithContext(context.WithValue(r.Context(), userCtxKey, &common.User{
-			ID: userID,
-		}))
+		r = r.WithContext(context.WithValue(r.Context(), userCtxKey, user))
 		next.ServeHTTP(w, r)
 	})
 }
@@ -64,7 +114,7 @@ func (a *auth) Start() (err error) {
 	return err
 }
 
-func (a *auth) CheckToken(ctx context.Context, token string) (uuid.UUID, error) {
+func (a *auth) Auth(ctx context.Context, token string) (*common.Session, error) {
 	vReq := apple.AppValidationTokenRequest{
 		ClientID:     a.cfg.ClientID,
 		ClientSecret: a.secret,
@@ -75,26 +125,54 @@ func (a *auth) CheckToken(ctx context.Context, token string) (uuid.UUID, error) 
 
 	// Do the verification
 	if err := a.appleClient.VerifyAppToken(ctx, vReq, &resp); err != nil {
-		return uuid.UUID{}, err
+		return nil, err
 	}
 
 	if resp.Error != "" {
-		return uuid.UUID{}, errors.New(resp.ErrorDescription)
+		return nil, errors.New(resp.ErrorDescription)
 	}
 
 	claims, err := apple.GetClaims(resp.IDToken)
 	if err != nil {
-		return uuid.Nil, err
+		return nil, err
 	}
 
 	a.log.Info(claims)
 
 	unique, err := apple.GetUniqueID(resp.IDToken)
 	if err != nil {
-		return uuid.UUID{}, err
+		return nil, err
 	}
 
-	return a.storage.GetOrCreateUser(ctx, unique)
+	user, err := a.storage.GetOrCreateUser(ctx, unique)
+	if err != nil {
+		return nil, err
+	}
+
+	exp := time.Now().Add(time.Hour * JwtDurationHour)
+
+	newClaims := &jwt.RegisteredClaims{
+		Issuer:    user.String(),
+		ExpiresAt: jwt.NewNumericDate(exp),
+		ID:        uuid.NewV4().String(),
+	}
+
+	jwtToken := jwt.NewWithClaims(signingMethod, newClaims)
+	signedJWT, err := jwtToken.SignedString(a.secret)
+	if err != nil {
+		return nil, err
+	}
+
+	session := &common.Session{
+		JWT: signedJWT,
+		User: &common.User{
+			ID:      user,
+			AppleID: unique,
+		},
+		ExpiredAt: exp,
+	}
+
+	return session, nil
 }
 
 func NewAuth(cfg *Configuration, storage storage, logger *logrus.Entry) Auth {

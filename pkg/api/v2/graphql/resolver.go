@@ -67,7 +67,7 @@ type collectionManager interface {
 }
 
 type auth interface {
-	CheckToken(ctx context.Context, token string) (uuid.UUID, error)
+	Auth(ctx context.Context, token string) (*common.Session, error)
 }
 
 type Resolver struct {

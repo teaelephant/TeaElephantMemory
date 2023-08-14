@@ -9,6 +9,7 @@ import (
 
 	"github.com/satori/go.uuid"
 
+	authPkg "github.com/teaelephant/TeaElephantMemory/internal/auth"
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common"
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/graphql/generated"
 	model "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/models"
@@ -17,6 +18,18 @@ import (
 // Records is the resolver for the records field.
 func (r *collectionResolver) Records(ctx context.Context, obj *model.Collection) ([]*model.QRRecord, error) {
 	return r.collectionManager.ListRecords(ctx, uuid.UUID(obj.ID), uuid.UUID(obj.UserID))
+}
+
+// AuthApple is the resolver for the authApple field.
+func (r *mutationResolver) AuthApple(ctx context.Context, appleCode string) (*model.Session, error) {
+	session, err := r.auth.Auth(ctx, appleCode)
+	if err != nil {
+		return nil, err
+	}
+	return &model.Session{
+		Token:     session.JWT,
+		ExpiredAt: session.ExpiredAt,
+	}, nil
 }
 
 // NewTea is the resolver for the newTea field.
@@ -172,17 +185,17 @@ func (r *mutationResolver) DeleteTag(ctx context.Context, id common.ID) (common.
 }
 
 // CreateCollection is the resolver for the createCollection field.
-func (r *mutationResolver) CreateCollection(ctx context.Context, token string, name string) (*model.Collection, error) {
-	userID, err := r.auth.CheckToken(ctx, token)
+func (r *mutationResolver) CreateCollection(ctx context.Context, name string) (*model.Collection, error) {
+	user, err := authPkg.GetUser(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return r.collectionManager.Create(ctx, userID, name)
+	return r.collectionManager.Create(ctx, user.ID, name)
 }
 
 // AddRecordsToCollection is the resolver for the addRecordsToCollection field.
-func (r *mutationResolver) AddRecordsToCollection(ctx context.Context, id common.ID, records []common.ID, token string) (*model.Collection, error) {
-	userID, err := r.auth.CheckToken(ctx, token)
+func (r *mutationResolver) AddRecordsToCollection(ctx context.Context, id common.ID, records []common.ID) (*model.Collection, error) {
+	user, err := authPkg.GetUser(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -192,12 +205,12 @@ func (r *mutationResolver) AddRecordsToCollection(ctx context.Context, id common
 		ids[i] = uuid.UUID(uid)
 	}
 
-	return r.collectionManager.AddRecords(ctx, userID, uuid.UUID(id), ids)
+	return r.collectionManager.AddRecords(ctx, user.ID, uuid.UUID(id), ids)
 }
 
 // DeleteRecordsFromCollection is the resolver for the deleteRecordsFromCollection field.
-func (r *mutationResolver) DeleteRecordsFromCollection(ctx context.Context, id common.ID, records []common.ID, token string) (*model.Collection, error) {
-	userID, err := r.auth.CheckToken(ctx, token)
+func (r *mutationResolver) DeleteRecordsFromCollection(ctx context.Context, id common.ID, records []common.ID) (*model.Collection, error) {
+	user, err := authPkg.GetUser(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -207,17 +220,17 @@ func (r *mutationResolver) DeleteRecordsFromCollection(ctx context.Context, id c
 		ids[i] = uuid.UUID(uid)
 	}
 
-	return r.collectionManager.DeleteRecords(ctx, userID, uuid.UUID(id), ids)
+	return r.collectionManager.DeleteRecords(ctx, user.ID, uuid.UUID(id), ids)
 }
 
 // DeleteCollection is the resolver for the deleteCollection field.
-func (r *mutationResolver) DeleteCollection(ctx context.Context, token string, id common.ID) (common.ID, error) {
-	userID, err := r.auth.CheckToken(ctx, token)
+func (r *mutationResolver) DeleteCollection(ctx context.Context, id common.ID) (common.ID, error) {
+	user, err := authPkg.GetUser(ctx)
 	if err != nil {
-		return id, err
+		return common.ID{}, err
 	}
 
-	return id, r.collectionManager.Delete(ctx, userID, uuid.UUID(id))
+	return id, r.collectionManager.Delete(ctx, user.ID, uuid.UUID(id))
 }
 
 // Teas is the resolver for the teas field.
@@ -293,125 +306,12 @@ func (r *queryResolver) TagsCategories(ctx context.Context, name *string) ([]*mo
 }
 
 // Collections is the resolver for the collections field.
-func (r *queryResolver) Collections(ctx context.Context, token string) ([]*model.Collection, error) {
-	userID, err := r.auth.CheckToken(ctx, token)
+func (r *queryResolver) Collections(ctx context.Context) ([]*model.Collection, error) {
+	user, err := authPkg.GetUser(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return r.collectionManager.List(ctx, userID)
-}
-
-// GetTeas is the resolver for the getTeas field.
-func (r *queryResolver) GetTeas(ctx context.Context, prefix *string) ([]*model.Tea, error) {
-	res, err := r.teaData.List(ctx, prefix)
-	if err != nil {
-		return nil, err
-	}
-	data := make([]*model.Tea, len(res))
-	for i, el := range res {
-		data[i] = model.FromCommonTea(&el)
-	}
-	return data, nil
-}
-
-// GetTea is the resolver for the getTea field.
-func (r *queryResolver) GetTea(ctx context.Context, id common.ID) (*model.Tea, error) {
-	res, err := r.teaData.Get(ctx, uuid.UUID(id))
-	if err != nil {
-		return nil, err
-	}
-	return model.FromCommonTea(res), nil
-}
-
-// GetQRRecord is the resolver for the getQrRecord field.
-func (r *queryResolver) GetQRRecord(ctx context.Context, id common.ID) (*model.QRRecord, error) {
-	data, err := r.qrManager.Get(ctx, uuid.UUID(id))
-	if err != nil {
-		return nil, err
-	}
-	tea, err := r.teaData.Get(ctx, uuid.UUID(data.Tea))
-	if err != nil {
-		return nil, err
-	}
-	return &model.QRRecord{
-		ID: id,
-		Tea: &model.Tea{
-			ID:          common.ID(tea.ID),
-			Name:        tea.Name,
-			Type:        model.Type(tea.Type),
-			Description: tea.Description,
-		},
-		BowlingTemp:    data.BowlingTemp,
-		ExpirationDate: data.ExpirationDate,
-	}, nil
-}
-
-// GetTags is the resolver for the getTags field.
-func (r *queryResolver) GetTags(ctx context.Context, name *string, category *common.ID) ([]*model.Tag, error) {
-	var cat *uuid.UUID
-	if category != nil {
-		cat = (*uuid.UUID)(category)
-	}
-	tags, err := r.tagManager.List(ctx, name, cat)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]*model.Tag, len(tags))
-	if len(tags) == 0 {
-		return result, nil
-	}
-	categories, err := r.tagManager.ListCategory(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	catMap := map[uuid.UUID]*model.TagCategory{}
-	for _, ctg := range categories {
-		catMap[ctg.ID] = &model.TagCategory{
-			ID:   common.ID(ctg.ID),
-			Name: ctg.Name,
-		}
-	}
-	for i, tag := range tags {
-		result[i] = &model.Tag{
-			ID:       common.ID(tag.ID),
-			Name:     tag.Name,
-			Color:    tag.Color,
-			Category: catMap[tag.CategoryID],
-		}
-	}
-	return result, nil
-}
-
-// GetTagsCategories is the resolver for the getTagsCategories field.
-func (r *queryResolver) GetTagsCategories(ctx context.Context, name *string) ([]*model.TagCategory, error) {
-	categories, err := r.tagManager.ListCategory(ctx, name)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]*model.TagCategory, len(categories))
-	for i, cat := range categories {
-		result[i] = &model.TagCategory{
-			ID:   common.ID(cat.ID),
-			Name: cat.Name,
-		}
-	}
-	return result, nil
-}
-
-// GetTag is the resolver for the getTag field.
-func (r *queryResolver) GetTag(ctx context.Context, id common.ID) (*model.Tag, error) {
-	tag, err := r.tagManager.Get(ctx, uuid.UUID(id))
-	if err != nil {
-		return nil, err
-	}
-	return &model.Tag{
-		ID:    common.ID(tag.ID),
-		Name:  tag.Name,
-		Color: tag.Color,
-		Category: &model.TagCategory{
-			ID: common.ID(tag.CategoryID),
-		},
-	}, nil
+	return r.collectionManager.List(ctx, user.ID)
 }
 
 // OnCreateTea is the resolver for the onCreateTea field.
@@ -570,3 +470,111 @@ type subscriptionResolver struct{ *Resolver }
 type tagResolver struct{ *Resolver }
 type tagCategoryResolver struct{ *Resolver }
 type teaResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//   - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//     it when you're done.
+//   - You have helper methods in this file. Move them out to keep these resolver files clean.
+func (r *queryResolver) GetTeas(ctx context.Context, prefix *string) ([]*model.Tea, error) {
+	res, err := r.teaData.List(ctx, prefix)
+	if err != nil {
+		return nil, err
+	}
+	data := make([]*model.Tea, len(res))
+	for i, el := range res {
+		data[i] = model.FromCommonTea(&el)
+	}
+	return data, nil
+}
+func (r *queryResolver) GetTea(ctx context.Context, id common.ID) (*model.Tea, error) {
+	res, err := r.teaData.Get(ctx, uuid.UUID(id))
+	if err != nil {
+		return nil, err
+	}
+	return model.FromCommonTea(res), nil
+}
+func (r *queryResolver) GetQRRecord(ctx context.Context, id common.ID) (*model.QRRecord, error) {
+	data, err := r.qrManager.Get(ctx, uuid.UUID(id))
+	if err != nil {
+		return nil, err
+	}
+	tea, err := r.teaData.Get(ctx, uuid.UUID(data.Tea))
+	if err != nil {
+		return nil, err
+	}
+	return &model.QRRecord{
+		ID: id,
+		Tea: &model.Tea{
+			ID:          common.ID(tea.ID),
+			Name:        tea.Name,
+			Type:        model.Type(tea.Type),
+			Description: tea.Description,
+		},
+		BowlingTemp:    data.BowlingTemp,
+		ExpirationDate: data.ExpirationDate,
+	}, nil
+}
+func (r *queryResolver) GetTags(ctx context.Context, name *string, category *common.ID) ([]*model.Tag, error) {
+	var cat *uuid.UUID
+	if category != nil {
+		cat = (*uuid.UUID)(category)
+	}
+	tags, err := r.tagManager.List(ctx, name, cat)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*model.Tag, len(tags))
+	if len(tags) == 0 {
+		return result, nil
+	}
+	categories, err := r.tagManager.ListCategory(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	catMap := map[uuid.UUID]*model.TagCategory{}
+	for _, ctg := range categories {
+		catMap[ctg.ID] = &model.TagCategory{
+			ID:   common.ID(ctg.ID),
+			Name: ctg.Name,
+		}
+	}
+	for i, tag := range tags {
+		result[i] = &model.Tag{
+			ID:       common.ID(tag.ID),
+			Name:     tag.Name,
+			Color:    tag.Color,
+			Category: catMap[tag.CategoryID],
+		}
+	}
+	return result, nil
+}
+func (r *queryResolver) GetTagsCategories(ctx context.Context, name *string) ([]*model.TagCategory, error) {
+	categories, err := r.tagManager.ListCategory(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*model.TagCategory, len(categories))
+	for i, cat := range categories {
+		result[i] = &model.TagCategory{
+			ID:   common.ID(cat.ID),
+			Name: cat.Name,
+		}
+	}
+	return result, nil
+}
+func (r *queryResolver) GetTag(ctx context.Context, id common.ID) (*model.Tag, error) {
+	tag, err := r.tagManager.Get(ctx, uuid.UUID(id))
+	if err != nil {
+		return nil, err
+	}
+	return &model.Tag{
+		ID:    common.ID(tag.ID),
+		Name:  tag.Name,
+		Color: tag.Color,
+		Category: &model.TagCategory{
+			ID: common.ID(tag.CategoryID),
+		},
+	}, nil
+}

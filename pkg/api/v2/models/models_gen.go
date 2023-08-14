@@ -31,6 +31,11 @@ type QRRecordData struct {
 	ExpirationDate time.Time `json:"expirationDate"`
 }
 
+type Session struct {
+	Token     string    `json:"token"`
+	ExpiredAt time.Time `json:"expiredAt"`
+}
+
 type Tag struct {
 	ID       common.ID    `json:"id"`
 	Name     string       `json:"name"`
