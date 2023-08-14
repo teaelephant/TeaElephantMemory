@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -73,6 +74,10 @@ func (a *auth) CheckToken(ctx context.Context, token string) (uuid.UUID, error) 
 	// Do the verification
 	if err := a.appleClient.VerifyAppToken(ctx, vReq, &resp); err != nil {
 		return uuid.UUID{}, err
+	}
+
+	if resp.Error != "" {
+		return uuid.UUID{}, errors.New(resp.ErrorDescription)
 	}
 
 	unique, err := apple.GetUniqueID(resp.IDToken)
