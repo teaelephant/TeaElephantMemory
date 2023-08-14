@@ -2,6 +2,8 @@ package auth
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"net/http"
@@ -21,7 +23,7 @@ const (
 	JwtDurationHour = 24
 )
 
-var signingMethod = jwt.SigningMethodEdDSA
+var signingMethod = jwt.SigningMethodES256
 
 type Auth interface {
 	Auth(ctx context.Context, token string) (*common.Session, error)
@@ -45,12 +47,12 @@ type auth struct {
 
 func (a *auth) Validate(_ context.Context, jwtToken string) (*common.User, error) {
 	result, err := jwt.Parse(jwtToken, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodEd25519); !ok {
+		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
 
 		// hmacSampleSecret is a []byte containing your secret, e.g. []byte("my_secret_key")
-		return a.secret, nil
+		return a.cfg.Secret, nil
 	})
 	if err != nil {
 		return nil, err
@@ -149,7 +151,7 @@ func (a *auth) Auth(ctx context.Context, token string) (*common.Session, error) 
 		return nil, err
 	}
 
-	exp := time.Now().Add(time.Hour * JwtDurationHour)
+	exp := time.Now().Add(time.Hour * JwtDurationHour).UTC()
 
 	newClaims := &jwt.RegisteredClaims{
 		Issuer:    user.String(),
@@ -158,7 +160,18 @@ func (a *auth) Auth(ctx context.Context, token string) (*common.Session, error) 
 	}
 
 	jwtToken := jwt.NewWithClaims(signingMethod, newClaims)
-	signedJWT, err := jwtToken.SignedString(a.secret)
+
+	block, _ := pem.Decode([]byte(a.cfg.Secret))
+	if block == nil {
+		return nil, errors.New("empty block after decoding")
+	}
+
+	privKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	signedJWT, err := jwtToken.SignedString(privKey)
 	if err != nil {
 		return nil, err
 	}
