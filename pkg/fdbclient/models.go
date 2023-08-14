@@ -23,16 +23,20 @@ func (r *RangeOptions) SetReverse() {
 
 func SplitRangeOptions(opts []*RangeOptions) fdb.RangeOptions {
 	res := fdb.RangeOptions{}
+
 	for _, opt := range opts {
 		if opt.limit != nil {
 			res.Limit = *opt.limit
 		}
+
 		if opt.mode != nil {
 			res.Mode = *opt.mode
 		}
+
 		if opt.reverse != nil {
 			res.Reverse = *opt.reverse
 		}
 	}
+
 	return res
 }

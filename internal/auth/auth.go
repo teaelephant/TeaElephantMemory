@@ -63,7 +63,7 @@ func (a *auth) Start() (err error) {
 }
 
 func (a *auth) CheckToken(ctx context.Context, token string) (uuid.UUID, error) {
-	vReq := apple.WebValidationTokenRequest{
+	vReq := apple.AppValidationTokenRequest{
 		ClientID:     a.cfg.ClientID,
 		ClientSecret: a.secret,
 		Code:         token,
@@ -72,13 +72,20 @@ func (a *auth) CheckToken(ctx context.Context, token string) (uuid.UUID, error) 
 	var resp apple.ValidationResponse
 
 	// Do the verification
-	if err := a.appleClient.VerifyWebToken(ctx, vReq, &resp); err != nil {
+	if err := a.appleClient.VerifyAppToken(ctx, vReq, &resp); err != nil {
 		return uuid.UUID{}, err
 	}
 
 	if resp.Error != "" {
 		return uuid.UUID{}, errors.New(resp.ErrorDescription)
 	}
+
+	claims, err := apple.GetClaims(resp.IDToken)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	println(claims)
 
 	unique, err := apple.GetUniqueID(resp.IDToken)
 	if err != nil {
