@@ -30,14 +30,14 @@ type db struct {
 func (d *db) GetOrCreateUser(ctx context.Context, unique string) (uuid.UUID, error) {
 	tr, err := d.db.NewTransaction(ctx)
 	if err != nil {
-		return uuid.Nil, nil
+		return uuid.Nil, err
 	}
 
 	key := d.keyBuilder.UserByAppleID(unique)
 
 	data, err := tr.Get(key)
 	if err != nil {
-		return uuid.Nil, nil
+		return uuid.Nil, err
 	}
 
 	if data == nil {
