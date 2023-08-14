@@ -52,7 +52,7 @@ func (a *auth) Validate(_ context.Context, jwtToken string) (*common.User, error
 		}
 
 		// hmacSampleSecret is a []byte containing your secret, e.g. []byte("my_secret_key")
-		return a.cfg.Secret, nil
+		return a.getSecret()
 	})
 	if err != nil {
 		return nil, err
@@ -101,7 +101,8 @@ func (a *auth) Middleware(next http.Handler) http.Handler {
 
 		user, err := a.Validate(r.Context(), token)
 		if err != nil {
-			http.Error(w, "Invalid cookie", http.StatusForbidden)
+			a.log.WithError(err).Warn("Invalid jwt")
+			http.Error(w, "Invalid jwt", http.StatusForbidden)
 			return
 		}
 
@@ -161,12 +162,7 @@ func (a *auth) Auth(ctx context.Context, token string) (*common.Session, error) 
 
 	jwtToken := jwt.NewWithClaims(signingMethod, newClaims)
 
-	block, _ := pem.Decode([]byte(a.cfg.Secret))
-	if block == nil {
-		return nil, errors.New("empty block after decoding")
-	}
-
-	privKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	privKey, err := a.getSecret()
 	if err != nil {
 		return nil, err
 	}
@@ -186,6 +182,15 @@ func (a *auth) Auth(ctx context.Context, token string) (*common.Session, error) 
 	}
 
 	return session, nil
+}
+
+func (a *auth) getSecret() (any, error) {
+	block, _ := pem.Decode([]byte(a.cfg.Secret))
+	if block == nil {
+		return "", errors.New("empty block after decoding")
+	}
+
+	return x509.ParsePKCS8PrivateKey(block.Bytes)
 }
 
 func NewAuth(cfg *Configuration, storage storage, logger *logrus.Entry) Auth {
