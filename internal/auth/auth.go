@@ -88,8 +88,8 @@ func (a *auth) CheckToken(ctx context.Context, token string) (uuid.UUID, error) 
 	return a.storage.GetOrCreateUser(ctx, unique)
 }
 
-func NewAuth(cfg *Configuration) Auth {
-	return &auth{cfg: cfg, appleClient: apple.New()}
+func NewAuth(cfg *Configuration, storage storage) Auth {
+	return &auth{cfg: cfg, appleClient: apple.New(), storage: storage}
 }
 
 func GetUser(ctx context.Context) (*common.User, error) {

@@ -58,7 +58,7 @@ func main() {
 	collectionManager := collection.NewManager(st)
 
 	authCfg := auth.Config()
-	authM := auth.NewAuth(authCfg)
+	authM := auth.NewAuth(authCfg, st)
 
 	if err = authM.Start(); err != nil {
 		panic(err)

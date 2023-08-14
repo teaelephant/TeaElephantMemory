@@ -65,3 +65,13 @@ func (c *Collection) Encode() ([]byte, error) {
 func (c *Collection) Decode(data []byte) error {
 	return json.Unmarshal(data, c)
 }
+
+type User common.User
+
+func (t *User) Encode() ([]byte, error) {
+	return json.Marshal(t)
+}
+
+func (t *User) Decode(data []byte) error {
+	return json.Unmarshal(data, t)
+}

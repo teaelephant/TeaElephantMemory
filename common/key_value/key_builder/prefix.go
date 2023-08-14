@@ -20,4 +20,5 @@ var (
 	tagIndexTea          = []byte{'i', 'a'}
 	teaIndexTag          = []byte{'i', 'b'}
 	collectionIndexTea   = []byte{'i', 'l'}
+	userIndexAppleID     = []byte{'i', 'i'}
 )

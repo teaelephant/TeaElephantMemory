@@ -26,9 +26,19 @@ type Builder interface {
 	UserCollections(id uuid.UUID) []byte
 	CollectionsTeas(id, teaID uuid.UUID) []byte
 	RecordsByCollection(id uuid.UUID) []byte
+	User(id uuid.UUID) []byte
+	UserByAppleID(id string) []byte
 }
 
 type builder struct {
+}
+
+func (b *builder) UserByAppleID(id string) []byte {
+	return appendIndex(userIndexAppleID, []byte(id))
+}
+
+func (b *builder) User(id uuid.UUID) []byte {
+	return appendUUID(user, id)
 }
 
 func (b *builder) RecordsByCollection(id uuid.UUID) []byte {
