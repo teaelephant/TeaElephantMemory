@@ -8,6 +8,7 @@ import (
 
 	"github.com/Timothylock/go-signin-with-apple/apple"
 	uuid "github.com/satori/go.uuid"
+	"github.com/sirupsen/logrus"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
 )
@@ -30,6 +31,7 @@ type auth struct {
 	secret      string
 
 	storage
+	log *logrus.Entry
 }
 
 func (a *auth) Middleware(next http.Handler) http.Handler {
@@ -43,7 +45,7 @@ func (a *auth) Middleware(next http.Handler) http.Handler {
 
 		token := strings.Replace(header, "Bearer ", "", 1)
 
-		userId, err := a.CheckToken(r.Context(), token)
+		userID, err := a.CheckToken(r.Context(), token)
 		if err != nil {
 			http.Error(w, "Invalid cookie", http.StatusForbidden)
 			return
@@ -51,7 +53,7 @@ func (a *auth) Middleware(next http.Handler) http.Handler {
 
 		// and call the next with our new context
 		r = r.WithContext(context.WithValue(r.Context(), userCtxKey, &common.User{
-			ID: userId,
+			ID: userID,
 		}))
 		next.ServeHTTP(w, r)
 	})
@@ -85,7 +87,7 @@ func (a *auth) CheckToken(ctx context.Context, token string) (uuid.UUID, error) 
 		return uuid.Nil, err
 	}
 
-	println(claims)
+	a.log.Info(claims)
 
 	unique, err := apple.GetUniqueID(resp.IDToken)
 	if err != nil {
@@ -95,8 +97,8 @@ func (a *auth) CheckToken(ctx context.Context, token string) (uuid.UUID, error) 
 	return a.storage.GetOrCreateUser(ctx, unique)
 }
 
-func NewAuth(cfg *Configuration, storage storage) Auth {
-	return &auth{cfg: cfg, appleClient: apple.New(), storage: storage}
+func NewAuth(cfg *Configuration, storage storage, logger *logrus.Entry) Auth {
+	return &auth{cfg: cfg, appleClient: apple.New(), storage: storage, log: logger}
 }
 
 func GetUser(ctx context.Context) (*common.User, error) {

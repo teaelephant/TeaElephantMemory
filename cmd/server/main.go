@@ -37,7 +37,6 @@ func main() {
 	logrusLogger := logrus.New()
 	logrusLogger.SetLevel(logrus.Level(cfg.LogLevel))
 	foundeationDB.MustAPIVersion(foundationDBVersion)
-	logrus.Info(cfg)
 
 	db, err := foundeationDB.OpenDatabase(cfg.DatabasePath)
 	if err != nil {
@@ -58,7 +57,7 @@ func main() {
 	collectionManager := collection.NewManager(st)
 
 	authCfg := auth.Config()
-	authM := auth.NewAuth(authCfg, st)
+	authM := auth.NewAuth(authCfg, st, logrusLogger.WithField(pkgKey, "auth"))
 
 	if err = authM.Start(); err != nil {
 		panic(err)
