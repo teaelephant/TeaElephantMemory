@@ -2,7 +2,6 @@ package fdb
 
 import (
 	"context"
-	"errors"
 
 	uuid "github.com/satori/go.uuid"
 
@@ -50,7 +49,7 @@ func (d *db) readQR(id uuid.UUID, tr fdbclient.Transaction) (*common.QR, error) 
 	}
 
 	if data == nil {
-		return nil, errors.New("data not exist")
+		return nil, common.ErrQRRecordNotExist
 	}
 
 	rec := new(encoder.QR)

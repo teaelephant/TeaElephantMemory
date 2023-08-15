@@ -14,7 +14,7 @@ type HttpError struct {
 var (
 	ErrCollectionNotFound = errors.New("collection not found")
 	ErrUserNotFound       = errors.New("user not found")
-	ErrUnknownSession     = errors.New("unknown session")
 	ErrExpiredToken       = errors.New("token already expired")
 	ErrInvalidToken       = errors.New("token invalid")
+	ErrQRRecordNotExist   = errors.New("qr record not exist")
 )

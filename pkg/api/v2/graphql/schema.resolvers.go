@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/satori/go.uuid"
+	"github.com/vektah/gqlparser/v2/gqlerror"
 
 	authPkg "github.com/teaelephant/TeaElephantMemory/internal/auth"
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common"
@@ -24,7 +25,7 @@ func (r *collectionResolver) Records(ctx context.Context, obj *model.Collection)
 func (r *mutationResolver) AuthApple(ctx context.Context, appleCode string) (*model.Session, error) {
 	session, err := r.auth.Auth(ctx, appleCode)
 	if err != nil {
-		return nil, err
+		return nil, gqlerror.Wrap(err)
 	}
 	return &model.Session{
 		Token:     session.JWT,
@@ -259,11 +260,11 @@ func (r *queryResolver) Tea(ctx context.Context, id common.ID) (*model.Tea, erro
 func (r *queryResolver) QRRecord(ctx context.Context, id common.ID) (*model.QRRecord, error) {
 	qr, err := r.qrManager.Get(ctx, uuid.UUID(id))
 	if err != nil {
-		return nil, err
+		return nil, castGQLError(ctx, err)
 	}
 	res, err := r.teaData.Get(ctx, uuid.UUID(qr.Tea))
 	if err != nil {
-		return nil, err
+		return nil, castGQLError(ctx, err)
 	}
 	return &model.QRRecord{
 		ID:             id,
