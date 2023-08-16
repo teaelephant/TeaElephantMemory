@@ -18,6 +18,7 @@ type Query {
 type Mutation {
     authApple(appleCode:String!): Session!
     newTea(tea: TeaData!): Tea!
+    generateDescription(name: String!): String!
     updateTea(id: ID!, tea: TeaData!): Tea!
     addTagToTea(teaID: ID!, tagID: ID!): Tea!
     deleteTagFromTea(teaID: ID!, tagID: ID!): Tea!

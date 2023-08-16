@@ -70,12 +70,17 @@ type auth interface {
 	Auth(ctx context.Context, token string) (*common.Session, error)
 }
 
+type ai interface {
+	GenerateDescription(ctx context.Context, name string) (string, error)
+}
+
 type Resolver struct {
 	teaData
 	qrManager
 	tagManager
 	collectionManager
 	auth
+	ai
 
 	log logger
 }
@@ -87,6 +92,7 @@ func NewResolver(
 	tagManager tagManager,
 	manager collectionManager,
 	auth auth,
+	ai ai,
 ) *Resolver {
 	return &Resolver{
 		teaData:           teaData,
@@ -94,6 +100,7 @@ func NewResolver(
 		tagManager:        tagManager,
 		collectionManager: manager,
 		auth:              auth,
+		ai:                ai,
 		log:               logger,
 	}
 }

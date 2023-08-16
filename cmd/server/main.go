@@ -7,6 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/teaelephant/TeaElephantMemory/internal/auth"
+	"github.com/teaelephant/TeaElephantMemory/internal/descrgen"
 	"github.com/teaelephant/TeaElephantMemory/internal/managers/collection"
 	"github.com/teaelephant/TeaElephantMemory/internal/managers/qr"
 	"github.com/teaelephant/TeaElephantMemory/internal/managers/tag"
@@ -26,6 +27,7 @@ const (
 type configuration struct {
 	LogLevel     uint32 `default:"4"`
 	DatabasePath string `default:"/usr/local/etc/foundationdb/fdb.cluster"`
+	OpenAIToken  string `require:"true"`
 }
 
 func main() {
@@ -63,7 +65,12 @@ func main() {
 		panic(err)
 	}
 
-	resolvers := graphql.NewResolver(logrusLogger.WithField(pkgKey, "graphql"), teaManager, qrManager, tagManager, collectionManager, authM)
+	ai := descrgen.NewGenerator(cfg.OpenAIToken)
+
+	resolvers := graphql.NewResolver(
+		logrusLogger.WithField(pkgKey, "graphql"),
+		teaManager, qrManager, tagManager, collectionManager, authM, ai,
+	)
 
 	s := server.NewServer(resolvers, []mux.MiddlewareFunc{authM.Middleware})
 	s.InitV2Api()

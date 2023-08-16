@@ -42,6 +42,11 @@ func (r *mutationResolver) NewTea(ctx context.Context, tea model.TeaData) (*mode
 	return model.FromCommonTea(res), nil
 }
 
+// GenerateDescription is the resolver for the generateDescription field.
+func (r *mutationResolver) GenerateDescription(ctx context.Context, name string) (string, error) {
+	return r.ai.GenerateDescription(ctx, name)
+}
+
 // UpdateTea is the resolver for the updateTea field.
 func (r *mutationResolver) UpdateTea(ctx context.Context, id common.ID, tea model.TeaData) (*model.Tea, error) {
 	res, err := r.teaData.Update(ctx, uuid.UUID(id), tea.ToCommonTeaData())

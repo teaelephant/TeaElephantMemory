@@ -73,6 +73,7 @@ type ComplexityRoot struct {
 		DeleteTagCategory           func(childComplexity int, id common.ID) int
 		DeleteTagFromTea            func(childComplexity int, teaID common.ID, tagID common.ID) int
 		DeleteTea                   func(childComplexity int, id common.ID) int
+		GenerateDescription         func(childComplexity int, name string) int
 		NewTea                      func(childComplexity int, tea model.TeaData) int
 		UpdateTag                   func(childComplexity int, id common.ID, name string, color string) int
 		UpdateTagCategory           func(childComplexity int, id common.ID, name string) int
@@ -143,6 +144,7 @@ type CollectionResolver interface {
 type MutationResolver interface {
 	AuthApple(ctx context.Context, appleCode string) (*model.Session, error)
 	NewTea(ctx context.Context, tea model.TeaData) (*model.Tea, error)
+	GenerateDescription(ctx context.Context, name string) (string, error)
 	UpdateTea(ctx context.Context, id common.ID, tea model.TeaData) (*model.Tea, error)
 	AddTagToTea(ctx context.Context, teaID common.ID, tagID common.ID) (*model.Tea, error)
 	DeleteTagFromTea(ctx context.Context, teaID common.ID, tagID common.ID) (*model.Tea, error)
@@ -389,6 +391,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.DeleteTea(childComplexity, args["id"].(common.ID)), true
+
+	case "Mutation.generateDescription":
+		if e.complexity.Mutation.GenerateDescription == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_generateDescription_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.GenerateDescription(childComplexity, args["name"].(string)), true
 
 	case "Mutation.newTea":
 		if e.complexity.Mutation.NewTea == nil {
@@ -869,6 +883,7 @@ type Query {
 type Mutation {
     authApple(appleCode:String!): Session!
     newTea(tea: TeaData!): Tea!
+    generateDescription(name: String!): String!
     updateTea(id: ID!, tea: TeaData!): Tea!
     addTagToTea(teaID: ID!, tagID: ID!): Tea!
     deleteTagFromTea(teaID: ID!, tagID: ID!): Tea!
@@ -1226,6 +1241,21 @@ func (ec *executionContext) field_Mutation_deleteTea_args(ctx context.Context, r
 		}
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_generateDescription_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["name"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["name"] = arg0
 	return args, nil
 }
 
@@ -1800,6 +1830,61 @@ func (ec *executionContext) fieldContext_Mutation_newTea(ctx context.Context, fi
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_newTea_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_generateDescription(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_generateDescription(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().GenerateDescription(rctx, fc.Args["name"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_generateDescription(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_generateDescription_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -6863,6 +6948,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "newTea":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_newTea(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "generateDescription":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_generateDescription(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
