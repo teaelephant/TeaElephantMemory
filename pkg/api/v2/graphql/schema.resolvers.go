@@ -42,11 +42,6 @@ func (r *mutationResolver) NewTea(ctx context.Context, tea model.TeaData) (*mode
 	return model.FromCommonTea(res), nil
 }
 
-// GenerateDescription is the resolver for the generateDescription field.
-func (r *mutationResolver) GenerateDescription(ctx context.Context, name string) (string, error) {
-	return r.ai.GenerateDescription(ctx, name)
-}
-
 // UpdateTea is the resolver for the updateTea field.
 func (r *mutationResolver) UpdateTea(ctx context.Context, id common.ID, tea model.TeaData) (*model.Tea, error) {
 	res, err := r.teaData.Update(ctx, uuid.UUID(id), tea.ToCommonTeaData())
@@ -259,6 +254,11 @@ func (r *queryResolver) Tea(ctx context.Context, id common.ID) (*model.Tea, erro
 		return nil, err
 	}
 	return model.FromCommonTea(res), nil
+}
+
+// GenerateDescription is the resolver for the generateDescription field.
+func (r *queryResolver) GenerateDescription(ctx context.Context, name string) (string, error) {
+	return r.ai.GenerateDescription(ctx, name)
 }
 
 // QRRecord is the resolver for the qrRecord field.
@@ -476,111 +476,3 @@ type subscriptionResolver struct{ *Resolver }
 type tagResolver struct{ *Resolver }
 type tagCategoryResolver struct{ *Resolver }
 type teaResolver struct{ *Resolver }
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//   - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//     it when you're done.
-//   - You have helper methods in this file. Move them out to keep these resolver files clean.
-func (r *queryResolver) GetTeas(ctx context.Context, prefix *string) ([]*model.Tea, error) {
-	res, err := r.teaData.List(ctx, prefix)
-	if err != nil {
-		return nil, err
-	}
-	data := make([]*model.Tea, len(res))
-	for i, el := range res {
-		data[i] = model.FromCommonTea(&el)
-	}
-	return data, nil
-}
-func (r *queryResolver) GetTea(ctx context.Context, id common.ID) (*model.Tea, error) {
-	res, err := r.teaData.Get(ctx, uuid.UUID(id))
-	if err != nil {
-		return nil, err
-	}
-	return model.FromCommonTea(res), nil
-}
-func (r *queryResolver) GetQRRecord(ctx context.Context, id common.ID) (*model.QRRecord, error) {
-	data, err := r.qrManager.Get(ctx, uuid.UUID(id))
-	if err != nil {
-		return nil, err
-	}
-	tea, err := r.teaData.Get(ctx, uuid.UUID(data.Tea))
-	if err != nil {
-		return nil, err
-	}
-	return &model.QRRecord{
-		ID: id,
-		Tea: &model.Tea{
-			ID:          common.ID(tea.ID),
-			Name:        tea.Name,
-			Type:        model.Type(tea.Type),
-			Description: tea.Description,
-		},
-		BowlingTemp:    data.BowlingTemp,
-		ExpirationDate: data.ExpirationDate,
-	}, nil
-}
-func (r *queryResolver) GetTags(ctx context.Context, name *string, category *common.ID) ([]*model.Tag, error) {
-	var cat *uuid.UUID
-	if category != nil {
-		cat = (*uuid.UUID)(category)
-	}
-	tags, err := r.tagManager.List(ctx, name, cat)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]*model.Tag, len(tags))
-	if len(tags) == 0 {
-		return result, nil
-	}
-	categories, err := r.tagManager.ListCategory(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	catMap := map[uuid.UUID]*model.TagCategory{}
-	for _, ctg := range categories {
-		catMap[ctg.ID] = &model.TagCategory{
-			ID:   common.ID(ctg.ID),
-			Name: ctg.Name,
-		}
-	}
-	for i, tag := range tags {
-		result[i] = &model.Tag{
-			ID:       common.ID(tag.ID),
-			Name:     tag.Name,
-			Color:    tag.Color,
-			Category: catMap[tag.CategoryID],
-		}
-	}
-	return result, nil
-}
-func (r *queryResolver) GetTagsCategories(ctx context.Context, name *string) ([]*model.TagCategory, error) {
-	categories, err := r.tagManager.ListCategory(ctx, name)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]*model.TagCategory, len(categories))
-	for i, cat := range categories {
-		result[i] = &model.TagCategory{
-			ID:   common.ID(cat.ID),
-			Name: cat.Name,
-		}
-	}
-	return result, nil
-}
-func (r *queryResolver) GetTag(ctx context.Context, id common.ID) (*model.Tag, error) {
-	tag, err := r.tagManager.Get(ctx, uuid.UUID(id))
-	if err != nil {
-		return nil, err
-	}
-	return &model.Tag{
-		ID:    common.ID(tag.ID),
-		Name:  tag.Name,
-		Color: tag.Color,
-		Category: &model.TagCategory{
-			ID: common.ID(tag.CategoryID),
-		},
-	}, nil
-}

@@ -5,6 +5,8 @@ type Query {
     teas(prefix: String): [Tea!]!
     "Get information about tea by id."
     tea(id: ID!): Tea
+    "Generate description for tea with ai."
+    generateDescription(name: String!): String!
     "Get tea meta information by qr code"
     qrRecord(id: ID!): QRRecord
     "Get tag by id."
@@ -18,7 +20,6 @@ type Query {
 type Mutation {
     authApple(appleCode:String!): Session!
     newTea(tea: TeaData!): Tea!
-    generateDescription(name: String!): String!
     updateTea(id: ID!, tea: TeaData!): Tea!
     addTagToTea(teaID: ID!, tagID: ID!): Tea!
     deleteTagFromTea(teaID: ID!, tagID: ID!): Tea!
