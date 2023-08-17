@@ -7,7 +7,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-const requestTemplate = "Опиши взвешенно и информативно чай %s, чтобы помочь сделать выбор человеку который хочет попить чай"
+const requestTemplate = "Опиши взвешенно и информативно без маркетинга чай %s, чтобы помочь сделать выбор человеку на основании вкусовых качеств, пользы для организма, стимуляции к деятельности"
 
 type DescriptionGenerator interface {
 	GenerateDescription(ctx context.Context, name string) (string, error)
