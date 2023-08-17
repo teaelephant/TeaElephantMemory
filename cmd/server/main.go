@@ -65,7 +65,7 @@ func main() {
 		panic(err)
 	}
 
-	ai := descrgen.NewGenerator(cfg.OpenAIToken)
+	ai := descrgen.NewGenerator(cfg.OpenAIToken, logrusLogger.WithField(pkgKey, "descrgen"))
 
 	resolvers := graphql.NewResolver(
 		logrusLogger.WithField(pkgKey, "graphql"),
