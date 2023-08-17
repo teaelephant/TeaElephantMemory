@@ -27,7 +27,7 @@ const (
 type configuration struct {
 	LogLevel     uint32 `default:"4"`
 	DatabasePath string `default:"/usr/local/etc/foundationdb/fdb.cluster"`
-	OpenAIToken  string `require:"true"`
+	OpenAIToken  string `envconfig:"OPEN_AI_TOKEN" require:"true"`
 }
 
 func main() {
