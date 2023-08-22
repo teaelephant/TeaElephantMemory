@@ -38,7 +38,7 @@ func (g *generator) GenerateDescription(ctx context.Context, name string) (strin
 		return "", err
 	}
 
-	g.log.WithField("response", resp).Error("description generation result")
+	g.log.WithField("response", resp).Debug("description generation result")
 
 	return resp.Choices[0].Message.Content, nil
 }

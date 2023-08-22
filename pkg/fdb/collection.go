@@ -3,8 +3,10 @@ package fdb
 import (
 	"context"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/apple/foundationdb/bindings/go/src/fdb"
 	uuid "github.com/satori/go.uuid"
+	"github.com/vektah/gqlparser/v2/gqlerror"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
 	"github.com/teaelephant/TeaElephantMemory/common/key_value/encoder"
@@ -163,10 +165,10 @@ func (d *db) CollectionRecords(ctx context.Context, id uuid.UUID) ([]*common.Col
 		return nil, err
 	}
 
-	return d.collectionRecords(tr, id)
+	return d.collectionRecords(ctx, tr, id)
 }
 
-func (d *db) collectionRecords(tr fdbclient.Transaction, id uuid.UUID) ([]*common.CollectionRecord, error) {
+func (d *db) collectionRecords(ctx context.Context, tr fdbclient.Transaction, id uuid.UUID) ([]*common.CollectionRecord, error) {
 	records := make([]*common.CollectionRecord, 0)
 
 	pr, err := fdb.PrefixRange(d.keyBuilder.RecordsByCollection(id))
@@ -192,7 +194,15 @@ func (d *db) collectionRecords(tr fdbclient.Transaction, id uuid.UUID) ([]*commo
 
 		tea, err := d.readRecord(rec.Tea, tr)
 		if err != nil {
-			return nil, err
+			// FIXME
+			graphql.AddError(ctx, &gqlerror.Error{
+				Path:    graphql.GetPath(ctx),
+				Message: err.Error(),
+				Extensions: map[string]interface{}{
+					"code": "-100",
+				},
+			})
+			continue
 		}
 
 		records = append(records, &common.CollectionRecord{
