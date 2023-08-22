@@ -202,6 +202,7 @@ func (d *db) collectionRecords(ctx context.Context, tr fdbclient.Transaction, id
 					"code": "-100",
 				},
 			})
+
 			continue
 		}
 
