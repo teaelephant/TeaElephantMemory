@@ -199,7 +199,8 @@ func (d *db) collectionRecords(ctx context.Context, tr fdbclient.Transaction, id
 				Path:    graphql.GetPath(ctx),
 				Message: err.Error(),
 				Extensions: map[string]interface{}{
-					"code": "-100",
+					"code":   "-100",
+					"record": id.String(),
 				},
 			})
 
