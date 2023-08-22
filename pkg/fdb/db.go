@@ -5,6 +5,7 @@ import (
 
 	"github.com/apple/foundationdb/bindings/go/src/fdb"
 	uuid "github.com/satori/go.uuid"
+	"github.com/sirupsen/logrus"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
 	"github.com/teaelephant/TeaElephantMemory/common/key_value/encoder"
@@ -25,6 +26,8 @@ type DB interface {
 type db struct {
 	keyBuilder key_builder.Builder
 	db         fdbclient.Database
+
+	log *logrus.Entry
 }
 
 func (d *db) GetOrCreateUser(ctx context.Context, unique string) (uuid.UUID, error) {
@@ -66,9 +69,10 @@ func (d *db) GetOrCreateUser(ctx context.Context, unique string) (uuid.UUID, err
 	return uuid.FromBytes(data)
 }
 
-func NewDB(fdb fdb.Database) DB {
+func NewDB(fdb fdb.Database, log *logrus.Entry) DB {
 	return &db{
 		keyBuilder: key_builder.NewBuilder(),
 		db:         fdbclient.NewDatabase(fdb),
+		log:        log,
 	}
 }

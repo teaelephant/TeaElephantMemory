@@ -45,7 +45,7 @@ func main() {
 		panic(err)
 	}
 
-	st := fdb.NewDB(db)
+	st := fdb.NewDB(db, logrusLogger.WithField(pkgKey, "fdb"))
 
 	mig := migrator.NewManager(migrations.Migrations, st)
 
