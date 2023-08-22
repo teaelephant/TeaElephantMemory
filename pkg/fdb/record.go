@@ -98,7 +98,7 @@ func (d *db) ReadAllRecords(ctx context.Context, search string) ([]common.Tea, e
 
 	prefix := d.keyBuilder.RecordsByName(search)
 
-	d.log.WithField("prefix", prefix).Debug("search by prefix")
+	d.log.WithField("prefix", string(prefix)).Debug("search by prefix")
 
 	pr, err := fdb.PrefixRange(prefix)
 	if err != nil {
