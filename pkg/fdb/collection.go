@@ -57,6 +57,15 @@ func (d *db) AddTeaToCollection(ctx context.Context, id uuid.UUID, teas []uuid.U
 	}
 
 	for _, tea := range teas {
+		data, err := tr.Get(d.keyBuilder.QR(tea))
+		if err != nil {
+			return err
+		}
+
+		if data == nil {
+			continue
+		}
+
 		if err = tr.Set(d.keyBuilder.CollectionsTeas(id, tea), tea.Bytes()); err != nil {
 			return err
 		}
@@ -98,6 +107,7 @@ func (d *db) DeleteCollection(ctx context.Context, id, userID uuid.UUID) error {
 
 	for _, kv := range kvs {
 		teaID := new(uuid.UUID)
+
 		if err = id.UnmarshalBinary(kv.Value); err != nil {
 			return err
 		}
@@ -105,11 +115,7 @@ func (d *db) DeleteCollection(ctx context.Context, id, userID uuid.UUID) error {
 		tr.Clear(d.keyBuilder.CollectionsTeas(id, *teaID))
 	}
 
-	if err = tr.Commit(); err != nil {
-		return err
-	}
-
-	return nil
+	return tr.Commit()
 }
 
 func (d *db) Collections(ctx context.Context, userID uuid.UUID) ([]*common.Collection, error) {
