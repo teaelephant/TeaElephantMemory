@@ -198,7 +198,8 @@ func (d *db) collectionRecords(ctx context.Context, tr fdbclient.Transaction, id
 					"record": id.String(),
 				},
 			})
-			return nil, err
+
+			continue
 		}
 
 		tea, err := d.readRecord(rec.Tea, tr)
