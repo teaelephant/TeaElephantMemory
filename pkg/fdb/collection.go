@@ -189,6 +189,15 @@ func (d *db) collectionRecords(ctx context.Context, tr fdbclient.Transaction, id
 
 		rec, err := d.readQR(*id, tr)
 		if err != nil {
+			// FIXME
+			graphql.AddError(ctx, &gqlerror.Error{
+				Path:    graphql.GetPath(ctx),
+				Message: err.Error(),
+				Extensions: map[string]interface{}{
+					"code":   "-101",
+					"record": id.String(),
+				},
+			})
 			return nil, err
 		}
 
