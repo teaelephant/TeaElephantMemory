@@ -117,6 +117,7 @@ func (a *auth) Middleware(next http.Handler) http.Handler {
 		if err != nil {
 			a.log.WithError(err).Warn("Invalid jwt")
 			graphql.AddError(r.Context(), gqlerror.Wrap(err))
+			next.ServeHTTP(w, r)
 			return
 		}
 
