@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/apollotracing"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
@@ -15,15 +16,13 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 
-	"github.com/teaelephant/TeaElephantMemory/internal/auth"
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/graphql/generated"
 )
 
 type Server struct {
 	resolvers   generated.ResolverRoot
 	router      *mux.Router
-	middlewares []mux.MiddlewareFunc
-	auth        auth.Auth
+	middlewares []graphql.HandlerExtension
 }
 
 type Middleware func(handler http.Handler) http.Handler
@@ -69,17 +68,16 @@ func (s *Server) InitV2Api() {
 	srv.Use(extension.AutomaticPersistedQuery{
 		Cache: lru.New(100),
 	})
-	srv.Use(&auth.Auth2{s.auth})
+	for _, m := range s.middlewares {
+		srv.Use(m)
+	}
 	// srv.Use(extension.FixedComplexityLimit(100))
 
 	s.router.Use()
-	for _, m := range s.middlewares {
-		s.router.Use(m)
-	}
 	s.router.Handle("/v2/", playground.Handler("GraphQL playground", "/v2/query"))
 	s.router.Handle("/v2/query", srv)
 }
 
-func NewServer(resolvers generated.ResolverRoot, middlewares []mux.MiddlewareFunc, auth auth.Auth) *Server {
-	return &Server{resolvers: resolvers, router: mux.NewRouter(), middlewares: middlewares, auth: auth}
+func NewServer(resolvers generated.ResolverRoot, middlewares []graphql.HandlerExtension) *Server {
+	return &Server{resolvers: resolvers, router: mux.NewRouter(), middlewares: middlewares}
 }

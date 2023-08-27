@@ -2,9 +2,10 @@ package main
 
 import (
 	foundeationDB "github.com/apple/foundationdb/bindings/go/src/fdb"
-	"github.com/gorilla/mux"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/sirupsen/logrus"
+
+	gql "github.com/99designs/gqlgen/graphql"
 
 	"github.com/teaelephant/TeaElephantMemory/internal/auth"
 	"github.com/teaelephant/TeaElephantMemory/internal/descrgen"
@@ -75,7 +76,7 @@ func main() {
 		teaManager, qrManager, tagManager, collectionManager, authM, ai, notificationManager,
 	)
 
-	s := server.NewServer(resolvers, []mux.MiddlewareFunc{}, authM)
+	s := server.NewServer(resolvers, []gql.HandlerExtension{authM.Middleware()})
 	s.InitV2Api()
 	teaManager.Start()
 	tagManager.Start()
