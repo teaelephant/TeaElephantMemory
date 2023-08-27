@@ -145,8 +145,9 @@ type ComplexityRoot struct {
 	}
 
 	User struct {
-		Collections   func(childComplexity int) int
-		Notifications func(childComplexity int) int
+		Collections    func(childComplexity int) int
+		Notifications  func(childComplexity int) int
+		TokenExpiredAt func(childComplexity int) int
 	}
 }
 
@@ -797,6 +798,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.User.Notifications(childComplexity), true
 
+	case "User.tokenExpiredAt":
+		if e.complexity.User.TokenExpiredAt == nil {
+			break
+		}
+
+		return e.complexity.User.TokenExpiredAt(childComplexity), true
+
 	}
 	return 0, false
 }
@@ -1043,6 +1051,7 @@ type Session {
 }
 
 type User {
+    tokenExpiredAt: Date!
     collections: [Collection!]!
     notifications: [Notification!]!
 }
@@ -3262,6 +3271,8 @@ func (ec *executionContext) fieldContext_Query_me(ctx context.Context, field gra
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "tokenExpiredAt":
+				return ec.fieldContext_User_tokenExpiredAt(ctx, field)
 			case "collections":
 				return ec.fieldContext_User_collections(ctx, field)
 			case "notifications":
@@ -5201,6 +5212,50 @@ func (ec *executionContext) fieldContext_Tea_tags(ctx context.Context, field gra
 				return ec.fieldContext_Tag_category(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Tag", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_tokenExpiredAt(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_User_tokenExpiredAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TokenExpiredAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNDate2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_User_tokenExpiredAt(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Date does not have child fields")
 		},
 	}
 	return fc, nil
@@ -8100,6 +8155,11 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("User")
+		case "tokenExpiredAt":
+			out.Values[i] = ec._User_tokenExpiredAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "collections":
 			field := field
 

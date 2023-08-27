@@ -9,6 +9,7 @@ import (
 type User struct {
 	ID      uuid.UUID
 	AppleID string
+	Session
 }
 
 type Session struct {

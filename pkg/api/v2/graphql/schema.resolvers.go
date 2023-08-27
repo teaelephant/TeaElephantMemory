@@ -248,11 +248,11 @@ func (r *mutationResolver) RegisterDeviceToken(ctx context.Context, deviceID com
 
 // Me is the resolver for the me field.
 func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
-	_, err := authPkg.GetUser(ctx)
+	user, err := authPkg.GetUser(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &model.User{}, nil
+	return &model.User{TokenExpiredAt: user.Session.ExpiredAt}, nil
 }
 
 // Teas is the resolver for the teas field.

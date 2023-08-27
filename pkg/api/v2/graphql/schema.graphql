@@ -120,6 +120,7 @@ type Session {
 }
 
 type User {
+    tokenExpiredAt: Date!
     collections: [Collection!]!
     notifications: [Notification!]!
 }

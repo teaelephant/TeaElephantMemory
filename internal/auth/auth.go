@@ -93,6 +93,10 @@ func (a *auth) Validate(_ context.Context, jwtToken string) (*common.User, error
 	return &common.User{
 		// todo read from storage full user
 		ID: userID,
+		Session: common.Session{
+			JWT:       jwtToken,
+			ExpiredAt: exp.Time,
+		},
 	}, nil
 }
 

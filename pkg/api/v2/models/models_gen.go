@@ -68,8 +68,9 @@ type TeaData struct {
 }
 
 type User struct {
-	Collections   []*Collection   `json:"collections"`
-	Notifications []*Notification `json:"notifications"`
+	TokenExpiredAt time.Time       `json:"tokenExpiredAt"`
+	Collections    []*Collection   `json:"collections"`
+	Notifications  []*Notification `json:"notifications"`
 }
 
 type NotificationType string
