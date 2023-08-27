@@ -1,6 +1,7 @@
 scalar Date
 
 type Query {
+    me: User
     "Get information about teas."
     teas(prefix: String): [Tea!]!
     "Get information about tea by id."
@@ -40,6 +41,8 @@ type Mutation {
     deleteRecordsFromCollection(id: ID!, records: [ID!]!): Collection!
     "authorization required"
     deleteCollection(id: ID!): ID!
+    "register mobile device token for notifications"
+    registerDeviceToken(deviceID: ID!, deviceToken: String!): Boolean!
 }
 
 type Subscription {
@@ -114,4 +117,19 @@ type Collection {
 type Session {
     token: String!
     expiredAt: Date!
+}
+
+type User {
+    collections: [Collection!]!
+    notifications: [Notification!]!
+}
+
+type Notification {
+    type: NotificationType!
+}
+
+enum NotificationType {
+    unknown
+    teaExpiration
+    teaRecommendation
 }

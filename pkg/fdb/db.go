@@ -19,6 +19,7 @@ type DB interface {
 	version
 	tag
 	collection
+	notification
 
 	GetOrCreateUser(ctx context.Context, unique string) (uuid.UUID, error)
 }

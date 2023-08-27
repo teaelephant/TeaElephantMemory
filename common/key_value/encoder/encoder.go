@@ -75,3 +75,27 @@ func (t *User) Encode() ([]byte, error) {
 func (t *User) Decode(data []byte) error {
 	return json.Unmarshal(data, t)
 }
+
+type Device common.Device
+
+func (t *Device) Encode() ([]byte, error) {
+	return json.Marshal(t)
+}
+
+func (t *Device) Decode(data []byte) error {
+	return json.Unmarshal(data, t)
+}
+
+type Notification common.Notification
+
+func (t *Notification) Encode() ([]byte, error) {
+	return json.Marshal(t)
+}
+
+func (t *Notification) Decode(data []byte) error {
+	return json.Unmarshal(data, t)
+}
+
+func Decode(data []byte, v any) error {
+	return json.Unmarshal(data, v)
+}

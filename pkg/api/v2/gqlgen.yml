@@ -47,6 +47,12 @@ models:
     fields:
       tags:
         resolver: true
+  User:
+    fields:
+      collections:
+        resolver: true
+      notifications:
+        resolver: true
   TagCategory:
     fields:
       tags:

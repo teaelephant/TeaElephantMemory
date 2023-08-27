@@ -18,6 +18,10 @@ type Collection struct {
 	Records []*QRRecord `json:"records"`
 }
 
+type Notification struct {
+	Type NotificationType `json:"type"`
+}
+
 type QRRecord struct {
 	ID             common.ID `json:"id"`
 	Tea            *Tea      `json:"tea"`
@@ -61,6 +65,54 @@ type TeaData struct {
 	Name        string `json:"name"`
 	Type        Type   `json:"type"`
 	Description string `json:"description"`
+}
+
+type User struct {
+	Collections   []*Collection   `json:"collections"`
+	Notifications []*Notification `json:"notifications"`
+}
+
+type NotificationType string
+
+const (
+	NotificationTypeUnknown           NotificationType = "unknown"
+	NotificationTypeTeaExpiration     NotificationType = "teaExpiration"
+	NotificationTypeTeaRecommendation NotificationType = "teaRecommendation"
+)
+
+var AllNotificationType = []NotificationType{
+	NotificationTypeUnknown,
+	NotificationTypeTeaExpiration,
+	NotificationTypeTeaRecommendation,
+}
+
+func (e NotificationType) IsValid() bool {
+	switch e {
+	case NotificationTypeUnknown, NotificationTypeTeaExpiration, NotificationTypeTeaRecommendation:
+		return true
+	}
+	return false
+}
+
+func (e NotificationType) String() string {
+	return string(e)
+}
+
+func (e *NotificationType) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = NotificationType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid NotificationType", str)
+	}
+	return nil
+}
+
+func (e NotificationType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 type Type string

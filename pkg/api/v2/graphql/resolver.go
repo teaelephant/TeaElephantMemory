@@ -74,6 +74,11 @@ type ai interface {
 	GenerateDescription(ctx context.Context, name string) (string, error)
 }
 
+type notificationsManager interface {
+	RegisterDeviceToken(ctx context.Context, userID, deviceID uuid.UUID, deviceToken string) error
+	Notifications(ctx context.Context, userID uuid.UUID) ([]common.Notification, error)
+}
+
 type Resolver struct {
 	teaData
 	qrManager
@@ -81,6 +86,7 @@ type Resolver struct {
 	collectionManager
 	auth
 	ai
+	notificationsManager
 
 	log logger
 }
@@ -93,14 +99,16 @@ func NewResolver(
 	manager collectionManager,
 	auth auth,
 	ai ai,
+	notificationsManager notificationsManager,
 ) *Resolver {
 	return &Resolver{
-		teaData:           teaData,
-		qrManager:         qrManager,
-		tagManager:        tagManager,
-		collectionManager: manager,
-		auth:              auth,
-		ai:                ai,
-		log:               logger,
+		teaData:              teaData,
+		qrManager:            qrManager,
+		tagManager:           tagManager,
+		collectionManager:    manager,
+		auth:                 auth,
+		ai:                   ai,
+		notificationsManager: notificationsManager,
+		log:                  logger,
 	}
 }

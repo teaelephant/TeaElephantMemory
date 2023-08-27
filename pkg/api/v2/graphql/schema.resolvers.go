@@ -234,6 +234,27 @@ func (r *mutationResolver) DeleteCollection(ctx context.Context, id common.ID) (
 	return id, r.collectionManager.Delete(ctx, user.ID, uuid.UUID(id))
 }
 
+// RegisterDeviceToken is the resolver for the registerDeviceToken field.
+func (r *mutationResolver) RegisterDeviceToken(ctx context.Context, deviceID common.ID, deviceToken string) (bool, error) {
+	user, err := authPkg.GetUser(ctx)
+	if err != nil {
+		return false, err
+	}
+	if err = r.notificationsManager.RegisterDeviceToken(ctx, user.ID, uuid.UUID(deviceID), deviceToken); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// Me is the resolver for the me field.
+func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
+	_, err := authPkg.GetUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &model.User{}, nil
+}
+
 // Teas is the resolver for the teas field.
 func (r *queryResolver) Teas(ctx context.Context, prefix *string) ([]*model.Tea, error) {
 	res, err := r.teaData.List(ctx, prefix)
@@ -448,6 +469,31 @@ func (r *teaResolver) Tags(ctx context.Context, obj *model.Tea) ([]*model.Tag, e
 	return result, nil
 }
 
+// Collections is the resolver for the collections field.
+func (r *userResolver) Collections(ctx context.Context, obj *model.User) ([]*model.Collection, error) {
+	return r.Collections(ctx, obj)
+}
+
+// Notifications is the resolver for the notifications field.
+func (r *userResolver) Notifications(ctx context.Context, _ *model.User) ([]*model.Notification, error) {
+	user, err := authPkg.GetUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	notifications, err := r.notificationsManager.Notifications(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]*model.Notification, len(notifications))
+	for i, not := range notifications {
+		t := new(model.NotificationType)
+		t.FromCommon(not.Type)
+		res[i] = &model.Notification{Type: *t}
+	}
+	return res, nil
+}
+
 // Collection returns generated.CollectionResolver implementation.
 func (r *Resolver) Collection() generated.CollectionResolver { return &collectionResolver{r} }
 
@@ -469,6 +515,9 @@ func (r *Resolver) TagCategory() generated.TagCategoryResolver { return &tagCate
 // Tea returns generated.TeaResolver implementation.
 func (r *Resolver) Tea() generated.TeaResolver { return &teaResolver{r} }
 
+// User returns generated.UserResolver implementation.
+func (r *Resolver) User() generated.UserResolver { return &userResolver{r} }
+
 type collectionResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
@@ -476,3 +525,4 @@ type subscriptionResolver struct{ *Resolver }
 type tagResolver struct{ *Resolver }
 type tagCategoryResolver struct{ *Resolver }
 type teaResolver struct{ *Resolver }
+type userResolver struct{ *Resolver }

@@ -9,6 +9,7 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/internal/auth"
 	"github.com/teaelephant/TeaElephantMemory/internal/descrgen"
 	"github.com/teaelephant/TeaElephantMemory/internal/managers/collection"
+	"github.com/teaelephant/TeaElephantMemory/internal/managers/notification"
 	"github.com/teaelephant/TeaElephantMemory/internal/managers/qr"
 	"github.com/teaelephant/TeaElephantMemory/internal/managers/tag"
 	"github.com/teaelephant/TeaElephantMemory/internal/managers/tea"
@@ -67,9 +68,11 @@ func main() {
 
 	ai := descrgen.NewGenerator(cfg.OpenAIToken, logrusLogger.WithField(pkgKey, "descrgen"))
 
+	notificationManager := notification.NewManager(st)
+
 	resolvers := graphql.NewResolver(
 		logrusLogger.WithField(pkgKey, "graphql"),
-		teaManager, qrManager, tagManager, collectionManager, authM, ai,
+		teaManager, qrManager, tagManager, collectionManager, authM, ai, notificationManager,
 	)
 
 	s := server.NewServer(resolvers, []mux.MiddlewareFunc{authM.Middleware})

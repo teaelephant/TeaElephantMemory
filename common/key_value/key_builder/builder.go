@@ -26,11 +26,36 @@ type Builder interface {
 	UserCollections(id uuid.UUID) []byte
 	CollectionsTeas(id, teaID uuid.UUID) []byte
 	RecordsByCollection(id uuid.UUID) []byte
+	Users() []byte
 	User(id uuid.UUID) []byte
 	UserByAppleID(id string) []byte
+	Device(id uuid.UUID) []byte
+	DevicesByUserID(id uuid.UUID) []byte
+	Notification(id uuid.UUID) []byte
+	NotificationByUserID(id uuid.UUID) []byte
 }
 
 type builder struct {
+}
+
+func (b *builder) Users() []byte {
+	return []byte{user}
+}
+
+func (b *builder) Device(id uuid.UUID) []byte {
+	return appendUUID(device, id)
+}
+
+func (b *builder) DevicesByUserID(id uuid.UUID) []byte {
+	return appendIndex(userIndexDevices, id.Bytes())
+}
+
+func (b *builder) Notification(id uuid.UUID) []byte {
+	return appendUUID(notification, id)
+}
+
+func (b *builder) NotificationByUserID(id uuid.UUID) []byte {
+	return appendIndex(userIndexNotifications, id.Bytes())
 }
 
 func (b *builder) UserByAppleID(id string) []byte {
