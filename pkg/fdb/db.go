@@ -54,7 +54,7 @@ func (d *db) GetUsers(ctx context.Context) ([]common.User, error) {
 
 	for _, kv := range kvs {
 		id := new(uuid.UUID)
-		if err = id.UnmarshalBinary(kv.Key); err != nil {
+		if err = id.UnmarshalBinary(kv.Key[1:]); err != nil {
 			return nil, err
 		}
 
