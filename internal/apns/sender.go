@@ -22,7 +22,8 @@ type sender struct {
 	client *apns2.Client
 	userIdMapper
 
-	log *logrus.Entry
+	log   *logrus.Entry
+	topic string
 }
 
 func (s *sender) Send(ctx context.Context, userID uuid.UUID) error {
@@ -33,7 +34,7 @@ func (s *sender) Send(ctx context.Context, userID uuid.UUID) error {
 	for _, device := range deviceTokens {
 		notification := &apns2.Notification{
 			DeviceToken: device,
-			Topic:       "TEST",
+			Topic:       s.topic,
 			Expiration:  time.Now().Add(time.Minute * 15), // TODO validate and
 			Payload:     payload.NewPayload().AlertTitle("TEST").AlertBody("TEST").Badge(1),
 		}
@@ -55,8 +56,9 @@ func (s *sender) Send(ctx context.Context, userID uuid.UUID) error {
 	return nil
 }
 
-func NewSender(client *apns2.Client, mapper userIdMapper, log *logrus.Entry) Sender {
+func NewSender(client *apns2.Client, topic string, mapper userIdMapper, log *logrus.Entry) Sender {
 	return &sender{
+		topic:        topic,
 		client:       client,
 		userIdMapper: mapper,
 		log:          log,

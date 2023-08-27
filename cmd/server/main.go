@@ -87,7 +87,7 @@ func main() {
 		TeamID: authCfg.TeamID,
 	}).Development()
 
-	apnsSender := apns.NewSender(apnsClient, st, logrusLogger.WithField(pkgKey, "apns"))
+	apnsSender := apns.NewSender(apnsClient, authCfg.ClientID, st, logrusLogger.WithField(pkgKey, "apns"))
 
 	resolvers := graphql.NewResolver(
 		logrusLogger.WithField(pkgKey, "graphql"),
