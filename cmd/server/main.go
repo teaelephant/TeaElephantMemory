@@ -85,7 +85,7 @@ func main() {
 		KeyID: authCfg.KeyID,
 		// TeamID from developer account (View Account -> Membership)
 		TeamID: authCfg.TeamID,
-	}).Production()
+	}).Development()
 
 	apnsSender := apns.NewSender(apnsClient, st, logrusLogger.WithField(pkgKey, "apns"))
 
