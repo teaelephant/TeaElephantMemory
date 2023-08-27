@@ -19,7 +19,7 @@ type Query {
 }
 
 type Mutation {
-    authApple(appleCode:String!): Session!
+    authApple(appleCode:String!, deviceID: ID!): Session!
     newTea(tea: TeaData!): Tea!
     updateTea(id: ID!, tea: TeaData!): Tea!
     addTagToTea(teaID: ID!, tagID: ID!): Tea!

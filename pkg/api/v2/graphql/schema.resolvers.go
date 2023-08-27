@@ -22,10 +22,13 @@ func (r *collectionResolver) Records(ctx context.Context, obj *model.Collection)
 }
 
 // AuthApple is the resolver for the authApple field.
-func (r *mutationResolver) AuthApple(ctx context.Context, appleCode string) (*model.Session, error) {
+func (r *mutationResolver) AuthApple(ctx context.Context, appleCode string, deviceID common.ID) (*model.Session, error) {
 	session, err := r.auth.Auth(ctx, appleCode)
 	if err != nil {
 		return nil, gqlerror.Wrap(err)
+	}
+	if err = r.notificationsManager.BindDevice(ctx, session.User.ID, uuid.UUID(deviceID)); err != nil {
+		return nil, err
 	}
 	return &model.Session{
 		Token:     session.JWT,
@@ -236,11 +239,7 @@ func (r *mutationResolver) DeleteCollection(ctx context.Context, id common.ID) (
 
 // RegisterDeviceToken is the resolver for the registerDeviceToken field.
 func (r *mutationResolver) RegisterDeviceToken(ctx context.Context, deviceID common.ID, deviceToken string) (bool, error) {
-	user, err := authPkg.GetUser(ctx)
-	if err != nil {
-		return false, err
-	}
-	if err = r.notificationsManager.RegisterDeviceToken(ctx, user.ID, uuid.UUID(deviceID), deviceToken); err != nil {
+	if err := r.notificationsManager.RegisterDeviceToken(ctx, uuid.UUID(deviceID), deviceToken); err != nil {
 		return false, err
 	}
 	return true, nil

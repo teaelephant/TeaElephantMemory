@@ -219,12 +219,12 @@ func (a *AuthMiddleware) InterceptResponse(ctx context.Context, next graphql.Res
 				"code": "-1",
 			},
 		})
+
 		return next(ctx)
 	}
 
 	// and call the next with our new context
-	ctx = context.WithValue(ctx, userCtxKey, user)
-	return next(ctx)
+	return next(context.WithValue(ctx, userCtxKey, user))
 }
 
 func (a *AuthMiddleware) ExtensionName() string {

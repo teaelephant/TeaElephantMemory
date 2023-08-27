@@ -63,7 +63,7 @@ type ComplexityRoot struct {
 	Mutation struct {
 		AddRecordsToCollection      func(childComplexity int, id common.ID, records []common.ID) int
 		AddTagToTea                 func(childComplexity int, teaID common.ID, tagID common.ID) int
-		AuthApple                   func(childComplexity int, appleCode string) int
+		AuthApple                   func(childComplexity int, appleCode string, deviceID common.ID) int
 		ChangeTagCategory           func(childComplexity int, id common.ID, category common.ID) int
 		CreateCollection            func(childComplexity int, name string) int
 		CreateTag                   func(childComplexity int, name string, color string, category common.ID) int
@@ -155,7 +155,7 @@ type CollectionResolver interface {
 	Records(ctx context.Context, obj *model.Collection) ([]*model.QRRecord, error)
 }
 type MutationResolver interface {
-	AuthApple(ctx context.Context, appleCode string) (*model.Session, error)
+	AuthApple(ctx context.Context, appleCode string, deviceID common.ID) (*model.Session, error)
 	NewTea(ctx context.Context, tea model.TeaData) (*model.Tea, error)
 	UpdateTea(ctx context.Context, id common.ID, tea model.TeaData) (*model.Tea, error)
 	AddTagToTea(ctx context.Context, teaID common.ID, tagID common.ID) (*model.Tea, error)
@@ -289,7 +289,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.AuthApple(childComplexity, args["appleCode"].(string)), true
+		return e.complexity.Mutation.AuthApple(childComplexity, args["appleCode"].(string), args["deviceID"].(common.ID)), true
 
 	case "Mutation.changeTagCategory":
 		if e.complexity.Mutation.ChangeTagCategory == nil {
@@ -950,7 +950,7 @@ type Query {
 }
 
 type Mutation {
-    authApple(appleCode:String!): Session!
+    authApple(appleCode:String!, deviceID: ID!): Session!
     newTea(tea: TeaData!): Tea!
     updateTea(id: ID!, tea: TeaData!): Tea!
     addTagToTea(teaID: ID!, tagID: ID!): Tea!
@@ -1132,6 +1132,15 @@ func (ec *executionContext) field_Mutation_authApple_args(ctx context.Context, r
 		}
 	}
 	args["appleCode"] = arg0
+	var arg1 common.ID
+	if tmp, ok := rawArgs["deviceID"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("deviceID"))
+		arg1, err = ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["deviceID"] = arg1
 	return args, nil
 }
 
@@ -1832,7 +1841,7 @@ func (ec *executionContext) _Mutation_authApple(ctx context.Context, field graph
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().AuthApple(rctx, fc.Args["appleCode"].(string))
+		return ec.resolvers.Mutation().AuthApple(rctx, fc.Args["appleCode"].(string), fc.Args["deviceID"].(common.ID))
 	})
 	if err != nil {
 		ec.Error(ctx, err)

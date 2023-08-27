@@ -99,3 +99,7 @@ func (t *Notification) Decode(data []byte) error {
 func Decode(data []byte, v any) error {
 	return json.Unmarshal(data, v)
 }
+
+func Encode(v any) ([]byte, error) {
+	return json.Marshal(v)
+}

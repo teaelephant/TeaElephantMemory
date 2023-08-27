@@ -75,7 +75,8 @@ type ai interface {
 }
 
 type notificationsManager interface {
-	RegisterDeviceToken(ctx context.Context, userID, deviceID uuid.UUID, deviceToken string) error
+	BindDevice(ctx context.Context, userID uuid.UUID, deviceID uuid.UUID) error
+	RegisterDeviceToken(ctx context.Context, deviceID uuid.UUID, deviceToken string) error
 	Notifications(ctx context.Context, userID uuid.UUID) ([]common.Notification, error)
 }
 
