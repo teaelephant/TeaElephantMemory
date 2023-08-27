@@ -73,7 +73,7 @@ func (a *alerter) Run(ctx context.Context) error {
 					WithField("collection", col.Name).
 					WithField("tes", record.Tea.Name).Debug("expiration date checked")
 
-				if !record.ExpirationDate.After(time.Now()) {
+				if !record.ExpirationDate.Before(time.Now()) {
 					continue
 				}
 
