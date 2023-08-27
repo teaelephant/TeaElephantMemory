@@ -48,6 +48,38 @@ type auth struct {
 	log *logrus.Entry
 }
 
+type Auth2 struct {
+	Auth
+}
+
+func (a *Auth2) MutateOperationContext(ctx context.Context, rc *graphql.OperationContext) *gqlerror.Error {
+	header := rc.Headers.Get("Authorization")
+	// Allow unauthenticated users in
+	if header == "" {
+		return nil
+	}
+
+	token := strings.Replace(header, "Bearer ", "", 1)
+
+	user, err := a.Auth.Validate(ctx, token)
+	if err != nil {
+		// a.log.WithError(err).Warn("Invalid jwt")
+		return gqlerror.Wrap(err)
+	}
+
+	// and call the next with our new context
+	ctx = context.WithValue(ctx, userCtxKey, user)
+	return nil
+}
+
+func (a *Auth2) ExtensionName() string {
+	return "Auth"
+}
+
+func (a *Auth2) Validate(graphql.ExecutableSchema) error {
+	return nil
+}
+
 func (a *auth) Validate(_ context.Context, jwtToken string) (*common.User, error) {
 	result, err := jwt.Parse(jwtToken, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
@@ -116,8 +148,7 @@ func (a *auth) Middleware(next http.Handler) http.Handler {
 		user, err := a.Validate(r.Context(), token)
 		if err != nil {
 			a.log.WithError(err).Warn("Invalid jwt")
-			graphql.AddError(r.Context(), gqlerror.Wrap(err))
-			next.ServeHTTP(w, r)
+			http.Error(w, "Invalid jwt", http.StatusForbidden)
 			return
 		}
 

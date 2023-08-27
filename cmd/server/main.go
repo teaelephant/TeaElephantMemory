@@ -75,7 +75,7 @@ func main() {
 		teaManager, qrManager, tagManager, collectionManager, authM, ai, notificationManager,
 	)
 
-	s := server.NewServer(resolvers, []mux.MiddlewareFunc{authM.Middleware})
+	s := server.NewServer(resolvers, []mux.MiddlewareFunc{}, authM)
 	s.InitV2Api()
 	teaManager.Start()
 	tagManager.Start()
