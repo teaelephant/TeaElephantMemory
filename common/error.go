@@ -17,4 +17,5 @@ var (
 	ErrExpiredToken       = errors.New("token already expired")
 	ErrInvalidToken       = errors.New("token invalid")
 	ErrQRRecordNotExist   = errors.New("qr record not exist")
+	ErrJwtIncorrect       = errors.New("invalid jwt")
 )

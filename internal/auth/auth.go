@@ -206,7 +206,14 @@ func (a *AuthMiddleware) MutateOperationContext(ctx context.Context, rc *graphql
 	user, err := a.auth.Validate(ctx, token)
 	if err != nil {
 		a.log.WithError(err).Warn("Invalid jwt")
-		return gqlerror.Wrap(err)
+		// FIXME
+		return &gqlerror.Error{
+			Message: common.ErrJwtIncorrect.Error(),
+			Path:    graphql.GetPath(ctx),
+			Extensions: map[string]interface{}{
+				"code": "-1",
+			},
+		}
 	}
 
 	// and call the next with our new context
