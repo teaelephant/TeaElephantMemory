@@ -28,21 +28,29 @@ func (d *db) AddDeviceForUser(ctx context.Context, userID, deviceID uuid.UUID) e
 		return err
 	}
 
+	if data == nil {
+		return common.ErrDeviceNotFound
+	}
+
 	el := &encoder.Device{}
 	if err = el.Decode(data); err != nil {
 		return err
 	}
 
-	if el.UserID != userID {
-		index := d.keyBuilder.DevicesByUserID(userID)
+	if el.UserID == userID {
+		return tr.Commit()
+	}
 
-		data, err = tr.Get(index)
-		if err != nil {
-			return err
-		}
+	index := d.keyBuilder.DevicesByUserID(userID)
 
-		devices := make([]uuid.UUID, 0)
+	data, err = tr.Get(index)
+	if err != nil {
+		return err
+	}
 
+	devices := make([]uuid.UUID, 0)
+
+	if data != nil {
 		if err = encoder.Decode(data, devices); err != nil {
 			return err
 		}
@@ -52,16 +60,17 @@ func (d *db) AddDeviceForUser(ctx context.Context, userID, deviceID uuid.UUID) e
 				return nil
 			}
 		}
-		devices = append(devices, deviceID)
+	}
 
-		data, err = encoder.Encode(devices)
-		if err != nil {
-			return err
-		}
+	devices = append(devices, deviceID)
 
-		if err = tr.Set(index, data); err != nil {
-			return err
-		}
+	data, err = encoder.Encode(devices)
+	if err != nil {
+		return err
+	}
+
+	if err = tr.Set(index, data); err != nil {
+		return err
 	}
 
 	return tr.Commit()

@@ -17,6 +17,7 @@ const (
 	ErrInvalidToken
 	ErrUserNotFound
 	ErrCollectionNotFound
+	ErrDeviceNotFound
 )
 
 var errorsMap = map[error]GQLErrorCode{
@@ -25,6 +26,7 @@ var errorsMap = map[error]GQLErrorCode{
 	common.ErrInvalidToken:       ErrInvalidToken,
 	common.ErrUserNotFound:       ErrUserNotFound,
 	common.ErrCollectionNotFound: ErrCollectionNotFound,
+	common.ErrDeviceNotFound:     ErrDeviceNotFound,
 }
 
 func castGQLError(ctx context.Context, err error) error {
