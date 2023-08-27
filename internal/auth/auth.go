@@ -194,11 +194,16 @@ type AuthMiddleware struct {
 	*auth
 }
 
-func (a *AuthMiddleware) MutateOperationContext(ctx context.Context, rc *graphql.OperationContext) *gqlerror.Error {
+func (a *AuthMiddleware) InterceptResponse(ctx context.Context, next graphql.ResponseHandler) *graphql.Response {
+	if !graphql.HasOperationContext(ctx) {
+		return next(ctx)
+	}
+
+	rc := graphql.GetOperationContext(ctx)
 	header := rc.Headers.Get("Authorization")
 	// Allow unauthenticated users in
 	if header == "" {
-		return nil
+		return next(ctx)
 	}
 
 	token := strings.Replace(header, "Bearer ", "", 1)
@@ -207,18 +212,19 @@ func (a *AuthMiddleware) MutateOperationContext(ctx context.Context, rc *graphql
 	if err != nil {
 		a.log.WithError(err).Warn("Invalid jwt")
 		// FIXME
-		return &gqlerror.Error{
+		graphql.AddError(ctx, &gqlerror.Error{
 			Message: common.ErrJwtIncorrect.Error(),
 			Path:    graphql.GetPath(ctx),
 			Extensions: map[string]interface{}{
 				"code": "-1",
 			},
-		}
+		})
+		return next(ctx)
 	}
 
 	// and call the next with our new context
 	ctx = context.WithValue(ctx, userCtxKey, user)
-	return nil
+	return next(ctx)
 }
 
 func (a *AuthMiddleware) ExtensionName() string {
