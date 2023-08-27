@@ -11,10 +11,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/Timothylock/go-signin-with-apple/apple"
 	"github.com/golang-jwt/jwt/v5"
 	uuid "github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/vektah/gqlparser/v2/gqlerror"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
 )
@@ -114,7 +116,7 @@ func (a *auth) Middleware(next http.Handler) http.Handler {
 		user, err := a.Validate(r.Context(), token)
 		if err != nil {
 			a.log.WithError(err).Warn("Invalid jwt")
-			http.Error(w, "Invalid jwt", http.StatusForbidden)
+			graphql.AddError(r.Context(), gqlerror.Wrap(err))
 			return
 		}
 
