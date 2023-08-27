@@ -13,6 +13,7 @@ type notification interface {
 	CreateOrUpdateDeviceToken(ctx context.Context, deviceID uuid.UUID, deviceToken string) error
 	Notifications(ctx context.Context, userID uuid.UUID) ([]common.Notification, error)
 	AddDeviceForUser(ctx context.Context, userID, deviceID uuid.UUID) error
+	MapUserIdToDeviceID(ctx context.Context, userID uuid.UUID) ([]string, error)
 }
 
 func (d *db) AddDeviceForUser(ctx context.Context, userID, deviceID uuid.UUID) error {
@@ -70,6 +71,17 @@ func (d *db) AddDeviceForUser(ctx context.Context, userID, deviceID uuid.UUID) e
 	}
 
 	if err = tr.Set(index, data); err != nil {
+		return err
+	}
+
+	el.UserID = userID
+
+	data, err = el.Encode()
+	if err != nil {
+		return err
+	}
+
+	if err = tr.Set(key, data); err != nil {
 		return err
 	}
 
@@ -133,6 +145,47 @@ func (d *db) Notifications(ctx context.Context, userID uuid.UUID) ([]common.Noti
 		}
 
 		res[i] = common.Notification(*el)
+	}
+
+	return res, nil
+}
+
+func (d *db) MapUserIdToDeviceID(ctx context.Context, userID uuid.UUID) ([]string, error) {
+	tr, err := d.db.NewTransaction(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	index := d.keyBuilder.DevicesByUserID(userID)
+
+	data, err := tr.Get(index)
+	if err != nil {
+		return nil, err
+	}
+
+	devices := make([]uuid.UUID, 0)
+
+	if err = encoder.Decode(data, &devices); err != nil {
+		return nil, err
+	}
+
+	res := make([]string, len(devices))
+
+	for i, deviceID := range devices {
+		key := d.keyBuilder.Device(deviceID)
+
+		data, err = tr.Get(key)
+		if err != nil {
+			return nil, err
+		}
+
+		device := &encoder.Device{}
+
+		if err = device.Decode(data); err != nil {
+			return nil, err
+		}
+
+		res[i] = device.Token
 	}
 
 	return res, nil

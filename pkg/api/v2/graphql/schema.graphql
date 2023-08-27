@@ -43,6 +43,8 @@ type Mutation {
     deleteCollection(id: ID!): ID!
     "register mobile device token for notifications"
     registerDeviceToken(deviceID: ID!, deviceToken: String!): Boolean!
+    @deprecated
+    send: Boolean!
 }
 
 type Subscription {

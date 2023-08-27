@@ -3,10 +3,13 @@ package main
 import (
 	foundeationDB "github.com/apple/foundationdb/bindings/go/src/fdb"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/sideshow/apns2"
+	"github.com/sideshow/apns2/token"
 	"github.com/sirupsen/logrus"
 
 	gql "github.com/99designs/gqlgen/graphql"
 
+	"github.com/teaelephant/TeaElephantMemory/internal/apns"
 	"github.com/teaelephant/TeaElephantMemory/internal/auth"
 	"github.com/teaelephant/TeaElephantMemory/internal/descrgen"
 	"github.com/teaelephant/TeaElephantMemory/internal/managers/collection"
@@ -71,9 +74,24 @@ func main() {
 
 	notificationManager := notification.NewManager(st)
 
+	authKey, err := token.AuthKeyFromFile(authCfg.SecretPath)
+	if err != nil {
+		panic(err)
+	}
+
+	apnsClient := apns2.NewTokenClient(&token.Token{
+		AuthKey: authKey,
+		// KeyID from developer account (Certificates, Identifiers & Profiles -> Keys)
+		KeyID: authCfg.KeyID,
+		// TeamID from developer account (View Account -> Membership)
+		TeamID: authCfg.TeamID,
+	}).Production()
+
+	apnsSender := apns.NewSender(apnsClient, st, logrusLogger.WithField(pkgKey, "apns"))
+
 	resolvers := graphql.NewResolver(
 		logrusLogger.WithField(pkgKey, "graphql"),
-		teaManager, qrManager, tagManager, collectionManager, authM, ai, notificationManager,
+		teaManager, qrManager, tagManager, collectionManager, authM, ai, notificationManager, apnsSender,
 	)
 
 	s := server.NewServer(resolvers, []gql.HandlerExtension{authM.Middleware()})
