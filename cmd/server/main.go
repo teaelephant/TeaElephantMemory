@@ -12,6 +12,7 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/internal/apns"
 	"github.com/teaelephant/TeaElephantMemory/internal/auth"
 	"github.com/teaelephant/TeaElephantMemory/internal/descrgen"
+	"github.com/teaelephant/TeaElephantMemory/internal/expiration"
 	"github.com/teaelephant/TeaElephantMemory/internal/managers/collection"
 	"github.com/teaelephant/TeaElephantMemory/internal/managers/notification"
 	"github.com/teaelephant/TeaElephantMemory/internal/managers/qr"
@@ -89,9 +90,15 @@ func main() {
 
 	apnsSender := apns.NewSender(apnsClient, authCfg.ClientID, st, logrusLogger.WithField(pkgKey, "apns"))
 
+	expirationAlerter := expiration.NewAlerter(apnsSender, st, logrusLogger.WithField(pkgKey, "expirationAlerter"))
+
+	if err = expirationAlerter.Start(); err != nil {
+		panic(err)
+	}
+
 	resolvers := graphql.NewResolver(
 		logrusLogger.WithField(pkgKey, "graphql"),
-		teaManager, qrManager, tagManager, collectionManager, authM, ai, notificationManager, apnsSender,
+		teaManager, qrManager, tagManager, collectionManager, authM, ai, notificationManager, expirationAlerter,
 	)
 
 	s := server.NewServer(resolvers, []gql.HandlerExtension{authM.Middleware()})

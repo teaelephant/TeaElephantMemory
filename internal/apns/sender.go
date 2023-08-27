@@ -11,7 +11,7 @@ import (
 )
 
 type Sender interface {
-	Send(ctx context.Context, userID uuid.UUID) error
+	Send(ctx context.Context, userID uuid.UUID, title, body string) error
 }
 
 type userIdMapper interface {
@@ -26,7 +26,7 @@ type sender struct {
 	topic string
 }
 
-func (s *sender) Send(ctx context.Context, userID uuid.UUID) error {
+func (s *sender) Send(ctx context.Context, userID uuid.UUID, title, body string) error {
 	deviceTokens, err := s.userIdMapper.MapUserIdToDeviceID(ctx, userID)
 	if err != nil {
 		return err
@@ -35,8 +35,8 @@ func (s *sender) Send(ctx context.Context, userID uuid.UUID) error {
 		notification := &apns2.Notification{
 			DeviceToken: device,
 			Topic:       s.topic,
-			Expiration:  time.Now().Add(time.Minute * 15), // TODO validate and
-			Payload:     payload.NewPayload().AlertTitle("TEST").AlertBody("TEST").Badge(1),
+			Expiration:  time.Now().Add(time.Minute * 15),
+			Payload:     payload.NewPayload().AlertTitle(title).AlertBody(body).Badge(1),
 		}
 		res, err := s.client.PushWithContext(ctx, notification)
 		if err != nil {

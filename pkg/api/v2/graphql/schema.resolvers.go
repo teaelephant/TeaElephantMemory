@@ -247,12 +247,12 @@ func (r *mutationResolver) RegisterDeviceToken(ctx context.Context, deviceID com
 
 // Send is the resolver for the send field.
 func (r *mutationResolver) Send(ctx context.Context) (bool, error) {
-	user, err := authPkg.GetUser(ctx)
+	_, err := authPkg.GetUser(ctx)
 	if err != nil {
 		return false, err
 	}
 
-	if err = r.sender.Send(ctx, user.ID); err != nil {
+	if err = r.debug.Run(ctx); err != nil {
 		return false, err
 	}
 

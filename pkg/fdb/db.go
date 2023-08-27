@@ -3,9 +3,11 @@ package fdb
 import (
 	"context"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/apple/foundationdb/bindings/go/src/fdb"
 	uuid "github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/vektah/gqlparser/v2/gqlerror"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
 	"github.com/teaelephant/TeaElephantMemory/common/key_value/encoder"
@@ -22,6 +24,7 @@ type DB interface {
 	notification
 
 	GetOrCreateUser(ctx context.Context, unique string) (uuid.UUID, error)
+	GetUsers(ctx context.Context) ([]common.User, error)
 }
 
 type db struct {
@@ -29,6 +32,52 @@ type db struct {
 	db         fdbclient.Database
 
 	log *logrus.Entry
+}
+
+func (d *db) GetUsers(ctx context.Context) ([]common.User, error) {
+	tr, err := d.db.NewTransaction(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	pr, err := fdb.PrefixRange(d.keyBuilder.Users())
+	if err != nil {
+		return nil, err
+	}
+
+	kvs, err := tr.GetRange(pr)
+	if err != nil {
+		return nil, err
+	}
+
+	users := make([]common.User, 0, len(kvs))
+
+	for _, kv := range kvs {
+		id := new(uuid.UUID)
+		if err = id.UnmarshalBinary(kv.Key); err != nil {
+			return nil, err
+		}
+
+		user := &encoder.User{}
+
+		if err = user.Decode(kv.Value); err != nil {
+			// FIXME
+			graphql.AddError(ctx, &gqlerror.Error{
+				Path:    graphql.GetPath(ctx),
+				Message: err.Error(),
+				Extensions: map[string]interface{}{
+					"code": "-102",
+					"user": id.String(),
+				},
+			})
+
+			continue
+		}
+
+		users = append(users, common.User(*user))
+	}
+
+	return users, nil
 }
 
 func (d *db) GetOrCreateUser(ctx context.Context, unique string) (uuid.UUID, error) {
@@ -44,30 +93,30 @@ func (d *db) GetOrCreateUser(ctx context.Context, unique string) (uuid.UUID, err
 		return uuid.Nil, err
 	}
 
-	if data == nil {
-		user := &common.User{ID: uuid.NewV4(), AppleID: unique}
-
-		data, err = (*encoder.User)(user).Encode()
-		if err != nil {
-			return uuid.Nil, err
-		}
-
-		if err = tr.Set(key, user.ID.Bytes()); err != nil {
-			return uuid.Nil, err
-		}
-
-		if err = tr.Set(d.keyBuilder.User(user.ID), data); err != nil {
-			return uuid.Nil, err
-		}
-
-		if err = tr.Commit(); err != nil {
-			return uuid.Nil, err
-		}
-
-		return user.ID, nil
+	if data != nil {
+		return uuid.FromBytes(data)
 	}
 
-	return uuid.FromBytes(data)
+	user := &common.User{ID: uuid.NewV4(), AppleID: unique}
+
+	data, err = (*encoder.User)(user).Encode()
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	if err = tr.Set(key, user.ID.Bytes()); err != nil {
+		return uuid.Nil, err
+	}
+
+	if err = tr.Set(d.keyBuilder.User(user.ID), data); err != nil {
+		return uuid.Nil, err
+	}
+
+	if err = tr.Commit(); err != nil {
+		return uuid.Nil, err
+	}
+
+	return user.ID, nil
 }
 
 func NewDB(fdb fdb.Database, log *logrus.Entry) DB {

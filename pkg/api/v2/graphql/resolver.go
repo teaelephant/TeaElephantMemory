@@ -80,8 +80,8 @@ type notificationsManager interface {
 	Notifications(ctx context.Context, userID uuid.UUID) ([]common.Notification, error)
 }
 
-type sender interface {
-	Send(ctx context.Context, userID uuid.UUID) error
+type debug interface {
+	Run(ctx context.Context) error
 }
 
 type Resolver struct {
@@ -92,7 +92,7 @@ type Resolver struct {
 	auth
 	ai
 	notificationsManager
-	sender
+	debug
 
 	log logger
 }
@@ -106,7 +106,7 @@ func NewResolver(
 	auth auth,
 	ai ai,
 	notificationsManager notificationsManager,
-	sender sender,
+	debug debug,
 ) *Resolver {
 	return &Resolver{
 		teaData:              teaData,
@@ -116,7 +116,7 @@ func NewResolver(
 		auth:                 auth,
 		ai:                   ai,
 		notificationsManager: notificationsManager,
-		sender:               sender,
+		debug:                debug,
 		log:                  logger,
 	}
 }
