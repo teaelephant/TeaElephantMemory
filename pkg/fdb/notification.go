@@ -52,7 +52,7 @@ func (d *db) AddDeviceForUser(ctx context.Context, userID, deviceID uuid.UUID) e
 	devices := make([]uuid.UUID, 0)
 
 	if data != nil {
-		if err = encoder.Decode(data, devices); err != nil {
+		if err = encoder.Decode(data, &devices); err != nil {
 			return err
 		}
 
