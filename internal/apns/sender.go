@@ -11,7 +11,7 @@ import (
 )
 
 type Sender interface {
-	Send(ctx context.Context, userID uuid.UUID, title, body string) error
+	Send(ctx context.Context, userID, itemID uuid.UUID, title, body string) error
 }
 
 type userIdMapper interface {
@@ -26,7 +26,7 @@ type sender struct {
 	topic string
 }
 
-func (s *sender) Send(ctx context.Context, userID uuid.UUID, title, body string) error {
+func (s *sender) Send(ctx context.Context, userID, itemID uuid.UUID, title, body string) error {
 	deviceTokens, err := s.userIdMapper.MapUserIdToDeviceID(ctx, userID)
 	if err != nil {
 		return err
@@ -36,7 +36,12 @@ func (s *sender) Send(ctx context.Context, userID uuid.UUID, title, body string)
 			DeviceToken: device,
 			Topic:       s.topic,
 			Expiration:  time.Now().Add(time.Minute * 15),
-			Payload:     payload.NewPayload().AlertTitle(title).AlertBody(body).Badge(1),
+			Payload: payload.NewPayload().
+				AlertTitle(title).
+				AlertBody(body).
+				Badge(1).
+				Category("showCard").
+				ThreadID(itemID.String()),
 		}
 		res, err := s.client.PushWithContext(ctx, notification)
 		if err != nil {

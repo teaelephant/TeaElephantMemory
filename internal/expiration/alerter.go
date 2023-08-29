@@ -19,7 +19,7 @@ type Alerter interface {
 }
 
 type sender interface {
-	Send(ctx context.Context, userID uuid.UUID, title, body string) error
+	Send(ctx context.Context, userID, itemID uuid.UUID, title, body string) error
 }
 
 type storage interface {
@@ -79,7 +79,7 @@ func (a *alerter) Run(ctx context.Context) error {
 
 				body := fmt.Sprintf("tea %s from collection %s expired %s", record.Tea.Name, col.Name, record.ExpirationDate)
 
-				if err = a.sender.Send(ctx, user.ID, "tea expired", body); err != nil {
+				if err = a.sender.Send(ctx, user.ID, record.ID, "tea expired", body); err != nil {
 					return err
 				}
 			}
