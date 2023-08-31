@@ -6,6 +6,7 @@ package graphql
 
 import (
 	"context"
+	"errors"
 
 	"github.com/satori/go.uuid"
 	"github.com/vektah/gqlparser/v2/gqlerror"
@@ -276,6 +277,9 @@ func (r *mutationResolver) TeaRecommendation(ctx context.Context, collectionID c
 	records, err := r.collectionManager.ListRecords(ctx, uuid.UUID(collectionID), user.ID)
 	if err != nil {
 		return "", err
+	}
+	if len(records) == 0 {
+		return "", errors.New("you should have more teas")
 	}
 
 	teas := make([]rootCommon.Tea, len(records))
