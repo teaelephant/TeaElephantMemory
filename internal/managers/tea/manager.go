@@ -44,18 +44,21 @@ type manager struct {
 func (m *manager) SubscribeOnCreate(ctx context.Context) (<-chan *model.Tea, error) {
 	ch := make(chan *model.Tea)
 	m.createSubscribers.Push(ctx, ch)
+
 	return ch, nil
 }
 
 func (m *manager) SubscribeOnUpdate(ctx context.Context) (<-chan *model.Tea, error) {
 	ch := make(chan *model.Tea)
 	m.updateSubscribers.Push(ctx, ch)
+
 	return ch, nil
 }
 
 func (m *manager) SubscribeOnDelete(ctx context.Context) (<-chan gqlCommon.ID, error) {
 	ch := make(chan gqlCommon.ID)
 	m.deleteSubscribers.Push(ctx, ch)
+
 	return ch, nil
 }
 
@@ -67,6 +70,7 @@ func (m *manager) List(ctx context.Context, search *string) ([]common.Tea, error
 	if search == nil {
 		return m.ReadAllRecords(ctx, "")
 	}
+
 	return m.ReadAllRecords(ctx, *search)
 }
 
@@ -76,6 +80,7 @@ func (m *manager) Create(ctx context.Context, data *common.TeaData) (*common.Tea
 		return nil, err
 	}
 	m.create <- res
+
 	return res, nil
 }
 
@@ -85,6 +90,7 @@ func (m *manager) Update(ctx context.Context, id uuid.UUID, rec *common.TeaData)
 		return nil, err
 	}
 	m.update <- res
+
 	return res, nil
 }
 
@@ -93,6 +99,7 @@ func (m *manager) Delete(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	m.delete <- id
+
 	return nil
 }
 
