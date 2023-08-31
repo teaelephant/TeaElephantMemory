@@ -3,12 +3,14 @@ package main
 import (
 	foundeationDB "github.com/apple/foundationdb/bindings/go/src/fdb"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/sashabaranov/go-openai"
 	"github.com/sideshow/apns2"
 	"github.com/sideshow/apns2/token"
 	"github.com/sirupsen/logrus"
 
 	gql "github.com/99designs/gqlgen/graphql"
 
+	"github.com/teaelephant/TeaElephantMemory/internal/adviser"
 	"github.com/teaelephant/TeaElephantMemory/internal/apns"
 	"github.com/teaelephant/TeaElephantMemory/internal/auth"
 	"github.com/teaelephant/TeaElephantMemory/internal/descrgen"
@@ -18,6 +20,7 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/internal/managers/qr"
 	"github.com/teaelephant/TeaElephantMemory/internal/managers/tag"
 	"github.com/teaelephant/TeaElephantMemory/internal/managers/tea"
+	"github.com/teaelephant/TeaElephantMemory/internal/openweather"
 	"github.com/teaelephant/TeaElephantMemory/internal/server"
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/graphql"
 	"github.com/teaelephant/TeaElephantMemory/pkg/fdb"
@@ -96,9 +99,14 @@ func main() {
 		panic(err)
 	}
 
+	weather := openweather.NewService(openweather.Config().ApiKey, logrus.WithField(pkgKey, "openweather"))
+
+	adv := adviser.NewService(openai.NewClient(cfg.OpenAIToken), logrus.WithField(pkgKey, "adviser"))
+
 	resolvers := graphql.NewResolver(
 		logrusLogger.WithField(pkgKey, "graphql"),
 		teaManager, qrManager, tagManager, collectionManager, authM, ai, notificationManager, expirationAlerter,
+		adv, weather,
 	)
 
 	s := server.NewServer(resolvers, []gql.HandlerExtension{authM.Middleware()})

@@ -6,6 +6,7 @@ require (
 	github.com/99designs/gqlgen v0.17.35
 	github.com/Timothylock/go-signin-with-apple v0.2.0
 	github.com/apple/foundationdb/bindings/go v0.0.0-20230508183941-1098aa0251f4
+	github.com/briandowns/openweathermap v0.19.0
 	github.com/golang-jwt/jwt/v5 v5.0.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0

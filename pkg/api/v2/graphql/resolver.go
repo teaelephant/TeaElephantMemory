@@ -84,6 +84,14 @@ type debug interface {
 	Run(ctx context.Context) error
 }
 
+type adviser interface {
+	RecommendTea(ctx context.Context, teas []common.Tea, weather common.Weather, feelings string) (string, error)
+}
+
+type weather interface {
+	CurrentCyprus(ctx context.Context) (common.Weather, error)
+}
+
 type Resolver struct {
 	teaData
 	qrManager
@@ -93,6 +101,8 @@ type Resolver struct {
 	ai
 	notificationsManager
 	debug
+	adviser
+	weather
 
 	log logger
 }
@@ -107,6 +117,8 @@ func NewResolver(
 	ai ai,
 	notificationsManager notificationsManager,
 	debug debug,
+	adviser adviser,
+	weather weather,
 ) *Resolver {
 	return &Resolver{
 		teaData:              teaData,
@@ -117,6 +129,8 @@ func NewResolver(
 		ai:                   ai,
 		notificationsManager: notificationsManager,
 		debug:                debug,
+		adviser:              adviser,
+		weather:              weather,
 		log:                  logger,
 	}
 }

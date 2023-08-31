@@ -10,6 +10,8 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 
+	rootCommon "github.com/teaelephant/TeaElephantMemory/common"
+
 	authPkg "github.com/teaelephant/TeaElephantMemory/internal/auth"
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common"
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/graphql/generated"
@@ -257,6 +259,32 @@ func (r *mutationResolver) Send(ctx context.Context) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// TeaRecommendation is the resolver for the teaRecommendation field.
+func (r *mutationResolver) TeaRecommendation(ctx context.Context, collectionID common.ID) (string, error) {
+	user, err := authPkg.GetUser(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	wth, err := r.weather.CurrentCyprus(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	records, err := r.collectionManager.ListRecords(ctx, uuid.UUID(collectionID), user.ID)
+	if err != nil {
+		return "", err
+	}
+
+	teas := make([]rootCommon.Tea, len(records))
+
+	for i, rec := range records {
+		teas[i] = rec.Tea.ToCommonTea()
+	}
+
+	return r.adviser.RecommendTea(ctx, teas, wth, "")
 }
 
 // Me is the resolver for the me field.

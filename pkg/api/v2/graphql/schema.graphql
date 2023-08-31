@@ -45,6 +45,8 @@ type Mutation {
     registerDeviceToken(deviceID: ID!, deviceToken: String!): Boolean!
     @deprecated
     send: Boolean!
+    "get tea recommendation"
+    teaRecommendation(collectionID: ID!): String!
 }
 
 type Subscription {

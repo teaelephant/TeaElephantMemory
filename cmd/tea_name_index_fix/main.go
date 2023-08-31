@@ -57,6 +57,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+
 		logrus.WithField("index", i).WithField("data", el).Info("tea in storage")
 	}
 }
