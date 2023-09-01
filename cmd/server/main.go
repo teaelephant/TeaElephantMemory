@@ -99,9 +99,9 @@ func main() {
 		panic(err)
 	}
 
-	weather := openweather.NewService(openweather.Config().ApiKey, logrus.WithField(pkgKey, "openweather"))
+	weather := openweather.NewService(openweather.Config().ApiKey, logrusLogger.WithField(pkgKey, "openweather"))
 
-	adv := adviser.NewService(openai.NewClient(cfg.OpenAIToken), logrus.WithField(pkgKey, "adviser"))
+	adv := adviser.NewService(openai.NewClient(cfg.OpenAIToken), logrusLogger.WithField(pkgKey, "adviser"))
 
 	resolvers := graphql.NewResolver(
 		logrusLogger.WithField(pkgKey, "graphql"),
