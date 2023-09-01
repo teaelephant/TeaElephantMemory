@@ -77,7 +77,7 @@ type ComplexityRoot struct {
 		NewTea                      func(childComplexity int, tea model.TeaData) int
 		RegisterDeviceToken         func(childComplexity int, deviceID common.ID, deviceToken string) int
 		Send                        func(childComplexity int) int
-		TeaRecommendation           func(childComplexity int, collectionID common.ID) int
+		TeaRecommendation           func(childComplexity int, collectionID common.ID, feelings string) int
 		UpdateTag                   func(childComplexity int, id common.ID, name string, color string) int
 		UpdateTagCategory           func(childComplexity int, id common.ID, name string) int
 		UpdateTea                   func(childComplexity int, id common.ID, tea model.TeaData) int
@@ -177,7 +177,7 @@ type MutationResolver interface {
 	DeleteCollection(ctx context.Context, id common.ID) (common.ID, error)
 	RegisterDeviceToken(ctx context.Context, deviceID common.ID, deviceToken string) (bool, error)
 	Send(ctx context.Context) (bool, error)
-	TeaRecommendation(ctx context.Context, collectionID common.ID) (string, error)
+	TeaRecommendation(ctx context.Context, collectionID common.ID, feelings string) (string, error)
 }
 type QueryResolver interface {
 	Me(ctx context.Context) (*model.User, error)
@@ -456,7 +456,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.TeaRecommendation(childComplexity, args["collectionID"].(common.ID)), true
+		return e.complexity.Mutation.TeaRecommendation(childComplexity, args["collectionID"].(common.ID), args["feelings"].(string)), true
 
 	case "Mutation.updateTag":
 		if e.complexity.Mutation.UpdateTag == nil {
@@ -1000,7 +1000,7 @@ type Mutation {
     @deprecated
     send: Boolean!
     "get tea recommendation"
-    teaRecommendation(collectionID: ID!): String!
+    teaRecommendation(collectionID: ID!, feelings: String!): String!
 }
 
 type Subscription {
@@ -1417,6 +1417,15 @@ func (ec *executionContext) field_Mutation_teaRecommendation_args(ctx context.Co
 		}
 	}
 	args["collectionID"] = arg0
+	var arg1 string
+	if tmp, ok := rawArgs["feelings"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("feelings"))
+		arg1, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["feelings"] = arg1
 	return args, nil
 }
 
@@ -3112,7 +3121,7 @@ func (ec *executionContext) _Mutation_teaRecommendation(ctx context.Context, fie
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().TeaRecommendation(rctx, fc.Args["collectionID"].(common.ID))
+		return ec.resolvers.Mutation().TeaRecommendation(rctx, fc.Args["collectionID"].(common.ID), fc.Args["feelings"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)

@@ -46,7 +46,7 @@ type Mutation {
     @deprecated
     send: Boolean!
     "get tea recommendation"
-    teaRecommendation(collectionID: ID!): String!
+    teaRecommendation(collectionID: ID!, feelings: String!): String!
 }
 
 type Subscription {

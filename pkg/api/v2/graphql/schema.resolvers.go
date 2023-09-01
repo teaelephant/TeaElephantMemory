@@ -12,7 +12,6 @@ import (
 	"github.com/vektah/gqlparser/v2/gqlerror"
 
 	rootCommon "github.com/teaelephant/TeaElephantMemory/common"
-
 	authPkg "github.com/teaelephant/TeaElephantMemory/internal/auth"
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common"
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/graphql/generated"
@@ -263,7 +262,7 @@ func (r *mutationResolver) Send(ctx context.Context) (bool, error) {
 }
 
 // TeaRecommendation is the resolver for the teaRecommendation field.
-func (r *mutationResolver) TeaRecommendation(ctx context.Context, collectionID common.ID) (string, error) {
+func (r *mutationResolver) TeaRecommendation(ctx context.Context, collectionID common.ID, feelings string) (string, error) {
 	user, err := authPkg.GetUser(ctx)
 	if err != nil {
 		return "", err
@@ -288,7 +287,7 @@ func (r *mutationResolver) TeaRecommendation(ctx context.Context, collectionID c
 		teas[i] = rec.Tea.ToCommonTea()
 	}
 
-	return r.adviser.RecommendTea(ctx, teas, wth, "")
+	return r.adviser.RecommendTea(ctx, teas, wth, feelings)
 }
 
 // Me is the resolver for the me field.
@@ -520,7 +519,7 @@ func (r *userResolver) Collections(ctx context.Context, obj *model.User) ([]*mod
 }
 
 // Notifications is the resolver for the notifications field.
-func (r *userResolver) Notifications(ctx context.Context, _ *model.User) ([]*model.Notification, error) {
+func (r *userResolver) Notifications(ctx context.Context, obj *model.User) ([]*model.Notification, error) {
 	user, err := authPkg.GetUser(ctx)
 	if err != nil {
 		return nil, err
