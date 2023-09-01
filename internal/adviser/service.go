@@ -10,7 +10,7 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/common"
 )
 
-const template = "I have teas %scurrent weather is %s, can you recommend tea for me?"
+const template = "I can choose only this teas: %s\n I have some criterias for choosing:\n 1. Current weather: %s, can you recommend tea for me?"
 
 type Adviser interface {
 	RecommendTea(ctx context.Context, teas []common.Tea, weather common.Weather, feelings string) (string, error)
@@ -31,7 +31,7 @@ func (s *service) RecommendTea(
 
 	ifeel := ""
 	if feelings != "" {
-		ifeel = fmt.Sprintf(" and I feel %s", feelings)
+		ifeel = fmt.Sprintf(" 2. My feelings: %s", feelings)
 	}
 
 	resp, err := s.client.CreateChatCompletion(
