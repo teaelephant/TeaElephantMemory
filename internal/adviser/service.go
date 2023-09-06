@@ -43,6 +43,8 @@ func (s *service) RecommendTea(
 		ifeel = fmt.Sprintf(" 2. My feelings: %s", feelings)
 	}
 
+	content := fmt.Sprintf(template, teaString, herbsString, weather.String(), time.Now().Add(3*time.Hour).Format(time.TimeOnly)+ifeel)
+
 	resp, err := s.client.CreateChatCompletion(
 		ctx,
 		openai.ChatCompletionRequest{
@@ -50,7 +52,7 @@ func (s *service) RecommendTea(
 			Messages: []openai.ChatCompletionMessage{
 				{
 					Role:    openai.ChatMessageRoleUser,
-					Content: fmt.Sprintf(template, teaString, herbsString, weather.String(), time.Now().Add(3*time.Hour).Format(time.TimeOnly)+ifeel),
+					Content: content,
 				},
 			},
 		},
@@ -61,7 +63,7 @@ func (s *service) RecommendTea(
 		return "", err
 	}
 
-	s.log.WithField("response", resp).Debug("recommendation result")
+	s.log.WithField("request", content).WithField("response", resp).Debug("recommendation result")
 
 	return resp.Choices[0].Message.Content, nil
 }
