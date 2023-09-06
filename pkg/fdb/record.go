@@ -89,7 +89,7 @@ func (d *db) ReadAllRecords(ctx context.Context, search string) ([]common.Tea, e
 
 			records = append(records, common.Tea{
 				ID:      uuid.FromBytesOrNil(kv.Key[1:]),
-				TeaData: (*common.TeaData)(rec),
+				TeaData: rec.ToCommonTeaData(),
 			})
 		}
 
@@ -149,7 +149,7 @@ func (d *db) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 func (d *db) writeRecord(ctx context.Context, id uuid.UUID, rec *common.TeaData) (*common.Tea, error) {
-	data, err := (*encoder.TeaData)(rec).Encode()
+	data, err := encoder.FromCommonTeaData(rec).Encode()
 	if err != nil {
 		return nil, err
 	}
@@ -197,6 +197,6 @@ func (d *db) readRecord(id uuid.UUID, tr fdbclient.Transaction) (*common.Tea, er
 
 	return &common.Tea{
 		ID:      id,
-		TeaData: (*common.TeaData)(rec),
+		TeaData: rec.ToCommonTeaData(),
 	}, nil
 }

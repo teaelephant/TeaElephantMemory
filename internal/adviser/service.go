@@ -3,6 +3,7 @@ package adviser
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/sashabaranov/go-openai"
 	"github.com/sirupsen/logrus"
@@ -10,7 +11,7 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/common"
 )
 
-const template = "I can choose only this teas: %s\n I have some criterias for choosing:\n 1. Current weather: %s, can you recommend tea for me?"
+const template = "I can choose only this teas: %s\n and mix them only with this herbs %s I have some criteria for choosing:\n 1. Current weather: %s\n2. Current time of day: %s, can you recommend tea for me?"
 
 type Adviser interface {
 	RecommendTea(ctx context.Context, teas []common.Tea, weather common.Weather, feelings string) (string, error)
@@ -25,8 +26,16 @@ func (s *service) RecommendTea(
 	ctx context.Context, teas []common.Tea, weather common.Weather, feelings string,
 ) (string, error) {
 	teaString := ""
+	herbsString := ""
+
 	for _, tea := range teas {
-		teaString += fmt.Sprintf("%s, ", tea.Name)
+		data := fmt.Sprintf("%s, ", tea.Name)
+		switch tea.Type {
+		case common.TeaBeverageType:
+			teaString += data
+		case common.HerbBeverageType:
+			herbsString += data
+		}
 	}
 
 	ifeel := ""
@@ -41,7 +50,7 @@ func (s *service) RecommendTea(
 			Messages: []openai.ChatCompletionMessage{
 				{
 					Role:    openai.ChatMessageRoleUser,
-					Content: fmt.Sprintf(template, teaString, weather.String()+ifeel),
+					Content: fmt.Sprintf(template, teaString, herbsString, weather.String(), time.Now().Add(3*time.Hour).Format(time.TimeOnly)+ifeel),
 				},
 			},
 		},

@@ -23,7 +23,33 @@ func (t *Tea) Decode(data []byte) error {
 	return json.Unmarshal(data, t)
 }
 
-type TeaData common.TeaData
+type TeaData struct {
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	Description string `json:"description"`
+}
+
+func FromCommonTeaData(td *common.TeaData) *TeaData {
+	if td == nil {
+		return nil
+	}
+	return &TeaData{
+		Name:        td.Name,
+		Type:        td.Description,
+		Description: td.Type.String(),
+	}
+}
+
+func (t *TeaData) ToCommonTeaData() *common.TeaData {
+	if t == nil {
+		return nil
+	}
+	return &common.TeaData{
+		Name:        t.Name,
+		Type:        common.StringToBeverageType(t.Type),
+		Description: t.Description,
+	}
+}
 
 func (t *TeaData) Encode() ([]byte, error) {
 	return json.Marshal(t)
