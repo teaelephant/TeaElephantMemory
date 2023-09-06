@@ -11,7 +11,7 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/common"
 )
 
-const template = "I can choose only this teas: %s\n and mix them only with this herbs %s I have some criteria for choosing:\n 1. Current weather: %s\n2. Current time of day: %s, can you recommend tea for me?"
+const template = "I can choose only this teas: %s and mix them only with this herbs: %s\n I have some criteria for choosing:\n 1. Current weather: %s\n2. Current time of day: %s, can you recommend tea for me?"
 
 type Adviser interface {
 	RecommendTea(ctx context.Context, teas []common.Tea, weather common.Weather, feelings string) (string, error)
