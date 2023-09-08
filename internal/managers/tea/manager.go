@@ -11,7 +11,7 @@ import (
 	model "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/models"
 )
 
-type TeaManager interface {
+type Manager interface {
 	Create(ctx context.Context, data *common.TeaData) (tea *common.Tea, err error)
 	Update(ctx context.Context, id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -107,7 +107,7 @@ func (m *manager) Start() {
 	go m.loop()
 }
 
-func NewManager(storage storage) TeaManager {
+func NewManager(storage storage) Manager {
 	return &manager{
 		storage:           storage,
 		createSubscribers: subscribers2.NewTeaSubscribers(),

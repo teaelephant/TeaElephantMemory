@@ -103,7 +103,7 @@ func (r *mutationResolver) WriteToQR(ctx context.Context, id common.ID, data mod
 		Tea: &model.Tea{
 			ID:          common.ID(tea.ID),
 			Name:        tea.Name,
-			Type:        model.Type(tea.Type),
+			Type:        model.FromBeverageType(tea.Type),
 			Description: tea.Description,
 		},
 		BowlingTemp:    data.BowlingTemp,
@@ -519,7 +519,7 @@ func (r *userResolver) Collections(ctx context.Context, obj *model.User) ([]*mod
 }
 
 // Notifications is the resolver for the notifications field.
-func (r *userResolver) Notifications(ctx context.Context, obj *model.User) ([]*model.Notification, error) {
+func (r *userResolver) Notifications(ctx context.Context, _ *model.User) ([]*model.Notification, error) {
 	user, err := authPkg.GetUser(ctx)
 	if err != nil {
 		return nil, err

@@ -1,8 +1,10 @@
 package adviser
 
 import (
+	"bytes"
 	"context"
-	"fmt"
+	"embed"
+	"text/template"
 	"time"
 
 	"github.com/sashabaranov/go-openai"
@@ -11,39 +13,46 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/common"
 )
 
-const template = "I can choose only this teas: %s and mix them only with this additives: %s\n I have some criteria for choosing:\n 1. Current weather: %s\n2. Current time of day: %s, can you recommend tea for me?"
+const prompt = "prompt.gotpl"
+
+//go:embed prompt.gotpl
+var f embed.FS
 
 type Adviser interface {
 	RecommendTea(ctx context.Context, teas []common.Tea, weather common.Weather, feelings string) (string, error)
+	LoadPrompt() error
 }
 
 type service struct {
 	client *openai.Client
 	log    *logrus.Entry
+	tmpl   *template.Template
 }
 
 func (s *service) RecommendTea(
 	ctx context.Context, teas []common.Tea, weather common.Weather, feelings string,
 ) (string, error) {
-	teaString := ""
-	herbsString := ""
+	t := Template{
+		Teas:      make([]common.Tea, 0),
+		Additives: make([]common.Tea, 0),
+		Weather:   weather,
+		TimeOfDay: time.Now().Add(3 * time.Hour).Format(time.TimeOnly),
+		Feelings:  Feelings(feelings),
+	}
+
+	content, err := s.execute(t)
+	if err != nil {
+		return "", err
+	}
 
 	for _, tea := range teas {
-		data := fmt.Sprintf("%s, ", tea.Name)
-		switch tea.Type {
+		switch tea.Type { //nolint:exhaustive
 		case common.TeaBeverageType:
-			teaString += data
+			t.Teas = append(t.Teas, tea)
 		case common.HerbBeverageType:
-			herbsString += data
+			t.Additives = append(t.Additives, tea)
 		}
 	}
-
-	ifeel := ""
-	if feelings != "" {
-		ifeel = fmt.Sprintf(" 2. My feelings: %s", feelings)
-	}
-
-	content := fmt.Sprintf(template, teaString, herbsString, weather.String(), time.Now().Add(3*time.Hour).Format(time.TimeOnly)+ifeel)
 
 	resp, err := s.client.CreateChatCompletion(
 		ctx,
@@ -66,6 +75,28 @@ func (s *service) RecommendTea(
 	s.log.WithField("request", content).WithField("response", resp).Debug("recommendation result")
 
 	return resp.Choices[0].Message.Content, nil
+}
+
+func (s *service) LoadPrompt() error {
+	tmpl, err := template.New("").ParseFS(f, prompt)
+	if err != nil {
+		return err
+	}
+
+	s.tmpl = tmpl
+
+	return nil
+}
+
+func (s *service) execute(params Template) (string, error) {
+	buf := bytes.NewBuffer(make([]byte, 0))
+
+	err := s.tmpl.ExecuteTemplate(buf, prompt, params)
+	if err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
 }
 
 func NewService(client *openai.Client, log *logrus.Entry) Adviser {

@@ -1,0 +1,10 @@
+{{- /* gotype Template */ -}}
+I can choose only this teas: {{- range $tea := .Teas }}{{$tea.Name}}, {{- end }} and mix them only with these additives: {{- range $tea := .Additives }}{{$tea.Name}}, {{- end }}
+I have some criteria for choosing:
+    1. Current weather: "temperature is {{ .Weather.Temperature }} °C, clouds percent is {{ .Weather.Temperature }}, {{ .Weather.Rain.String }}, humidity level is {{ .Weather.Humidity }}, wind speed is {{ .Weather.WindSpeed }} meter/sec, visibility is {{ .Weather.Visibility }} meters"
+    2. Current time of day: {{ .TimeOfDay }}
+{{- if .Feelings.NotEmpty }}
+    3. I feeling {{ .Feelings }}
+{{- end}}
+
+Can you recommend tea for me?

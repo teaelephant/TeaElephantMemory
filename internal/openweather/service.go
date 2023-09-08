@@ -19,7 +19,7 @@ type service struct {
 	log *logrus.Entry
 }
 
-func (s *service) CurrentCyprus(ctx context.Context) (common.Weather, error) {
+func (s *service) CurrentCyprus(context.Context) (common.Weather, error) {
 	data, err := owm.NewCurrent("C", "en", s.key)
 	if err != nil {
 		return common.Weather{}, err
@@ -34,7 +34,7 @@ func (s *service) CurrentCyprus(ctx context.Context) (common.Weather, error) {
 	return common.Weather{
 		Temperature: data.Main.Temp,
 		Clouds:      data.Clouds.All,
-		Rain:        data.Rain.OneH,
+		Rain:        common.Rain(data.Rain.OneH),
 		Humidity:    data.Main.Humidity,
 		WindSpeed:   data.Wind.Speed,
 		Visibility:  data.Visibility,

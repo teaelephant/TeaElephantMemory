@@ -102,6 +102,9 @@ func main() {
 	weather := openweather.NewService(openweather.Config().ApiKey, logrusLogger.WithField(pkgKey, "openweather"))
 
 	adv := adviser.NewService(openai.NewClient(cfg.OpenAIToken), logrusLogger.WithField(pkgKey, "adviser"))
+	if err = adv.LoadPrompt(); err != nil {
+		panic(err)
+	}
 
 	resolvers := graphql.NewResolver(
 		logrusLogger.WithField(pkgKey, "graphql"),

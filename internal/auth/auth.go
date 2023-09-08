@@ -50,7 +50,7 @@ type auth struct {
 func (a *auth) Validate(_ context.Context, jwtToken string) (*common.User, error) {
 	result, err := jwt.Parse(jwtToken, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			return nil, fmt.Errorf("Unexpected signing method: %v.", token.Header["alg"])
 		}
 
 		// hmacSampleSecret is a []byte containing your secret, e.g. []byte("my_secret_key")
@@ -183,18 +183,18 @@ func (a *auth) getSecret() (any, error) {
 }
 
 func (a *auth) Middleware() graphql.HandlerExtension {
-	return &AuthMiddleware{auth: a}
+	return &Middleware{auth: a}
 }
 
 func NewAuth(cfg *Configuration, storage storage, logger *logrus.Entry) Auth {
 	return &auth{cfg: cfg, appleClient: apple.New(), storage: storage, log: logger}
 }
 
-type AuthMiddleware struct {
+type Middleware struct {
 	*auth
 }
 
-func (a *AuthMiddleware) InterceptResponse(ctx context.Context, next graphql.ResponseHandler) *graphql.Response {
+func (a *Middleware) InterceptResponse(ctx context.Context, next graphql.ResponseHandler) *graphql.Response {
 	if !graphql.HasOperationContext(ctx) {
 		return next(ctx)
 	}
@@ -227,11 +227,11 @@ func (a *AuthMiddleware) InterceptResponse(ctx context.Context, next graphql.Res
 	return next(context.WithValue(ctx, userCtxKey, user))
 }
 
-func (a *AuthMiddleware) ExtensionName() string {
+func (a *Middleware) ExtensionName() string {
 	return "Auth"
 }
 
-func (a *AuthMiddleware) Validate(graphql.ExecutableSchema) error {
+func (a *Middleware) Validate(graphql.ExecutableSchema) error {
 	return nil
 }
 

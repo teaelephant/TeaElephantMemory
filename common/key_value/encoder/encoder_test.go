@@ -15,7 +15,7 @@ func TestDecode(t *testing.T) {
 		data, err := json.Marshal(input)
 		require.NoError(t, err)
 
-		el := []string{}
+		var el []string
 		require.NoError(t, Decode(data, &el))
 		assert.Equal(t, input, el)
 	})
@@ -24,7 +24,7 @@ func TestDecode(t *testing.T) {
 		data, err := json.Marshal(input)
 		require.NoError(t, err)
 
-		el := []uuid.UUID{}
+		var el []uuid.UUID
 		require.NoError(t, Decode(data, &el))
 		assert.Equal(t, input, el)
 	})

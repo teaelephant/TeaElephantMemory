@@ -40,15 +40,21 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
-			tr.Set(keyBuilder.Record(id), pair.Value)
+			if err = tr.Set(keyBuilder.Record(id), pair.Value); err != nil {
+				panic(err)
+			}
 		case recordNameIndex:
 			id, err := uuid.FromString(string(pair.Value))
 			if err != nil {
 				panic(err)
 			}
-			tr.Set(pair.Key, id.Bytes())
+			if err = tr.Set(pair.Key, id.Bytes()); err != nil {
+				panic(err)
+			}
 		default:
-			tr.Set(pair.Key, pair.Value)
+			if err = tr.Set(pair.Key, pair.Value); err != nil {
+				panic(err)
+			}
 			continue
 		}
 
