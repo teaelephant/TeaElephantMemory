@@ -12,6 +12,7 @@ type Transaction interface {
 	Clear(key []byte)
 	Commit() (err error)
 	GetRange(pr fdb.KeyRange, opts ...*RangeOptions) ([]fdb.KeyValue, error)
+	GetIterator(pr fdb.KeyRange, opts ...*RangeOptions) *fdb.RangeIterator
 }
 
 type transaction struct {
@@ -24,6 +25,11 @@ type transaction struct {
 func (t *transaction) GetRange(pr fdb.KeyRange, opts ...*RangeOptions) ([]fdb.KeyValue, error) {
 	options := SplitRangeOptions(opts)
 	return t.tr.GetRange(pr, options).GetSliceWithError()
+}
+
+func (t *transaction) GetIterator(pr fdb.KeyRange, opts ...*RangeOptions) *fdb.RangeIterator {
+	options := SplitRangeOptions(opts)
+	return t.tr.GetRange(pr, options).Iterator()
 }
 
 func (t *transaction) Clear(key []byte) {

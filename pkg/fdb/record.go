@@ -76,12 +76,14 @@ func (d *db) ReadAllRecords(ctx context.Context, search string) ([]common.Tea, e
 			return nil, err
 		}
 
-		kvs, err := tr.GetRange(pr)
-		if err != nil {
-			return nil, err
-		}
+		it := tr.GetIterator(pr)
 
-		for _, kv := range kvs {
+		for it.Advance() {
+			kv, err := it.Get()
+			if err != nil {
+				return nil, err
+			}
+
 			rec := new(encoder.TeaData)
 			if err = rec.Decode(kv.Value); err != nil {
 				return nil, err
@@ -105,12 +107,14 @@ func (d *db) ReadAllRecords(ctx context.Context, search string) ([]common.Tea, e
 		return nil, err
 	}
 
-	kvs, err := tr.GetRange(pr)
-	if err != nil {
-		return nil, err
-	}
+	it := tr.GetIterator(pr)
 
-	for _, kv := range kvs {
+	for it.Advance() {
+		kv, err := it.Get()
+		if err != nil {
+			return nil, err
+		}
+
 		id := new(uuid.UUID)
 		if err = id.UnmarshalBinary(kv.Value); err != nil {
 			return nil, err

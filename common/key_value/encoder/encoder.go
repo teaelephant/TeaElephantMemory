@@ -33,10 +33,11 @@ func FromCommonTeaData(td *common.TeaData) *TeaData {
 	if td == nil {
 		return nil
 	}
+
 	return &TeaData{
 		Name:        td.Name,
-		Type:        td.Description,
-		Description: td.Type.String(),
+		Type:        td.Type.String(),
+		Description: td.Description,
 	}
 }
 
@@ -44,6 +45,7 @@ func (t *TeaData) ToCommonTeaData() *common.TeaData {
 	if t == nil {
 		return nil
 	}
+
 	return &common.TeaData{
 		Name:        t.Name,
 		Type:        common.StringToBeverageType(t.Type),
