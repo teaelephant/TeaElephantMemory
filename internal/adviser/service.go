@@ -40,11 +40,6 @@ func (s *service) RecommendTea(
 		Feelings:  Feelings(feelings),
 	}
 
-	content, err := s.execute(t)
-	if err != nil {
-		return "", err
-	}
-
 	for _, tea := range teas {
 		switch tea.Type { //nolint:exhaustive
 		case common.TeaBeverageType:
@@ -52,6 +47,11 @@ func (s *service) RecommendTea(
 		case common.HerbBeverageType:
 			t.Additives = append(t.Additives, tea)
 		}
+	}
+
+	content, err := s.execute(t)
+	if err != nil {
+		return "", err
 	}
 
 	resp, err := s.client.CreateChatCompletion(
