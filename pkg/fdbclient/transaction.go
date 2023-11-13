@@ -2,6 +2,7 @@ package fdbclient
 
 import (
 	"context"
+	"errors"
 
 	"github.com/apple/foundationdb/bindings/go/src/fdb"
 )
@@ -16,7 +17,7 @@ type Transaction interface {
 }
 
 type transaction struct {
-	ctx      context.Context
+	ctx      context.Context // nolint:containedctx
 	tr       fdb.Transaction
 	readonly bool
 	calls    []func()
@@ -37,7 +38,6 @@ func (t *transaction) Clear(key []byte) {
 	t.calls = append(t.calls, func() {
 		t.tr.Clear(fdb.Key(key))
 	})
-	return
 }
 
 func (t *transaction) Get(key []byte) ([]byte, error) {
@@ -49,6 +49,7 @@ func (t *transaction) Set(key []byte, value []byte) (err error) {
 	t.calls = append(t.calls, func() {
 		t.tr.Set(fdb.Key(key), value)
 	})
+
 	return
 }
 
@@ -89,7 +90,8 @@ func (t *transaction) Commit() (err error) {
 			return
 		}
 
-		fe, ok := err.(fdb.Error)
+		var fe fdb.Error
+		ok := errors.As(err, &fe)
 		if ok {
 			err = t.tr.OnError(fe).Get()
 		}
@@ -105,5 +107,6 @@ func NewTransaction(ctx context.Context, db fdb.Database) (Transaction, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &transaction{ctx: ctx, tr: tr, readonly: true}, nil
 }
