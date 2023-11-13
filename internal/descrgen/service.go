@@ -23,7 +23,7 @@ func (g *generator) GenerateDescription(ctx context.Context, name string) (strin
 	resp, err := g.client.CreateChatCompletion(
 		ctx,
 		openai.ChatCompletionRequest{
-			Model: openai.GPT3Dot5Turbo,
+			Model: openai.GPT4TurboPreview,
 			Messages: []openai.ChatCompletionMessage{
 				{
 					Role:    openai.ChatMessageRoleUser,
