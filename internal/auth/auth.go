@@ -13,7 +13,7 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/Timothylock/go-signin-with-apple/apple"
 	"github.com/golang-jwt/jwt/v5"
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 
@@ -86,7 +86,7 @@ func (a *auth) Validate(_ context.Context, jwtToken string) (*common.User, error
 		return nil, err
 	}
 
-	userID, err := uuid.FromString(userIDStr)
+	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +146,7 @@ func (a *auth) Auth(ctx context.Context, token string) (*common.Session, error) 
 	newClaims := &jwt.RegisteredClaims{
 		Issuer:    user.String(),
 		ExpiresAt: jwt.NewNumericDate(exp),
-		ID:        uuid.NewV4().String(),
+		ID:        uuid.New().String(),
 	}
 
 	jwtToken := jwt.NewWithClaims(signingMethod, newClaims)

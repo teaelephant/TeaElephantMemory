@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
@@ -42,6 +42,7 @@ func (a *alerter) Start() error {
 	a.startSync.Do(func() {
 		go a.loop()
 	})
+
 	return nil
 }
 
@@ -85,6 +86,7 @@ func (a *alerter) Run(ctx context.Context) error {
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -99,7 +101,6 @@ loop:
 			if err := a.Run(context.Background()); err != nil {
 				a.log.WithError(err).Error("alerter run")
 			}
-
 		}
 	}
 	close(a.stop)

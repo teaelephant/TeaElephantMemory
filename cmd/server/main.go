@@ -24,8 +24,6 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/internal/server"
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/graphql"
 	"github.com/teaelephant/TeaElephantMemory/pkg/fdb"
-	"github.com/teaelephant/TeaElephantMemory/pkg/leveldb/migrations"
-	"github.com/teaelephant/TeaElephantMemory/pkg/leveldb/migrator"
 )
 
 const (
@@ -55,12 +53,6 @@ func main() {
 	}
 
 	st := fdb.NewDB(db, logrusLogger.WithField(pkgKey, "fdb"))
-
-	mig := migrator.NewManager(migrations.Migrations, st)
-
-	if err := mig.Migrate(); err != nil {
-		panic(err)
-	}
 
 	teaManager := tea.NewManager(st)
 	qrManager := qr.NewManager(st)

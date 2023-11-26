@@ -3,12 +3,12 @@ package printqr
 import (
 	"image/color"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 	"github.com/skip2/go-qrcode"
 )
 
 func NewQR() ([]byte, error) {
-	id := uuid.NewV4()
+	id := uuid.New()
 
 	code, err := qrcode.New(id.String(), qrcode.Highest)
 	if err != nil {

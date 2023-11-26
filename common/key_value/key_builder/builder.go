@@ -1,7 +1,7 @@
 package key_builder
 
 import (
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 )
 
 type Builder interface {
@@ -47,7 +47,7 @@ func (b *builder) Device(id uuid.UUID) []byte {
 }
 
 func (b *builder) DevicesByUserID(id uuid.UUID) []byte {
-	return appendIndex(userIndexDevices, id.Bytes())
+	return appendIndex(userIndexDevices, id[:])
 }
 
 func (b *builder) Notification(id uuid.UUID) []byte {
@@ -55,7 +55,7 @@ func (b *builder) Notification(id uuid.UUID) []byte {
 }
 
 func (b *builder) NotificationByUserID(id uuid.UUID) []byte {
-	return appendIndex(userIndexNotifications, id.Bytes())
+	return appendIndex(userIndexNotifications, id[:])
 }
 
 func (b *builder) UserByAppleID(id string) []byte {
@@ -67,11 +67,11 @@ func (b *builder) User(id uuid.UUID) []byte {
 }
 
 func (b *builder) RecordsByCollection(id uuid.UUID) []byte {
-	return appendIndex(collectionIndexTea, id.Bytes())
+	return appendIndex(collectionIndexTea, id[:])
 }
 
 func (b *builder) Collection(id, userID uuid.UUID) []byte {
-	return appendIndex(appendUUID(collection, userID), id.Bytes())
+	return appendIndex(appendUUID(collection, userID), id[:])
 }
 
 func (b *builder) UserCollections(id uuid.UUID) []byte {
@@ -79,23 +79,23 @@ func (b *builder) UserCollections(id uuid.UUID) []byte {
 }
 
 func (b *builder) CollectionsTeas(id, teaID uuid.UUID) []byte {
-	return appendIndex(collectionIndexTea, append(id.Bytes(), teaID.Bytes()...))
+	return appendIndex(collectionIndexTea, append(id[:], teaID[:]...))
 }
 
 func (b *builder) TagTeaPair(tag, tea uuid.UUID) []byte {
-	return appendIndex(tagIndexTea, append(tag.Bytes(), tea.Bytes()...))
+	return appendIndex(tagIndexTea, append(tag[:], tea[:]...))
 }
 
 func (b *builder) TeaTagPair(tea, tag uuid.UUID) []byte {
-	return appendIndex(teaIndexTag, append(tea.Bytes(), tag.Bytes()...))
+	return appendIndex(teaIndexTag, append(tea[:], tag[:]...))
 }
 
 func (b *builder) TagsByTea(tea uuid.UUID) []byte {
-	return appendIndex(teaIndexTag, tea.Bytes())
+	return appendIndex(teaIndexTag, tea[:])
 }
 
 func (b *builder) TeasByTag(tag uuid.UUID) []byte {
-	return appendIndex(tagIndexTea, tag.Bytes())
+	return appendIndex(tagIndexTea, tag[:])
 }
 
 func (b *builder) Version() []byte {
@@ -143,11 +143,11 @@ func (b *builder) TagsByName(name string) []byte {
 }
 
 func (b *builder) TagsByNameAndCategory(category uuid.UUID, name string) []byte {
-	return appendIndex(tagIndexCategoryName, append(category.Bytes(), []byte(name)...))
+	return appendIndex(tagIndexCategoryName, append(category[:], []byte(name)...))
 }
 
 func (b *builder) TagsByCategory(category uuid.UUID) []byte {
-	return appendIndex(tagIndexCategoryName, category.Bytes())
+	return appendIndex(tagIndexCategoryName, category[:])
 }
 
 func appendPrefix(prefix byte, data []byte) []byte {
@@ -162,7 +162,7 @@ func appendPrefix(prefix byte, data []byte) []byte {
 }
 
 func appendUUID(prefix byte, uuid2 uuid.UUID) []byte {
-	return appendPrefix(prefix, uuid2.Bytes())
+	return appendPrefix(prefix, uuid2[:])
 }
 
 func appendIndex(prefix []byte, data []byte) []byte {

@@ -3,7 +3,7 @@ package common
 import (
 	"fmt"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 )
 
 type ErrNotFound struct {

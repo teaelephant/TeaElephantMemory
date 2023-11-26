@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +20,7 @@ func TestDecode(t *testing.T) {
 		assert.Equal(t, input, el)
 	})
 	t.Run("decode uuids", func(t *testing.T) {
-		input := []uuid.UUID{uuid.NewV4()}
+		input := []uuid.UUID{uuid.New()}
 		data, err := json.Marshal(input)
 		require.NoError(t, err)
 

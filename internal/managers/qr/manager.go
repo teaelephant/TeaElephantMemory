@@ -3,7 +3,7 @@ package qr
 import (
 	"context"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
 	gqlCommon "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common"

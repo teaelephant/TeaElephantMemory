@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 )
 
 type ID uuid.UUID
@@ -19,7 +19,7 @@ func (id ID) MarshalGQL(w io.Writer) {
 func (id *ID) UnmarshalGQL(v interface{}) error {
 	switch v := v.(type) {
 	case string:
-		u, err := uuid.FromString(v)
+		u, err := uuid.Parse(v)
 		if err != nil {
 			return err
 		}

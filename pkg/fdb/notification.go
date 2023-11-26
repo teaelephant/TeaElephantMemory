@@ -3,7 +3,7 @@ package fdb
 import (
 	"context"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
 	"github.com/teaelephant/TeaElephantMemory/common/key_value/encoder"
@@ -70,9 +70,7 @@ func (d *db) AddDeviceForUser(ctx context.Context, userID, deviceID uuid.UUID) e
 		return err
 	}
 
-	if err = tr.Set(index, data); err != nil {
-		return err
-	}
+	tr.Set(index, data)
 
 	el.UserID = userID
 
@@ -81,9 +79,7 @@ func (d *db) AddDeviceForUser(ctx context.Context, userID, deviceID uuid.UUID) e
 		return err
 	}
 
-	if err = tr.Set(key, data); err != nil {
-		return err
-	}
+	tr.Set(key, data)
 
 	return tr.Commit()
 }
@@ -103,9 +99,7 @@ func (d *db) CreateOrUpdateDeviceToken(ctx context.Context, deviceID uuid.UUID, 
 		return err
 	}
 
-	if err = tr.Set(key, el); err != nil {
-		return err
-	}
+	tr.Set(key, el)
 
 	return tr.Commit()
 }

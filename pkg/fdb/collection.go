@@ -5,7 +5,7 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/apple/foundationdb/bindings/go/src/fdb"
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
@@ -37,11 +37,9 @@ func (d *db) CreateCollection(ctx context.Context, userID uuid.UUID, name string
 		return uuid.UUID{}, err
 	}
 
-	id := uuid.NewV4()
+	id := uuid.New()
 
-	if err = tr.Set(d.keyBuilder.Collection(id, userID), data); err != nil {
-		return uuid.UUID{}, err
-	}
+	tr.Set(d.keyBuilder.Collection(id, userID), data)
 
 	if err = tr.Commit(); err != nil {
 		return uuid.UUID{}, err
@@ -66,9 +64,7 @@ func (d *db) AddTeaToCollection(ctx context.Context, id uuid.UUID, teas []uuid.U
 			continue
 		}
 
-		if err = tr.Set(d.keyBuilder.CollectionsTeas(id, tea), tea.Bytes()); err != nil {
-			return err
-		}
+		tr.Set(d.keyBuilder.CollectionsTeas(id, tea), tea[:])
 	}
 
 	return tr.Commit()
@@ -138,7 +134,7 @@ func (d *db) Collections(ctx context.Context, userID uuid.UUID) ([]*common.Colle
 
 	for _, kv := range kvs {
 		id := new(uuid.UUID)
-		if err = id.UnmarshalBinary(kv.Key[uuid.Size+1:]); err != nil {
+		if err = id.UnmarshalBinary(kv.Key[len(id)+1:]); err != nil {
 			return nil, err
 		}
 

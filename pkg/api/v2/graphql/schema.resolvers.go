@@ -8,7 +8,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/satori/go.uuid"
+	"github.com/google/uuid"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 
 	rootCommon "github.com/teaelephant/TeaElephantMemory/common"

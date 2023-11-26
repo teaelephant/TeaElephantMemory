@@ -3,7 +3,7 @@ package encoder
 import (
 	"encoding/json"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
 )

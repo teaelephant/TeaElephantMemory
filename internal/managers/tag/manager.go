@@ -3,7 +3,7 @@ package tag
 import (
 	"context"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
 	subscribers2 "github.com/teaelephant/TeaElephantMemory/internal/managers/tag/subscribers"

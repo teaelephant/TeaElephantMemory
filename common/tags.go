@@ -1,7 +1,7 @@
 package common
 
 import (
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 )
 
 type TagCategory struct {

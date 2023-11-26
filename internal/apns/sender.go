@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 	"github.com/sideshow/apns2"
 	"github.com/sideshow/apns2/payload"
 	"github.com/sirupsen/logrus"

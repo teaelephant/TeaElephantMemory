@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/apple/foundationdb/bindings/go/src/fdb"
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
 	"github.com/teaelephant/TeaElephantMemory/common/key_value/encoder"
@@ -30,7 +30,7 @@ type tag interface {
 }
 
 func (d *db) CreateTagCategory(ctx context.Context, name string) (category *common.TagCategory, err error) {
-	id := uuid.NewV4()
+	id := uuid.New()
 	if err = d.writeCategory(ctx, id, name); err != nil {
 		return nil, err
 	}
@@ -107,8 +107,13 @@ func (d *db) ListTagCategories(ctx context.Context, search *string) (list []comm
 		}
 
 		for _, kv := range kvs {
+			id, err := uuid.FromBytes(kv.Key[1:])
+			if err != nil {
+				id = uuid.Nil
+			}
+
 			records = append(records, common.TagCategory{
-				ID:   uuid.FromBytesOrNil(kv.Key[1:]),
+				ID:   id,
 				Name: string(kv.Value),
 			})
 		}
@@ -145,7 +150,7 @@ func (d *db) ListTagCategories(ctx context.Context, search *string) (list []comm
 }
 
 func (d *db) CreateTag(ctx context.Context, name, color string, categoryID uuid.UUID) (*common.Tag, error) {
-	id := uuid.NewV4()
+	id := uuid.New()
 
 	tr, err := d.db.NewTransaction(ctx)
 	if err != nil {
@@ -318,8 +323,13 @@ func (d *db) ListTags(ctx context.Context, name *string, categoryID *uuid.UUID) 
 				return nil, err
 			}
 
+			id, err := uuid.FromBytes(kv.Key[1:])
+			if err != nil {
+				id = uuid.Nil
+			}
+
 			records = append(records, common.Tag{
-				ID:      uuid.FromBytesOrNil(kv.Key[1:]),
+				ID:      id,
 				TagData: (*common.TagData)(tagData),
 			})
 		}
@@ -387,13 +397,9 @@ func (d *db) AddTagToTea(ctx context.Context, tea uuid.UUID, tag uuid.UUID) erro
 		return err
 	}
 
-	if err = tr.Set(d.keyBuilder.TeaTagPair(tea, tag), tag.Bytes()); err != nil {
-		return err
-	}
+	tr.Set(d.keyBuilder.TeaTagPair(tea, tag), tag[:])
 
-	if err = tr.Set(d.keyBuilder.TagTeaPair(tag, tea), tea.Bytes()); err != nil {
-		return err
-	}
+	tr.Set(d.keyBuilder.TagTeaPair(tag, tea), tea[:])
 
 	return tr.Commit()
 }
@@ -462,13 +468,9 @@ func (d *db) writeCategory(ctx context.Context, id uuid.UUID, name string) error
 		return err
 	}
 
-	if err = tx.Set(d.keyBuilder.TagCategory(id), []byte(name)); err != nil {
-		return err
-	}
+	tx.Set(d.keyBuilder.TagCategory(id), []byte(name))
 
-	if err = tx.Set(d.keyBuilder.TagCategoryByName(name), id.Bytes()); err != nil {
-		return err
-	}
+	tx.Set(d.keyBuilder.TagCategoryByName(name), id[:])
 
 	return tx.Commit()
 }
@@ -479,17 +481,11 @@ func (d *db) writeTag(tr fdbclient.Transaction, tag *common.Tag) error {
 		return err
 	}
 
-	if err = tr.Set(d.keyBuilder.Tag(tag.ID), data); err != nil {
-		return err
-	}
+	tr.Set(d.keyBuilder.Tag(tag.ID), data)
 
-	if err = tr.Set(d.keyBuilder.TagsByName(tag.Name), tag.ID.Bytes()); err != nil {
-		return err
-	}
+	tr.Set(d.keyBuilder.TagsByName(tag.Name), tag.ID[:])
 
-	if err = tr.Set(d.keyBuilder.TagsByNameAndCategory(tag.CategoryID, tag.Name), tag.ID.Bytes()); err != nil {
-		return err
-	}
+	tr.Set(d.keyBuilder.TagsByNameAndCategory(tag.CategoryID, tag.Name), tag.ID[:])
 
 	return nil
 }

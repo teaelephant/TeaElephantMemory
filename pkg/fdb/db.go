@@ -5,7 +5,7 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/apple/foundationdb/bindings/go/src/fdb"
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 
@@ -97,20 +97,16 @@ func (d *db) GetOrCreateUser(ctx context.Context, unique string) (uuid.UUID, err
 		return uuid.FromBytes(data)
 	}
 
-	user := &common.User{ID: uuid.NewV4(), AppleID: unique}
+	user := &common.User{ID: uuid.New(), AppleID: unique}
 
 	data, err = (*encoder.User)(user).Encode()
 	if err != nil {
 		return uuid.Nil, err
 	}
 
-	if err = tr.Set(key, user.ID.Bytes()); err != nil {
-		return uuid.Nil, err
-	}
+	tr.Set(key, user.ID[:])
 
-	if err = tr.Set(d.keyBuilder.User(user.ID), data); err != nil {
-		return uuid.Nil, err
-	}
+	tr.Set(d.keyBuilder.User(user.ID), data)
 
 	if err = tr.Commit(); err != nil {
 		return uuid.Nil, err

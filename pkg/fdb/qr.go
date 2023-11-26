@@ -3,7 +3,7 @@ package fdb
 import (
 	"context"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
 	"github.com/teaelephant/TeaElephantMemory/common/key_value/encoder"
@@ -26,9 +26,7 @@ func (d *db) WriteQR(ctx context.Context, id uuid.UUID, data *common.QR) error {
 		return err
 	}
 
-	if err := tr.Set(d.keyBuilder.QR(id), el); err != nil {
-		return err
-	}
+	tr.Set(d.keyBuilder.QR(id), el)
 
 	return tr.Commit()
 }
