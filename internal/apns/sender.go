@@ -14,23 +14,24 @@ type Sender interface {
 	Send(ctx context.Context, userID, itemID uuid.UUID, title, body string) error
 }
 
-type userIdMapper interface {
+type userIDMapper interface {
 	MapUserIdToDeviceID(ctx context.Context, userID uuid.UUID) ([]string, error)
 }
 
 type sender struct {
 	client *apns2.Client
-	userIdMapper
+	userIDMapper
 
 	log   *logrus.Entry
 	topic string
 }
 
 func (s *sender) Send(ctx context.Context, userID, itemID uuid.UUID, title, body string) error {
-	deviceTokens, err := s.userIdMapper.MapUserIdToDeviceID(ctx, userID)
+	deviceTokens, err := s.userIDMapper.MapUserIdToDeviceID(ctx, userID)
 	if err != nil {
 		return err
 	}
+
 	for _, device := range deviceTokens {
 		notification := &apns2.Notification{
 			DeviceToken: device,
@@ -43,10 +44,12 @@ func (s *sender) Send(ctx context.Context, userID, itemID uuid.UUID, title, body
 				Category("showCard").
 				ThreadID(itemID.String()),
 		}
+
 		res, err := s.client.PushWithContext(ctx, notification)
 		if err != nil {
 			return err
 		}
+
 		if res.Sent() {
 			s.log.WithField("apns id", res.ApnsID).Debug("Sent signal")
 		} else {
@@ -58,14 +61,15 @@ func (s *sender) Send(ctx context.Context, userID, itemID uuid.UUID, title, body
 				Warn("Notification not Sent")
 		}
 	}
+
 	return nil
 }
 
-func NewSender(client *apns2.Client, topic string, mapper userIdMapper, log *logrus.Entry) Sender {
+func NewSender(client *apns2.Client, topic string, mapper userIDMapper, log *logrus.Entry) Sender {
 	return &sender{
 		topic:        topic,
 		client:       client,
-		userIdMapper: mapper,
+		userIDMapper: mapper,
 		log:          log,
 	}
 }
