@@ -68,6 +68,7 @@ func (s *Server) InitV2Api() {
 	srv.Use(extension.AutomaticPersistedQuery{
 		Cache: lru.New(100),
 	})
+
 	for _, m := range s.middlewares {
 		srv.Use(m)
 	}

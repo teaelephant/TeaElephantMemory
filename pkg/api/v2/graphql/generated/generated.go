@@ -125,7 +125,7 @@ type ComplexityRoot struct {
 		OnUpdateTag              func(childComplexity int) int
 		OnUpdateTagCategory      func(childComplexity int) int
 		OnUpdateTea              func(childComplexity int) int
-		StartGenerateDescription func(childComplexity int, id common.ID, name string) int
+		StartGenerateDescription func(childComplexity int, name string) int
 	}
 
 	Tag struct {
@@ -204,7 +204,7 @@ type SubscriptionResolver interface {
 	OnDeleteTag(ctx context.Context) (<-chan common.ID, error)
 	OnAddTagToTea(ctx context.Context) (<-chan *model.Tea, error)
 	OnDeleteTagFromTea(ctx context.Context) (<-chan *model.Tea, error)
-	StartGenerateDescription(ctx context.Context, id common.ID, name string) (<-chan string, error)
+	StartGenerateDescription(ctx context.Context, name string) (<-chan string, error)
 }
 type TagResolver interface {
 	Category(ctx context.Context, obj *model.Tag) (*model.TagCategory, error)
@@ -736,7 +736,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Subscription.StartGenerateDescription(childComplexity, args["id"].(common.ID), args["name"].(string)), true
+		return e.complexity.Subscription.StartGenerateDescription(childComplexity, args["name"].(string)), true
 
 	case "Tag.category":
 		if e.complexity.Tag.Category == nil {
@@ -1024,19 +1024,30 @@ type Mutation {
 }
 
 type Subscription {
+    "Subscription for tea addition."
     onCreateTea: Tea!
+    "Subscription for tea update."
     onUpdateTea: Tea!
+    "Subscription for tea remove."
     onDeleteTea: ID!
+    "Subscription for tag category addition."
     onCreateTagCategory: TagCategory!
+    "Subscription for tag category update."
     onUpdateTagCategory: TagCategory!
+    "Subscription for tag category remove."
     onDeleteTagCategory: ID!
+    "Subscription for tag category addition."
     onCreateTag: Tag!
+    "Subscription for tag update."
     onUpdateTag: Tag!
+    "Subscription for tag remove."
     onDeleteTag: ID!
+    "Subscription for tag addition to tea."
     onAddTagToTea: Tea!
+    "Subscription for tag deletion from tea."
     onDeleteTagFromTea: Tea!
     "Async generate description for tea with ai."
-    startGenerateDescription(id: ID!, name: String!): String!
+    startGenerateDescription(name: String!): String!
 }
 
 type TagCategory {
@@ -1664,24 +1675,15 @@ func (ec *executionContext) field_Query_teas_args(ctx context.Context, rawArgs m
 func (ec *executionContext) field_Subscription_startGenerateDescription_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 common.ID
-	if tmp, ok := rawArgs["id"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-		arg0, err = ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["id"] = arg0
-	var arg1 string
+	var arg0 string
 	if tmp, ok := rawArgs["name"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
-		arg1, err = ec.unmarshalNString2string(ctx, tmp)
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["name"] = arg1
+	args["name"] = arg0
 	return args, nil
 }
 
@@ -4869,7 +4871,7 @@ func (ec *executionContext) _Subscription_startGenerateDescription(ctx context.C
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Subscription().StartGenerateDescription(rctx, fc.Args["id"].(common.ID), fc.Args["name"].(string))
+		return ec.resolvers.Subscription().StartGenerateDescription(rctx, fc.Args["name"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)

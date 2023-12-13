@@ -10,7 +10,6 @@ import (
 	"github.com/eko/gocache/lib/v4/cache"
 	"github.com/eko/gocache/lib/v4/store"
 	ristrettoStore "github.com/eko/gocache/store/ristretto/v4"
-	"github.com/google/uuid"
 	"github.com/sashabaranov/go-openai"
 	"github.com/sirupsen/logrus"
 )
@@ -23,7 +22,7 @@ const (
 
 type DescriptionGenerator interface {
 	GenerateDescription(ctx context.Context, name string) (string, error)
-	StartGenerateDescription(ctx context.Context, id uuid.UUID, name string, res chan<- string) error
+	StartGenerateDescription(ctx context.Context, name string, res chan<- string) error
 }
 
 type generator struct {
@@ -57,11 +56,11 @@ func (g *generator) GenerateDescription(ctx context.Context, name string) (strin
 	return resp.Choices[0].Message.Content, nil
 }
 
-func (g *generator) StartGenerateDescription(ctx context.Context, id uuid.UUID, name string, result chan<- string) error {
-	res, err := g.cacheManager.Get(ctx, id)
+func (g *generator) StartGenerateDescription(ctx context.Context, name string, result chan<- string) error {
+	res, err := g.cacheManager.Get(ctx, name)
 	if err != nil {
 		if errors.Is(err, store.NotFound{}) {
-			go g.generateDescription(id, name, result) //nolint:contextcheck
+			go g.generateDescription(name, result) //nolint:contextcheck
 
 			return nil
 		}
@@ -76,18 +75,18 @@ func (g *generator) StartGenerateDescription(ctx context.Context, id uuid.UUID, 
 	return nil
 }
 
-func (g *generator) generateDescription(id uuid.UUID, name string, result chan<- string) {
+func (g *generator) generateDescription(name string, result chan<- string) {
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, asyncGenerateTimeout)
 
-	g.log.WithField("id", id).Debug("start generate description")
+	g.log.WithField("name", name).Debug("start generate description")
 
 	res, err := g.GenerateDescription(ctx, name)
 	if err != nil {
 		g.log.WithError(err).Error(descriptionGenerationError)
 	}
 
-	if err = g.cacheManager.Set(ctx, id, res); err != nil {
+	if err = g.cacheManager.Set(ctx, name, res); err != nil {
 		g.log.WithError(err).Error("cache set error")
 	}
 

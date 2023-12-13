@@ -442,9 +442,9 @@ func (r *subscriptionResolver) OnDeleteTagFromTea(ctx context.Context) (<-chan *
 }
 
 // StartGenerateDescription is the resolver for the startGenerateDescription field.
-func (r *subscriptionResolver) StartGenerateDescription(ctx context.Context, id common.ID, name string) (<-chan string, error) {
+func (r *subscriptionResolver) StartGenerateDescription(ctx context.Context, name string) (<-chan string, error) {
 	res := make(chan string)
-	return res, r.ai.StartGenerateDescription(ctx, uuid.UUID(id), name, res)
+	return res, r.ai.StartGenerateDescription(ctx, name, res)
 }
 
 // Category is the resolver for the category field.
