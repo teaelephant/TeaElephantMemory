@@ -443,7 +443,7 @@ func (r *subscriptionResolver) OnDeleteTagFromTea(ctx context.Context) (<-chan *
 
 // StartGenerateDescription is the resolver for the startGenerateDescription field.
 func (r *subscriptionResolver) StartGenerateDescription(ctx context.Context, name string) (<-chan string, error) {
-	res := make(chan string)
+	res := make(chan string, 1)
 	return res, r.ai.StartGenerateDescription(ctx, name, res)
 }
 

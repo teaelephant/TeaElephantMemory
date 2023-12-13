@@ -59,7 +59,9 @@ func (g *generator) createChatCompletionRequest(name string) openai.ChatCompleti
 	}
 }
 
-// StartGenerateDescription generates a description for a given name. It first checks if the description is available in the cache. If not, it starts a goroutine to generate the description
+// StartGenerateDescription generates a description for a given name.
+// It first checks if the description is available in the cache.
+// If not, it starts a goroutine to generate the description
 func (g *generator) StartGenerateDescription(ctx context.Context, name string, result chan<- string) error {
 	res, err := g.cacheManager.Get(ctx, name)
 	if err != nil {
