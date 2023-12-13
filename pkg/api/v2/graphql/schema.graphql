@@ -61,6 +61,8 @@ type Subscription {
     onDeleteTag: ID!
     onAddTagToTea: Tea!
     onDeleteTagFromTea: Tea!
+    "Async generate description for tea with ai."
+    startGenerateDescription(id: ID!, name: String!): String!
 }
 
 type TagCategory {

@@ -7,6 +7,9 @@ require (
 	github.com/Timothylock/go-signin-with-apple v0.2.0
 	github.com/apple/foundationdb/bindings/go v0.0.0-20231107151356-57ccdb8fee6d
 	github.com/briandowns/openweathermap v0.19.0
+	github.com/dgraph-io/ristretto v0.1.1
+	github.com/eko/gocache/lib/v4 v4.1.5
+	github.com/eko/gocache/store/ristretto/v4 v4.2.1
 	github.com/golang-jwt/jwt/v5 v5.2.0
 	github.com/google/uuid v1.4.0
 	github.com/gorilla/handlers v1.5.2
@@ -24,14 +27,26 @@ require (
 
 require (
 	github.com/agnivade/levenshtein v1.1.1 // indirect
+	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
+	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
+	github.com/golang/mock v1.6.0 // indirect
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/gorilla/i18n v0.0.0-20150820051429-8b358169da46 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.3 // indirect
+	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/prometheus/client_golang v1.14.0 // indirect
+	github.com/prometheus/client_model v0.3.0 // indirect
+	github.com/prometheus/common v0.37.0 // indirect
+	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sosodev/duration v1.2.0 // indirect
 	github.com/tideland/golib v4.24.2+incompatible // indirect
@@ -43,6 +58,7 @@ require (
 	github.com/urfave/cli/v2 v2.26.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	golang.org/x/crypto v0.16.0 // indirect
+	golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0 // indirect
 	golang.org/x/image v0.14.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.19.0 // indirect
@@ -50,5 +66,6 @@ require (
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.16.0 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

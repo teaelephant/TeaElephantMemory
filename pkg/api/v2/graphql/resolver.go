@@ -72,6 +72,7 @@ type auth interface {
 
 type ai interface {
 	GenerateDescription(ctx context.Context, name string) (string, error)
+	StartGenerateDescription(ctx context.Context, id uuid.UUID, name string, res chan<- string) error
 }
 
 type notificationsManager interface {
