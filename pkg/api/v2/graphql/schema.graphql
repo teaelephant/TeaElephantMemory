@@ -50,16 +50,27 @@ type Mutation {
 }
 
 type Subscription {
+    "Subscription for tea addition."
     onCreateTea: Tea!
+    "Subscription for tea update."
     onUpdateTea: Tea!
+    "Subscription for tea remove."
     onDeleteTea: ID!
+    "Subscription for tag category addition."
     onCreateTagCategory: TagCategory!
+    "Subscription for tag category update."
     onUpdateTagCategory: TagCategory!
+    "Subscription for tag category remove."
     onDeleteTagCategory: ID!
+    "Subscription for tag category addition."
     onCreateTag: Tag!
+    "Subscription for tag update."
     onUpdateTag: Tag!
+    "Subscription for tag remove."
     onDeleteTag: ID!
+    "Subscription for tag addition to tea."
     onAddTagToTea: Tea!
+    "Subscription for tag deletion from tea."
     onDeleteTagFromTea: Tea!
     "Async generate description for tea with ai."
     startGenerateDescription(id: ID!, name: String!): String!
