@@ -18,6 +18,7 @@ const (
 	asyncGenerateTimeout       = 5 * time.Minute
 	requestTemplate            = "Опиши взвешенно и информативно без маркетинга напиток %s, чтобы помочь сделать выбор человеку на основании вкусовых качеств, пользы для организма, стимуляции к деятельности" //nolint:lll
 	descriptionGenerationError = "description generation error"
+	descriptionModel           = openai.GPT4TurboPreview
 )
 
 type DescriptionGenerator interface {
@@ -32,30 +33,33 @@ type generator struct {
 	log *logrus.Entry
 }
 
-func (g *generator) GenerateDescription(ctx context.Context, name string) (string, error) {
-	resp, err := g.client.CreateChatCompletion(
-		ctx,
-		openai.ChatCompletionRequest{
-			Model: openai.GPT4TurboPreview,
-			Messages: []openai.ChatCompletionMessage{
-				{
-					Role:    openai.ChatMessageRoleUser,
-					Content: fmt.Sprintf(requestTemplate, name),
-				},
-			},
-		},
-	)
+func (g *generator) GenerateDescription(ctx context.Context, productName string) (string, error) {
+	request := g.createChatCompletionRequest(productName)
+	descriptionResponse, err := g.client.CreateChatCompletion(ctx, request)
 
 	if err != nil {
 		g.log.WithError(err).Error(descriptionGenerationError)
 		return "", err
 	}
 
-	g.log.WithField("response", resp).Debug("description generation result")
+	g.log.WithField("response", descriptionResponse).Debug("description generation result")
 
-	return resp.Choices[0].Message.Content, nil
+	return descriptionResponse.Choices[0].Message.Content, nil
 }
 
+func (g *generator) createChatCompletionRequest(name string) openai.ChatCompletionRequest {
+	return openai.ChatCompletionRequest{
+		Model: descriptionModel,
+		Messages: []openai.ChatCompletionMessage{
+			{
+				Role:    openai.ChatMessageRoleUser,
+				Content: fmt.Sprintf(requestTemplate, name),
+			},
+		},
+	}
+}
+
+// StartGenerateDescription generates a description for a given name. It first checks if the description is available in the cache. If not, it starts a goroutine to generate the description
 func (g *generator) StartGenerateDescription(ctx context.Context, name string, result chan<- string) error {
 	res, err := g.cacheManager.Get(ctx, name)
 	if err != nil {

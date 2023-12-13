@@ -12,6 +12,8 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/common"
 )
 
+//go:generate mockgen -source=alerter.go -destination=mocks/alerter.go -package=mocks storage,alerter,sender
+
 type Alerter interface {
 	Start() error
 	Stop() error
@@ -56,38 +58,53 @@ func (a *alerter) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
 	for _, user := range users {
-		cols, err := a.storage.Collections(ctx, user.ID)
-		if err != nil {
+		if err := a.processUserCollections(ctx, user.ID); err != nil {
 			return err
 		}
+	}
+	return nil
+}
 
-		for _, col := range cols {
-			records, err := a.storage.CollectionRecords(ctx, col.ID)
-			if err != nil {
-				return err
-			}
-
-			for _, record := range records {
-				a.log.WithField("user", user.ID).
-					WithField("collection", col.Name).
-					WithField("tes", record.Tea.Name).Debug("expiration date checked")
-
-				if !record.ExpirationDate.Before(time.Now()) {
-					continue
-				}
-
-				body := fmt.Sprintf("tea %s from collection %s expired %s", record.Tea.Name, col.Name, record.ExpirationDate)
-
-				if err = a.sender.Send(ctx, user.ID, record.ID, "tea expired", body); err != nil {
-					return err
-				}
-			}
-		}
+func (a *alerter) processUserCollections(ctx context.Context, userID uuid.UUID) error {
+	collections, err := a.storage.Collections(ctx, userID)
+	if err != nil {
+		return err
 	}
 
+	for _, col := range collections {
+		if err := a.processCollectionRecords(ctx, userID, col); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func (a *alerter) processCollectionRecords(ctx context.Context, userID uuid.UUID, col *common.Collection) error {
+	records, err := a.storage.CollectionRecords(ctx, col.ID)
+	if err != nil {
+		return err
+	}
+
+	for _, record := range records {
+		if err := a.processRecord(ctx, userID, col, record); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *alerter) processRecord(ctx context.Context, userID uuid.UUID, col *common.Collection, record *common.CollectionRecord) error {
+	a.log.WithField("user", userID).
+		WithField("collection", col.Name).
+		WithField("tea", record.Tea.Name).Debug("expiration date checked")
+
+	if !record.ExpirationDate.Before(time.Now()) {
+		return nil
+	}
+
+	body := fmt.Sprintf("tea %s from collection %s expired %s", record.Tea.Name, col.Name, record.ExpirationDate)
+	return a.sender.Send(ctx, userID, record.ID, "tea expired", body)
 }
 
 func (a *alerter) loop() {
