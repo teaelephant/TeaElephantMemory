@@ -447,6 +447,36 @@ func (r *subscriptionResolver) StartGenerateDescription(ctx context.Context, nam
 	return res, r.ai.StartGenerateDescription(ctx, name, res)
 }
 
+// RecommendTea is the resolver for the recommendTea field.
+func (r *subscriptionResolver) RecommendTea(ctx context.Context, collectionID common.ID, feelings string) (<-chan string, error) {
+	user, err := authPkg.GetUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	wth, err := r.weather.CurrentCyprus(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	records, err := r.collectionManager.ListRecords(ctx, uuid.UUID(collectionID), user.ID)
+	if err != nil {
+		return nil, err
+	}
+	if len(records) == 0 {
+		return nil, errors.New("you should have more teas")
+	}
+
+	teas := make([]rootCommon.Tea, len(records))
+
+	for i, rec := range records {
+		teas[i] = rec.Tea.ToCommonTea()
+	}
+
+	res := make(chan string, 1000)
+	return res, r.adviser.RecommendTeaStream(ctx, teas, wth, feelings, res)
+}
+
 // Category is the resolver for the category field.
 func (r *tagResolver) Category(ctx context.Context, obj *model.Tag) (*model.TagCategory, error) {
 	if obj.Category == nil {

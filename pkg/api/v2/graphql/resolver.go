@@ -87,6 +87,7 @@ type debug interface {
 
 type adviser interface {
 	RecommendTea(ctx context.Context, teas []common.Tea, weather common.Weather, feelings string) (string, error)
+	RecommendTeaStream(ctx context.Context, teas []common.Tea, weather common.Weather, feelings string, res chan<- string) error
 }
 
 type weather interface {

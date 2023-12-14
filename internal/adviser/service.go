@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"embed"
+	"errors"
+	"io"
 	"text/template"
 	"time"
 
@@ -20,6 +22,7 @@ var f embed.FS
 
 type Adviser interface {
 	RecommendTea(ctx context.Context, teas []common.Tea, weather common.Weather, feelings string) (string, error)
+	RecommendTeaStream(ctx context.Context, teas []common.Tea, weather common.Weather, feelings string, res chan<- string) error
 	LoadPrompt() error
 }
 
@@ -32,22 +35,7 @@ type service struct {
 func (s *service) RecommendTea(
 	ctx context.Context, teas []common.Tea, weather common.Weather, feelings string,
 ) (string, error) {
-	t := Template{
-		Teas:      make([]common.Tea, 0),
-		Additives: make([]common.Tea, 0),
-		Weather:   weather,
-		TimeOfDay: time.Now().Add(3 * time.Hour).Format(time.TimeOnly),
-		Feelings:  Feelings(feelings),
-	}
-
-	for _, tea := range teas {
-		switch tea.Type { //nolint:exhaustive
-		case common.TeaBeverageType:
-			t.Teas = append(t.Teas, tea)
-		case common.HerbBeverageType:
-			t.Additives = append(t.Additives, tea)
-		}
-	}
+	t := s.sortTeas(teas, weather, feelings)
 
 	content, err := s.execute(t)
 	if err != nil {
@@ -75,6 +63,74 @@ func (s *service) RecommendTea(
 	s.log.WithField("request", content).WithField("response", resp).Debug("recommendation result")
 
 	return resp.Choices[0].Message.Content, nil
+}
+
+func (s *service) sortTeas(teas []common.Tea, weather common.Weather, feelings string) Template {
+	t := Template{
+		Teas:      make([]common.Tea, 0),
+		Additives: make([]common.Tea, 0),
+		Weather:   weather,
+		TimeOfDay: time.Now().Add(3 * time.Hour).Format(time.TimeOnly),
+		Feelings:  Feelings(feelings),
+	}
+	for _, tea := range teas {
+		switch tea.Type { //nolint:exhaustive
+		case common.TeaBeverageType:
+			t.Teas = append(t.Teas, tea)
+		case common.HerbBeverageType:
+			t.Additives = append(t.Additives, tea)
+		default:
+		}
+	}
+	return t
+}
+
+func (s *service) RecommendTeaStream(
+	ctx context.Context, teas []common.Tea, weather common.Weather, feelings string, res chan<- string,
+) error {
+	t := s.sortTeas(teas, weather, feelings)
+	content, err := s.execute(t)
+	if err != nil {
+		return err
+	}
+	req := openai.ChatCompletionRequest{
+		Model: openai.GPT4TurboPreview,
+		Messages: []openai.ChatCompletionMessage{
+			{
+				Role:    openai.ChatMessageRoleUser,
+				Content: content,
+			},
+		},
+	}
+	stream, err := s.client.CreateChatCompletionStream(ctx, req)
+	if err != nil {
+		s.log.WithError(err).Error("description generation error")
+		return err
+	}
+
+	go s.readStream(stream, res)
+
+	return nil
+}
+
+func (s *service) readStream(stream *openai.ChatCompletionStream, res chan<- string) {
+	defer stream.Close()
+
+	for {
+		response, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			s.log.Debug("stream finished")
+			break
+		}
+
+		if err != nil {
+			s.log.WithError(err).Debug("stream error")
+			break
+		}
+
+		res <- response.Choices[0].Delta.Content
+	}
+	close(res)
 }
 
 func (s *service) LoadPrompt() error {

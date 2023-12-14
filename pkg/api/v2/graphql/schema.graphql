@@ -74,6 +74,8 @@ type Subscription {
     onDeleteTagFromTea: Tea!
     "Async generate description for tea with ai."
     startGenerateDescription(name: String!): String!
+    "Async get tea recommendation"
+    recommendTea(collectionID: ID!, feelings: String!): String!
 }
 
 type TagCategory {
