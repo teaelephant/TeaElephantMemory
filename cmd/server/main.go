@@ -104,7 +104,7 @@ func main() {
 		adv, weather,
 	)
 
-	s := server.NewServer(resolvers, []gql.HandlerExtension{authM.Middleware()})
+	s := server.NewServer(resolvers, []gql.HandlerExtension{authM.Middleware()}, authM.WsInitFunc)
 	s.InitV2Api()
 	teaManager.Start()
 	tagManager.Start()

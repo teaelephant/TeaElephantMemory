@@ -23,6 +23,7 @@ type Server struct {
 	resolvers   generated.ResolverRoot
 	router      *mux.Router
 	middlewares []graphql.HandlerExtension
+	wsInitFunc  transport.WebsocketInitFunc
 }
 
 type Middleware func(handler http.Handler) http.Handler
@@ -46,6 +47,7 @@ func (s *Server) InitV2Api() {
 			generated.Config{Resolvers: s.resolvers}))
 
 	srv.AddTransport(&transport.Websocket{
+		InitFunc:              s.wsInitFunc,
 		KeepAlivePingInterval: 10 * time.Second,
 		Upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
@@ -79,6 +81,6 @@ func (s *Server) InitV2Api() {
 	s.router.Handle("/v2/query", srv)
 }
 
-func NewServer(resolvers generated.ResolverRoot, middlewares []graphql.HandlerExtension) *Server {
-	return &Server{resolvers: resolvers, router: mux.NewRouter(), middlewares: middlewares}
+func NewServer(resolvers generated.ResolverRoot, middlewares []graphql.HandlerExtension, wsInitFunc transport.WebsocketInitFunc) *Server {
+	return &Server{resolvers: resolvers, router: mux.NewRouter(), middlewares: middlewares, wsInitFunc: wsInitFunc}
 }

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/Timothylock/go-signin-with-apple/apple"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -31,6 +32,7 @@ type Auth interface {
 	Auth(ctx context.Context, token string) (*common.Session, error)
 	Validate(ctx context.Context, jwt string) (*common.User, error)
 	Middleware() graphql.HandlerExtension
+	WsInitFunc(ctx context.Context, payload transport.InitPayload) (context.Context, *transport.InitPayload, error)
 	Start() error
 }
 
@@ -192,6 +194,24 @@ func NewAuth(cfg *Configuration, storage storage, logger *logrus.Entry) Auth {
 
 type Middleware struct {
 	*auth
+}
+
+func (a *auth) WsInitFunc(ctx context.Context, payload transport.InitPayload) (context.Context, *transport.InitPayload, error) {
+	authHeader := payload.Authorization()
+	if authHeader == "" {
+		return ctx, nil, nil
+	}
+
+	token := strings.Replace(authHeader, "Bearer ", "", 1)
+
+	user, err := a.Validate(ctx, token)
+	if err != nil {
+		a.log.WithError(err).Warn("Invalid jwt")
+
+		return ctx, nil, common.ErrJwtIncorrect
+	}
+
+	return context.WithValue(ctx, userCtxKey, user), nil, nil
 }
 
 func (a *Middleware) InterceptResponse(ctx context.Context, next graphql.ResponseHandler) *graphql.Response {

@@ -474,7 +474,10 @@ func (r *subscriptionResolver) RecommendTea(ctx context.Context, collectionID co
 	}
 
 	res := make(chan string, 1000)
-	return res, r.adviser.RecommendTeaStream(ctx, teas, wth, feelings, res)
+	if err = r.adviser.RecommendTeaStream(ctx, teas, wth, feelings, res); err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 // Category is the resolver for the category field.
