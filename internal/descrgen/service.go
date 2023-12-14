@@ -104,7 +104,7 @@ func (g *generator) generateDescription(name string, result chan<- string) {
 func NewGenerator(token string, log *logrus.Entry) DescriptionGenerator {
 	ristrettoCache, err := ristretto.NewCache(&ristretto.Config{
 		NumCounters: 1000,
-		MaxCost:     100,
+		MaxCost:     100000000,
 		BufferItems: 64,
 	})
 	if err != nil {
