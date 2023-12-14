@@ -54,7 +54,7 @@ func (d *db) AddTeaToCollection(ctx context.Context, id uuid.UUID, teas []uuid.U
 		return err
 	}
 
-	for _, tea := range teas {
+	for i, tea := range teas {
 		data, err := tr.Get(d.keyBuilder.QR(tea))
 		if err != nil {
 			return err
@@ -64,7 +64,7 @@ func (d *db) AddTeaToCollection(ctx context.Context, id uuid.UUID, teas []uuid.U
 			continue
 		}
 
-		tr.Set(d.keyBuilder.CollectionsTeas(id, tea), tea[:])
+		tr.Set(d.keyBuilder.CollectionsTeas(id, tea), teas[i][:])
 	}
 
 	return tr.Commit()
