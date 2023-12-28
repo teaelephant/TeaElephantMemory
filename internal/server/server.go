@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/graphql/generated"
@@ -79,6 +80,7 @@ func (s *Server) InitV2Api() {
 	s.router.Handle("/health", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
+	s.router.Handle("/metrics", promhttp.Handler())
 }
 
 func NewServer(resolvers generated.ResolverRoot, middlewares []graphql.HandlerExtension, wsInitFunc transport.WebsocketInitFunc) *Server {
