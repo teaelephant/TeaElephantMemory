@@ -35,10 +35,7 @@ func (s *Server) Run() error {
 
 	logrus.Info("server start on port 8080")
 
-	if err := http.ListenAndServe(":8080", handlers.CORS(originsOk)(s.router)); err != nil {
-		logrus.WithError(err).Panic("server httperror")
-	}
-	return nil
+	return http.ListenAndServe(":8080", handlers.CORS(originsOk)(s.router))
 }
 
 func (s *Server) InitV2Api() {
@@ -79,6 +76,9 @@ func (s *Server) InitV2Api() {
 	s.router.Use()
 	s.router.Handle("/v2/", playground.Handler("GraphQL playground", "/v2/query"))
 	s.router.Handle("/v2/query", srv)
+	s.router.Handle("/health", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
 }
 
 func NewServer(resolvers generated.ResolverRoot, middlewares []graphql.HandlerExtension, wsInitFunc transport.WebsocketInitFunc) *Server {

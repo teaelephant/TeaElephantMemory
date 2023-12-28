@@ -32,9 +32,9 @@ const (
 )
 
 type configuration struct {
-	LogLevel     uint32 `default:"4"`
-	DatabasePath string `default:"/usr/local/etc/foundationdb/fdb.cluster"`
-	OpenAIToken  string `envconfig:"OPEN_AI_TOKEN" require:"true"`
+	LoggerLevel  logrus.Level `envconfig:"LOG_LEVEL" default:"info"`
+	DatabasePath string       `default:"/usr/local/etc/foundationdb/fdb.cluster"`
+	OpenAIToken  string       `envconfig:"OPEN_AI_TOKEN" require:"true"`
 }
 
 func main() {
@@ -44,7 +44,7 @@ func main() {
 	}
 
 	logrusLogger := logrus.New()
-	logrusLogger.SetLevel(logrus.Level(cfg.LogLevel))
+	logrusLogger.SetLevel(cfg.LoggerLevel)
 	foundeationDB.MustAPIVersion(foundationDBVersion)
 
 	db, err := foundeationDB.OpenDatabase(cfg.DatabasePath)
