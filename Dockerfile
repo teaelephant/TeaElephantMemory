@@ -1,33 +1,32 @@
-FROM golang:1.21 AS build
+ARG FDB_VERSION=7.3.27
+FROM foundationdb/foundationdb:${FDB_VERSION} as fdb
+FROM golang:1.21
+ARG FDB_VERSION
 
-WORKDIR /build/
+WORKDIR /tmp
 
-RUN mkdir /build/etc/
-RUN mkdir /build/app/
+RUN apt-get update
+# dnsutils is needed to have dig installed to create cluster file
+RUN apt-get install -y --no-install-recommends ca-certificates dnsutils
+
+RUN wget "https://github.com/apple/foundationdb/releases/download/${FDB_VERSION}/foundationdb-clients_${FDB_VERSION}-1_amd64.deb"
+RUN dpkg -i foundationdb-clients_${FDB_VERSION}-1_amd64.deb
+
+
+ARG GOPROXY
+ENV \
+  GO111MODULE=on \
+  CGO_ENABLED=1 \
+  GOOS=linux \
+  GOARCH=amd64
+
+WORKDIR /go/src/github.com/lueurxax/teaelephantmemory/
+ADD go.mod go.sum /go/src/github.com/lueurxax/teaelephantmemory/
+RUN go mod download -x
 
 ADD . .
 
-RUN \
-apt-get update -q && \
-apt-get install -yq pkg-config m4 default-jdk mono-devel git gcc ca-certificates libc6-dev --no-install-recommends && \
-apt-get autoclean -yq && \
-apt-get clean -yq
+ARG VERSION
+RUN go build -v -ldflags="-w -s -X main.version=${VERSION}" -o /bin/server cmd/server/*.go
 
-RUN wget https://github.com/apple/foundationdb/releases/download/7.1.34/foundationdb-clients_7.1.34-1_amd64.deb
-RUN dpkg -i foundationdb-clients_7.1.34-1_amd64.deb
-RUN chmod +x ./fdb-go-install.sh
-
-RUN ./fdb-go-install.sh install --fdbver 7.1.34
-
-ENV CGO_CPPFLAGS="-I/go/src/github.com/apple/foundationdb/bindings/c" CGO_CFLAGS="-g -O2" CGO_LDFLAGS="-L/usr/lib"
-
-RUN go build -o ./app/ ./...
-#RUN find / -name libfdb_c.so
-
-FROM debian:buster-slim
-
-COPY --from=0 build/app /app
-COPY --from=0 /usr/lib/libfdb_c.so /usr/lib
-
-WORKDIR /app/
-ENTRYPOINT ["/app/server"]
+CMD /bin/server
