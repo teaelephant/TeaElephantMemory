@@ -1,6 +1,6 @@
 ARG FDB_VERSION=7.3.27
 FROM foundationdb/foundationdb:${FDB_VERSION} as fdb
-FROM golang:1.21
+FROM golang:1.23
 ARG FDB_VERSION
 
 WORKDIR /tmp

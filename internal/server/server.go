@@ -81,6 +81,15 @@ func (s *Server) InitV2Api() {
 		w.WriteHeader(http.StatusOK)
 	}))
 	s.router.Handle("/metrics", promhttp.Handler())
+	s.router.HandleFunc("/.well-known/apple-app-site-association", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./static/apple-app-site-association")
+	})
+	s.router.HandleFunc("/index.html", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./static/index.html")
+	})
+	s.router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./static/index.html")
+	})
 }
 
 func NewServer(resolvers generated.ResolverRoot, middlewares []graphql.HandlerExtension, wsInitFunc transport.WebsocketInitFunc) *Server {
