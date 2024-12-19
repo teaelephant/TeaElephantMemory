@@ -45,7 +45,7 @@ func (s *service) RecommendTea(
 	resp, err := s.client.CreateChatCompletion(
 		ctx,
 		openai.ChatCompletionRequest{
-			Model: openai.GPT4o20240806,
+			Model: openai.GPT4oLatest,
 			Messages: []openai.ChatCompletionMessage{
 				{
 					Role:    openai.ChatMessageRoleUser,
@@ -94,7 +94,7 @@ func (s *service) RecommendTeaStream(
 		return err
 	}
 	req := openai.ChatCompletionRequest{
-		Model: openai.GPT4TurboPreview,
+		Model: openai.GPT4oLatest,
 		Messages: []openai.ChatCompletionMessage{
 			{
 				Role:    openai.ChatMessageRoleUser,
