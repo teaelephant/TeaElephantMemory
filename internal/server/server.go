@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
+	"github.com/vektah/gqlparser/v2/ast"
 
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/graphql/generated"
 )
@@ -61,12 +62,12 @@ func (s *Server) InitV2Api() {
 	srv.AddTransport(transport.POST{})
 	srv.AddTransport(transport.MultipartForm{})
 
-	srv.SetQueryCache(lru.New(1000))
+	srv.SetQueryCache(lru.New[*ast.QueryDocument](1000))
 
 	srv.Use(apollotracing.Tracer{})
 	srv.Use(extension.Introspection{})
 	srv.Use(extension.AutomaticPersistedQuery{
-		Cache: lru.New(100),
+		Cache: lru.New[string](100),
 	})
 
 	for _, m := range s.middlewares {
