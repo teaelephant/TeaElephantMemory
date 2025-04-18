@@ -1,7 +1,11 @@
 package main
 
 import (
+	"context"
+	"database/sql"
+
 	foundeationDB "github.com/apple/foundationdb/bindings/go/src/fdb"
+	_ "github.com/lib/pq"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/sashabaranov/go-openai"
 	"github.com/sideshow/apns2"
@@ -24,6 +28,7 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/internal/server"
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/graphql"
 	"github.com/teaelephant/TeaElephantMemory/pkg/fdb"
+	"github.com/teaelephant/TeaElephantMemory/pkg/postgres"
 )
 
 const (
@@ -32,9 +37,11 @@ const (
 )
 
 type configuration struct {
-	LoggerLevel  logrus.Level `envconfig:"LOG_LEVEL" default:"info"`
-	DatabasePath string       `default:"/usr/local/etc/foundationdb/fdb.cluster"`
-	OpenAIToken  string       `envconfig:"OPEN_AI_TOKEN" require:"true"`
+	LoggerLevel            logrus.Level `envconfig:"LOG_LEVEL" default:"info"`
+	DatabasePath           string       `envconfig:"DATABASEPATH" default:"/usr/local/etc/foundationdb/fdb.cluster"`
+	DatabaseType           string       `envconfig:"DATABASE_TYPE" default:"fdb"`
+	PostgresConnectionString string     `envconfig:"POSTGRES_CONNECTION_STRING"`
+	OpenAIToken            string       `envconfig:"OPEN_AI_TOKEN" require:"true"`
 }
 
 func main() {
@@ -45,14 +52,37 @@ func main() {
 
 	logrusLogger := logrus.New()
 	logrusLogger.SetLevel(cfg.LoggerLevel)
-	foundeationDB.MustAPIVersion(foundationDBVersion)
+	var st fdb.DB
 
-	db, err := foundeationDB.OpenDatabase(cfg.DatabasePath)
-	if err != nil {
-		panic(err)
+	if cfg.DatabaseType == "postgres" {
+		// Initialize PostgreSQL
+		pgDB, err := sql.Open("postgres", cfg.PostgresConnectionString)
+		if err != nil {
+			panic(err)
+		}
+
+		// Test the connection
+		if err = pgDB.Ping(); err != nil {
+			panic(err)
+		}
+
+		// Initialize schema
+		if err = postgres.InitSchema(context.Background(), pgDB); err != nil {
+			panic(err)
+		}
+
+		st = postgres.NewDB(pgDB, logrusLogger.WithField(pkgKey, "postgres"))
+	} else {
+		// Initialize FoundationDB
+		foundeationDB.MustAPIVersion(foundationDBVersion)
+
+		db, err := foundeationDB.OpenDatabase(cfg.DatabasePath)
+		if err != nil {
+			panic(err)
+		}
+
+		st = fdb.NewDB(db, logrusLogger.WithField(pkgKey, "fdb"))
 	}
-
-	st := fdb.NewDB(db, logrusLogger.WithField(pkgKey, "fdb"))
 
 	teaManager := tea.NewManager(st)
 	qrManager := qr.NewManager(st)
@@ -62,7 +92,7 @@ func main() {
 	authCfg := auth.Config()
 	authM := auth.NewAuth(authCfg, st, logrusLogger.WithField(pkgKey, "auth"))
 
-	if err = authM.Start(); err != nil {
+	if err := authM.Start(); err != nil {
 		panic(err)
 	}
 

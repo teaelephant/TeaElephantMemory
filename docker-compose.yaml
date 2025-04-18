@@ -7,19 +7,34 @@ services:
     volumes:
       - ~/database:/app/database
       - /Users/xax/go/src/github.com/lueurxax/teaelephantmemory/config:/etc/foundationdb
+    environment:
+      - DATABASE_TYPE=postgres
+      - POSTGRES_CONNECTION_STRING=postgres://postgres:postgres@postgres:5432/teaelephant?sslmode=disable
     networks:
       tea:
         ipv4_address: 10.5.0.5
-
     depends_on:
-      - fdb
+      - postgres
+  postgres:
+    image: postgres:13
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=teaelephant
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      tea:
+        ipv4_address: 10.5.0.6
   fdb:
     image: foundationdb/foundationdb
     ports:
       - 4500:4500
     networks:
       tea:
-        ipv4_address: 10.5.0.6
+        ipv4_address: 10.5.0.7
 networks:
   tea:
     driver: bridge
@@ -27,3 +42,6 @@ networks:
       config:
         - subnet: 10.5.0.0/16
           gateway: 10.5.0.1
+
+volumes:
+  postgres_data:
