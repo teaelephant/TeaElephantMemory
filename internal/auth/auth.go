@@ -21,9 +21,21 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/common"
 )
 
+// Error definitions
+var (
+	ErrUnexpectedSigningMethod = errors.New("unexpected signing method")
+	ErrEmptyBlockAfterDecoding = errors.New("empty block after decoding")
+	ErrAppleValidation         = errors.New("apple validation error")
+)
+
+// contextKey is a custom type for context keys to avoid collisions
+type contextKey string
+
 const (
-	userCtxKey      = "user"
-	JwtDurationHour = 24
+	userCtxKey            contextKey = "user"
+	JwtDurationHour       int        = 24
+	bearerPrefix                     = "Bearer "
+	invalidJwtDescription            = "Invalid jwt"
 )
 
 var signingMethod = jwt.SigningMethodES256
@@ -52,7 +64,7 @@ type auth struct {
 func (a *auth) Validate(_ context.Context, jwtToken string) (*common.User, error) {
 	result, err := jwt.Parse(jwtToken, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v.", token.Header["alg"])
+			return nil, fmt.Errorf("%w: %v", ErrUnexpectedSigningMethod, token.Header["alg"])
 		}
 
 		// hmacSampleSecret is a []byte containing your secret, e.g. []byte("my_secret_key")
@@ -60,9 +72,11 @@ func (a *auth) Validate(_ context.Context, jwtToken string) (*common.User, error
 		if err != nil {
 			return nil, err
 		}
+
 		if privKey, ok := key.(*ecdsa.PrivateKey); ok {
 			return &privKey.PublicKey, nil
 		}
+
 		return key, nil
 	})
 	if err != nil {
@@ -123,7 +137,7 @@ func (a *auth) Auth(ctx context.Context, token string) (*common.Session, error) 
 	}
 
 	if resp.Error != "" {
-		return nil, errors.New(resp.ErrorDescription)
+		return nil, fmt.Errorf("%w: %s", ErrAppleValidation, resp.ErrorDescription)
 	}
 
 	claims, err := apple.GetClaims(resp.IDToken)
@@ -138,12 +152,12 @@ func (a *auth) Auth(ctx context.Context, token string) (*common.Session, error) 
 		return nil, err
 	}
 
-	user, err := a.storage.GetOrCreateUser(ctx, unique)
+	user, err := a.GetOrCreateUser(ctx, unique)
 	if err != nil {
 		return nil, err
 	}
 
-	exp := time.Now().Add(time.Hour * JwtDurationHour).UTC()
+	exp := time.Now().Add(time.Hour * time.Duration(JwtDurationHour)).UTC()
 
 	newClaims := &jwt.RegisteredClaims{
 		Issuer:    user.String(),
@@ -178,7 +192,7 @@ func (a *auth) Auth(ctx context.Context, token string) (*common.Session, error) 
 func (a *auth) getSecret() (any, error) {
 	block, _ := pem.Decode([]byte(a.cfg.Secret))
 	if block == nil {
-		return "", errors.New("empty block after decoding")
+		return "", ErrEmptyBlockAfterDecoding
 	}
 
 	return x509.ParsePKCS8PrivateKey(block.Bytes)
@@ -202,11 +216,11 @@ func (a *auth) WsInitFunc(ctx context.Context, payload transport.InitPayload) (c
 		return ctx, nil, nil
 	}
 
-	token := strings.Replace(authHeader, "Bearer ", "", 1)
+	token := strings.Replace(authHeader, bearerPrefix, "", 1)
 
 	user, err := a.Validate(ctx, token)
 	if err != nil {
-		a.log.WithError(err).Warn("Invalid jwt")
+		a.log.WithError(err).Warn(invalidJwtDescription)
 
 		return ctx, nil, common.ErrJwtIncorrect
 	}
@@ -226,11 +240,11 @@ func (a *Middleware) InterceptResponse(ctx context.Context, next graphql.Respons
 		return next(ctx)
 	}
 
-	token := strings.Replace(header, "Bearer ", "", 1)
+	token := strings.Replace(header, bearerPrefix, "", 1)
 
 	user, err := a.auth.Validate(ctx, token)
 	if err != nil {
-		a.log.WithError(err).Warn("Invalid jwt")
+		a.log.WithError(err).Warn(invalidJwtDescription)
 		// FIXME
 		graphql.AddError(ctx, &gqlerror.Error{
 			Message: common.ErrJwtIncorrect.Error(),

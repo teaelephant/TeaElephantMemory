@@ -4,6 +4,7 @@ import (
 	"image/color"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"github.com/skip2/go-qrcode"
 )
 
@@ -12,7 +13,7 @@ func NewQR() ([]byte, error) {
 
 	code, err := qrcode.New(id.String(), qrcode.Highest)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to generate QR code")
 	}
 
 	code.DisableBorder = true
@@ -21,7 +22,7 @@ func NewQR() ([]byte, error) {
 
 	data, err := code.PNG(-5)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to generate png")
 	}
 
 	return data, nil

@@ -75,7 +75,7 @@ func (m *manager) List(ctx context.Context, search *string) ([]common.Tea, error
 }
 
 func (m *manager) Create(ctx context.Context, data *common.TeaData) (*common.Tea, error) {
-	res, err := m.storage.WriteRecord(ctx, data)
+	res, err := m.WriteRecord(ctx, data)
 	if err != nil {
 		return nil, err
 	}

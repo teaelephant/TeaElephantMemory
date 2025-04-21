@@ -5,9 +5,9 @@ import (
 	"database/sql"
 
 	foundeationDB "github.com/apple/foundationdb/bindings/go/src/fdb"
-	_ "github.com/lib/pq"
 	"github.com/kelseyhightower/envconfig"
-	"github.com/sashabaranov/go-openai"
+	_ "github.com/lib/pq"
+	openai "github.com/sashabaranov/go-openai"
 	"github.com/sideshow/apns2"
 	"github.com/sideshow/apns2/token"
 	"github.com/sirupsen/logrus"
@@ -32,16 +32,52 @@ import (
 )
 
 const (
-	foundationDBVersion = 710
-	pkgKey              = "pkg"
+	foundationDBVersion     = 710
+	pkgKey                  = "pkg"
+	defaultDatabaseType     = "fdb"
+	alternativeDatabaseType = "postgres"
 )
 
 type configuration struct {
-	LoggerLevel            logrus.Level `envconfig:"LOG_LEVEL" default:"info"`
-	DatabasePath           string       `envconfig:"DATABASEPATH" default:"/usr/local/etc/foundationdb/fdb.cluster"`
-	DatabaseType           string       `envconfig:"DATABASE_TYPE" default:"fdb"`
-	PostgresConnectionString string     `envconfig:"POSTGRES_CONNECTION_STRING"`
-	OpenAIToken            string       `envconfig:"OPEN_AI_TOKEN" require:"true"`
+	LoggerLevel              logrus.Level `envconfig:"LOG_LEVEL" default:"info"`
+	DatabasePath             string       `envconfig:"DATABASEPATH" default:"/usr/local/etc/foundationdb/fdb.cluster"`
+	DatabaseType             string       `envconfig:"DATABASE_TYPE" default:"fdb"`
+	PostgresConnectionString string       `envconfig:"POSTGRES_CONNECTION_STRING"`
+	OpenAIToken              string       `envconfig:"OPEN_AI_TOKEN" require:"true"`
+}
+
+// initPostgresDB initializes a PostgreSQL database connection
+func initPostgresDB(connectionString string, logger *logrus.Logger) fdb.DB {
+	// Initialize PostgreSQL
+	pgDB, err := sql.Open(alternativeDatabaseType, connectionString)
+	if err != nil {
+		panic(err)
+	}
+
+	// Test the connection
+	if err = pgDB.Ping(); err != nil {
+		panic(err)
+	}
+
+	// Initialize schema
+	if err = postgres.InitSchema(context.Background(), pgDB); err != nil {
+		panic(err)
+	}
+
+	return postgres.NewDB(pgDB, logger.WithField(pkgKey, alternativeDatabaseType))
+}
+
+// initFoundationDB initializes a FoundationDB database connection
+func initFoundationDB(dbPath string, logger *logrus.Logger) fdb.DB {
+	// Initialize FoundationDB
+	foundeationDB.MustAPIVersion(foundationDBVersion)
+
+	db, err := foundeationDB.OpenDatabase(dbPath)
+	if err != nil {
+		panic(err)
+	}
+
+	return fdb.NewDB(db, logger.WithField(pkgKey, defaultDatabaseType))
 }
 
 func main() {
@@ -52,36 +88,13 @@ func main() {
 
 	logrusLogger := logrus.New()
 	logrusLogger.SetLevel(cfg.LoggerLevel)
+
 	var st fdb.DB
 
-	if cfg.DatabaseType == "postgres" {
-		// Initialize PostgreSQL
-		pgDB, err := sql.Open("postgres", cfg.PostgresConnectionString)
-		if err != nil {
-			panic(err)
-		}
-
-		// Test the connection
-		if err = pgDB.Ping(); err != nil {
-			panic(err)
-		}
-
-		// Initialize schema
-		if err = postgres.InitSchema(context.Background(), pgDB); err != nil {
-			panic(err)
-		}
-
-		st = postgres.NewDB(pgDB, logrusLogger.WithField(pkgKey, "postgres"))
+	if cfg.DatabaseType == alternativeDatabaseType {
+		st = initPostgresDB(cfg.PostgresConnectionString, logrusLogger)
 	} else {
-		// Initialize FoundationDB
-		foundeationDB.MustAPIVersion(foundationDBVersion)
-
-		db, err := foundeationDB.OpenDatabase(cfg.DatabasePath)
-		if err != nil {
-			panic(err)
-		}
-
-		st = fdb.NewDB(db, logrusLogger.WithField(pkgKey, "fdb"))
+		st = initFoundationDB(cfg.DatabasePath, logrusLogger)
 	}
 
 	teaManager := tea.NewManager(st)

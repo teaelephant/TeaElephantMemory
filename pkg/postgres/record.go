@@ -3,12 +3,18 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
+)
+
+// Error definitions
+var (
+	ErrTeaRecordNotFound = errors.New("tea record not found")
 )
 
 func (d *pgDB) WriteRecord(ctx context.Context, rec *common.TeaData) (*common.Tea, error) {
@@ -23,6 +29,7 @@ func (d *pgDB) ReadRecord(ctx context.Context, id uuid.UUID) (*common.Tea, error
 	}
 
 	var name, description string
+
 	var teaType int
 	err = d.dbConn.QueryRowContext(ctx, `
 		SELECT name, type, description 
@@ -30,8 +37,8 @@ func (d *pgDB) ReadRecord(ctx context.Context, id uuid.UUID) (*common.Tea, error
 		WHERE id = $1
 	`, idBytes).Scan(&name, &teaType, &description)
 
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("tea record not found: %s", id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("%w: %s", ErrTeaRecordNotFound, id)
 	} else if err != nil {
 		return nil, err
 	}
@@ -48,6 +55,7 @@ func (d *pgDB) ReadRecord(ctx context.Context, id uuid.UUID) (*common.Tea, error
 
 func (d *pgDB) ReadAllRecords(ctx context.Context, search string) ([]common.Tea, error) {
 	var rows *sql.Rows
+
 	var err error
 
 	if search == "" {
@@ -67,12 +75,16 @@ func (d *pgDB) ReadAllRecords(ctx context.Context, search string) ([]common.Tea,
 	if err != nil {
 		return nil, err
 	}
+
 	defer rows.Close()
 
 	records := make([]common.Tea, 0)
+
 	for rows.Next() {
 		var idBytes []byte
+
 		var name, description string
+
 		var teaType int
 
 		if err := rows.Scan(&idBytes, &name, &teaType, &description); err != nil {

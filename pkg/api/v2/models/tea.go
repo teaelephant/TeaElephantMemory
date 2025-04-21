@@ -7,6 +7,7 @@ import (
 	gqlCommon "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common"
 )
 
+// FromCommonTea converts a common.Tea to a Tea model.
 func FromCommonTea(source *common.Tea) *Tea {
 	return &Tea{
 		ID:          gqlCommon.ID(source.ID),
@@ -16,6 +17,7 @@ func FromCommonTea(source *common.Tea) *Tea {
 	}
 }
 
+// ToCommonTea converts a Tea model to a common.Tea.
 func (t *Tea) ToCommonTea() common.Tea {
 	return common.Tea{
 		ID: uuid.UUID(t.ID),
@@ -43,9 +45,11 @@ func FromBeverageType(bt common.BeverageType) Type {
 		return TypeHerb
 	case common.CoffeeBeverageType:
 		return TypeCoffee
+	case common.OtherBeverageType:
+		return TypeOther
 	}
 
-	return TypeOther
+	return TypeUnknown
 }
 
 func (t Type) ToBeverageType() common.BeverageType {
@@ -56,6 +60,10 @@ func (t Type) ToBeverageType() common.BeverageType {
 		return common.HerbBeverageType
 	case TypeCoffee:
 		return common.CoffeeBeverageType
+	case TypeOther:
+		return common.OtherBeverageType
+	case TypeUnknown:
+		return common.OtherBeverageType
 	}
 
 	return common.OtherBeverageType

@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -39,7 +40,9 @@ func (d *pgDB) ReadQR(ctx context.Context, id uuid.UUID) (*common.QR, error) {
 	}
 
 	var teaIDBytes []byte
+
 	var bowlingTemp int
+
 	var expirationDate time.Time
 	err = d.dbConn.QueryRowContext(ctx, `
 		SELECT tea_id, bowling_temp, expiration_date
@@ -47,7 +50,7 @@ func (d *pgDB) ReadQR(ctx context.Context, id uuid.UUID) (*common.QR, error) {
 		WHERE id = $1
 	`, idBytes).Scan(&teaIDBytes, &bowlingTemp, &expirationDate)
 
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, common.ErrQRRecordNotExist
 	} else if err != nil {
 		return nil, err

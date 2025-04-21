@@ -74,7 +74,7 @@ func (d *db) GetUsers(ctx context.Context) ([]common.User, error) {
 			continue
 		}
 
-		users = append(users, common.User(*user))
+		users = append(users, *user.ToCommonUser())
 	}
 
 	return users, nil
@@ -99,7 +99,9 @@ func (d *db) GetOrCreateUser(ctx context.Context, unique string) (uuid.UUID, err
 
 	user := &common.User{ID: uuid.New(), AppleID: unique}
 
-	data, err = (*encoder.User)(user).Encode()
+	encoderUser := encoder.FromCommonUser(user)
+
+	data, err = encoderUser.Encode()
 	if err != nil {
 		return uuid.Nil, err
 	}

@@ -2,62 +2,41 @@ package subscribers
 
 import (
 	"context"
-	"sync"
 
+	commonSubs "github.com/teaelephant/TeaElephantMemory/common/subscribers"
 	model "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/models"
 )
 
-type teaSubscriber struct {
-	ctx context.Context
-	ch  chan<- *model.Tea
-}
-
+// TeaSubscribers is an interface for managing Tea subscribers
 type TeaSubscribers interface {
 	Push(ctx context.Context, ch chan<- *model.Tea)
 	SendAll(message *model.Tea)
 	CleanDone()
 }
 
-type teaSubscribers struct {
-	mu   sync.RWMutex
-	subs []teaSubscriber
+// teaSubscribersImpl implements TeaSubscribers using the generic implementation
+type teaSubscribersImpl struct {
+	subs commonSubs.Subscribers[*model.Tea]
 }
 
-func (t *teaSubscribers) CleanDone() {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	forRemove := make([]int, 0)
-	for i, sub := range t.subs {
-		select {
-		case <-sub.ctx.Done():
-			close(sub.ch)
-			forRemove = append(forRemove, i)
-		default:
-		}
-	}
-	for j := len(forRemove) - 1; j >= 0; j-- {
-		t.subs[forRemove[j]] = t.subs[len(t.subs)-len(forRemove)+j]
-	}
-	t.subs = t.subs[:len(t.subs)-len(forRemove)]
+// CleanDone removes subscribers whose context is done
+func (t *teaSubscribersImpl) CleanDone() {
+	t.subs.CleanDone()
 }
 
-func (t *teaSubscribers) SendAll(message *model.Tea) {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-	for _, el := range t.subs {
-		el.ch <- message
-	}
+// SendAll sends a message to all subscribers
+func (t *teaSubscribersImpl) SendAll(message *model.Tea) {
+	t.subs.SendAll(message)
 }
 
-func (t *teaSubscribers) Push(ctx context.Context, ch chan<- *model.Tea) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	t.subs = append(t.subs, teaSubscriber{
-		ctx: ctx,
-		ch:  ch,
-	})
+// Push adds a new subscriber
+func (t *teaSubscribersImpl) Push(ctx context.Context, ch chan<- *model.Tea) {
+	t.subs.Push(ctx, ch)
 }
 
+// NewTeaSubscribers creates a new TeaSubscribers instance
 func NewTeaSubscribers() TeaSubscribers {
-	return &teaSubscribers{subs: make([]teaSubscriber, 0)}
+	return &teaSubscribersImpl{
+		subs: commonSubs.NewSubscribers[*model.Tea](),
+	}
 }

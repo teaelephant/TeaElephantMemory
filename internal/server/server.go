@@ -31,13 +31,19 @@ type Server struct {
 type Middleware func(handler http.Handler) http.Handler
 
 func (s *Server) Run() error {
-	http.Handle("/", s.router)
-
 	originsOk := handlers.AllowedOrigins([]string{"*"})
 
 	logrus.Info("server start on port 8080")
 
-	return http.ListenAndServe(":8080", handlers.CORS(originsOk)(s.router))
+	srv := &http.Server{
+		Addr:         ":8080",
+		Handler:      handlers.CORS(originsOk)(s.router),
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	return srv.ListenAndServe()
 }
 
 func (s *Server) InitV2Api() {

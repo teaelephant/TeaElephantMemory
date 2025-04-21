@@ -2,6 +2,7 @@ package encoder
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -13,7 +14,10 @@ type Encoder interface {
 	Decode(data []byte) error
 }
 
-type Tea common.Tea
+type Tea struct {
+	ID      uuid.UUID `json:"id"`
+	TeaData *TeaData  `json:"tea_data,omitempty"`
+}
 
 func (t *Tea) Encode() ([]byte, error) {
 	return json.Marshal(t)
@@ -61,17 +65,25 @@ func (t *TeaData) Decode(data []byte) error {
 	return json.Unmarshal(data, t)
 }
 
-type QR common.QR
-
-func (Q *QR) Encode() ([]byte, error) {
-	return json.Marshal(Q)
+type QR struct {
+	Tea            uuid.UUID `json:"tea"`
+	BowlingTemp    int       `json:"bowling_temp"`
+	ExpirationDate time.Time `json:"expiration_date"`
 }
 
-func (Q *QR) Decode(data []byte) error {
-	return json.Unmarshal(data, Q)
+func (q *QR) Encode() ([]byte, error) {
+	return json.Marshal(q)
 }
 
-type TagData common.TagData
+func (q *QR) Decode(data []byte) error {
+	return json.Unmarshal(data, q)
+}
+
+type TagData struct {
+	Name       string    `json:"name"`
+	Color      string    `json:"color"`
+	CategoryID uuid.UUID `json:"category_id"`
+}
 
 func (t *TagData) Encode() ([]byte, error) {
 	return json.Marshal(t)
@@ -82,8 +94,8 @@ func (t *TagData) Decode(data []byte) error {
 }
 
 type Collection struct {
-	Name   string
-	UserID uuid.UUID
+	Name   string    `json:"name"`
+	UserID uuid.UUID `json:"user_id"`
 }
 
 func (c *Collection) Encode() ([]byte, error) {
@@ -94,7 +106,17 @@ func (c *Collection) Decode(data []byte) error {
 	return json.Unmarshal(data, c)
 }
 
-type User common.User
+type User struct {
+	ID      uuid.UUID `json:"id"`
+	AppleID string    `json:"apple_id"`
+	Session Session   `json:"session"`
+}
+
+type Session struct {
+	JWT       string    `json:"jwt"`
+	User      *User     `json:"user,omitempty"`
+	ExpiredAt time.Time `json:"expired_at"`
+}
 
 func (t *User) Encode() ([]byte, error) {
 	return json.Marshal(t)
@@ -104,7 +126,38 @@ func (t *User) Decode(data []byte) error {
 	return json.Unmarshal(data, t)
 }
 
-type Device common.Device
+// ToCommonUser converts an encoder.User to a common.User
+func (t *User) ToCommonUser() *common.User {
+	return &common.User{
+		ID:      t.ID,
+		AppleID: t.AppleID,
+		Session: common.Session{
+			JWT:       t.Session.JWT,
+			ExpiredAt: t.Session.ExpiredAt,
+		},
+	}
+}
+
+// FromCommonUser converts a common.User to an encoder.User
+func FromCommonUser(user *common.User) *User {
+	if user == nil {
+		return nil
+	}
+
+	return &User{
+		ID:      user.ID,
+		AppleID: user.AppleID,
+		Session: Session{
+			JWT:       user.JWT,
+			ExpiredAt: user.ExpiredAt,
+		},
+	}
+}
+
+type Device struct {
+	UserID uuid.UUID `json:"user_id"`
+	Token  string    `json:"token"`
+}
 
 func (t *Device) Encode() ([]byte, error) {
 	return json.Marshal(t)
@@ -114,7 +167,10 @@ func (t *Device) Decode(data []byte) error {
 	return json.Unmarshal(data, t)
 }
 
-type Notification common.Notification
+type Notification struct {
+	UserID uuid.UUID               `json:"user_id"`
+	Type   common.NotificationType `json:"type"`
+}
 
 func (t *Notification) Encode() ([]byte, error) {
 	return json.Marshal(t)

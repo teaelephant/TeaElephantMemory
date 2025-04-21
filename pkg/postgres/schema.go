@@ -99,5 +99,6 @@ func InitSchema(ctx context.Context, db *sql.DB) error {
 			return err
 		}
 	}
+
 	return nil
 }

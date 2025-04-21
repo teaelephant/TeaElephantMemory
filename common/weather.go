@@ -17,6 +17,7 @@ func (r Rain) String() string {
 	if r > 0 {
 		return fmt.Sprintf("rain is %f mm/h", r)
 	}
+
 	return "no rain"
 }
 

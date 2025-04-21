@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -11,9 +12,16 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/common"
 )
 
+// Error definitions
+var (
+	ErrTagCategoryNotFound = errors.New("tag category not found")
+	ErrTagNotFound         = errors.New("tag not found")
+)
+
 // CreateTagCategory creates a new tag category
 func (d *pgDB) CreateTagCategory(ctx context.Context, name string) (*common.TagCategory, error) {
 	id := uuid.New()
+
 	idBytes, err := id.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -57,7 +65,7 @@ func (d *pgDB) UpdateTagCategory(ctx context.Context, id uuid.UUID, name string)
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("tag category not found: %s", id)
+		return fmt.Errorf("%w: %s", ErrTagCategoryNotFound, id)
 	}
 
 	return nil
@@ -80,6 +88,7 @@ func (d *pgDB) DeleteTagCategory(ctx context.Context, id uuid.UUID) ([]uuid.UUID
 	defer rows.Close()
 
 	removedTags := make([]uuid.UUID, 0)
+
 	for rows.Next() {
 		var tagIDBytes []byte
 		if err := rows.Scan(&tagIDBytes); err != nil {
@@ -121,8 +130,8 @@ func (d *pgDB) GetTagCategory(ctx context.Context, id uuid.UUID) (*common.TagCat
 		SELECT name FROM tag_categories WHERE id = $1
 	`, idBytes).Scan(&name)
 
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("tag category not found: %s", id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("%w: %s", ErrTagCategoryNotFound, id)
 	} else if err != nil {
 		return nil, err
 	}
@@ -136,6 +145,7 @@ func (d *pgDB) GetTagCategory(ctx context.Context, id uuid.UUID) (*common.TagCat
 // ListTagCategories lists all tag categories, optionally filtered by name
 func (d *pgDB) ListTagCategories(ctx context.Context, search *string) ([]common.TagCategory, error) {
 	var rows *sql.Rows
+
 	var err error
 
 	if search == nil || *search == "" {
@@ -153,11 +163,14 @@ func (d *pgDB) ListTagCategories(ctx context.Context, search *string) ([]common.
 	if err != nil {
 		return nil, err
 	}
+
 	defer rows.Close()
 
 	categories := make([]common.TagCategory, 0)
+
 	for rows.Next() {
 		var idBytes []byte
+
 		var name string
 
 		if err := rows.Scan(&idBytes, &name); err != nil {
@@ -185,6 +198,7 @@ func (d *pgDB) ListTagCategories(ctx context.Context, search *string) ([]common.
 // CreateTag creates a new tag
 func (d *pgDB) CreateTag(ctx context.Context, name, color string, categoryID uuid.UUID) (*common.Tag, error) {
 	id := uuid.New()
+
 	idBytes, err := id.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -227,8 +241,8 @@ func (d *pgDB) UpdateTag(ctx context.Context, id uuid.UUID, name, color string) 
 		SELECT category_id FROM tags WHERE id = $1
 	`, idBytes).Scan(&categoryIDBytes)
 
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("tag not found: %s", id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("%w: %s", ErrTagNotFound, id)
 	} else if err != nil {
 		return nil, err
 	}
@@ -277,8 +291,8 @@ func (d *pgDB) ChangeTagCategory(ctx context.Context, id, categoryID uuid.UUID) 
 		SELECT name, color FROM tags WHERE id = $1
 	`, idBytes).Scan(&name, &color)
 
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("tag not found: %s", id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("%w: %s", ErrTagNotFound, id)
 	} else if err != nil {
 		return nil, err
 	}
@@ -326,13 +340,14 @@ func (d *pgDB) GetTag(ctx context.Context, id uuid.UUID) (*common.Tag, error) {
 	}
 
 	var name, color string
+
 	var categoryIDBytes []byte
 	err = d.dbConn.QueryRowContext(ctx, `
 		SELECT name, color, category_id FROM tags WHERE id = $1
 	`, idBytes).Scan(&name, &color, &categoryIDBytes)
 
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("tag not found: %s", id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("%w: %s", ErrTagNotFound, id)
 	} else if err != nil {
 		return nil, err
 	}
@@ -355,13 +370,16 @@ func (d *pgDB) GetTag(ctx context.Context, id uuid.UUID) (*common.Tag, error) {
 // ListTags lists all tags, optionally filtered by name and/or category ID
 func (d *pgDB) ListTags(ctx context.Context, name *string, categoryID *uuid.UUID) ([]common.Tag, error) {
 	var query string
+
 	var args []interface{}
+
 	var argCount int
 
 	query = "SELECT id, name, color, category_id FROM tags"
 
 	// Build WHERE clause
 	var conditions []string
+
 	if name != nil && *name != "" {
 		argCount++
 		conditions = append(conditions, fmt.Sprintf("LOWER(name) LIKE $%d", argCount))
@@ -373,6 +391,7 @@ func (d *pgDB) ListTags(ctx context.Context, name *string, categoryID *uuid.UUID
 		if err != nil {
 			return nil, err
 		}
+
 		argCount++
 		conditions = append(conditions, fmt.Sprintf("category_id = $%d", argCount))
 		args = append(args, categoryIDBytes)
@@ -389,8 +408,10 @@ func (d *pgDB) ListTags(ctx context.Context, name *string, categoryID *uuid.UUID
 	defer rows.Close()
 
 	tags := make([]common.Tag, 0)
+
 	for rows.Next() {
 		var idBytes, catIDBytes []byte
+
 		var name, color string
 
 		if err := rows.Scan(&idBytes, &name, &color, &catIDBytes); err != nil {
@@ -401,6 +422,7 @@ func (d *pgDB) ListTags(ctx context.Context, name *string, categoryID *uuid.UUID
 		if err := id.UnmarshalBinary(idBytes); err != nil {
 			return nil, err
 		}
+
 		if err := catID.UnmarshalBinary(catIDBytes); err != nil {
 			return nil, err
 		}
@@ -482,8 +504,10 @@ func (d *pgDB) ListByTea(ctx context.Context, id uuid.UUID) ([]common.Tag, error
 	defer rows.Close()
 
 	tags := make([]common.Tag, 0)
+
 	for rows.Next() {
 		var idBytes, catIDBytes []byte
+
 		var name, color string
 
 		if err := rows.Scan(&idBytes, &name, &color, &catIDBytes); err != nil {
@@ -494,6 +518,7 @@ func (d *pgDB) ListByTea(ctx context.Context, id uuid.UUID) ([]common.Tag, error
 		if err := id.UnmarshalBinary(idBytes); err != nil {
 			return nil, err
 		}
+
 		if err := catID.UnmarshalBinary(catIDBytes); err != nil {
 			return nil, err
 		}

@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 )
 
 func (d *pgDB) GetVersion(ctx context.Context) (uint32, error) {
@@ -11,7 +12,7 @@ func (d *pgDB) GetVersion(ctx context.Context) (uint32, error) {
 		SELECT version FROM version WHERE id = 1
 	`).Scan(&version)
 
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil
 	} else if err != nil {
 		return 0, err

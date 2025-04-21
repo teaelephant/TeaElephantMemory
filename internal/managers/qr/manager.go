@@ -25,7 +25,7 @@ type manager struct {
 }
 
 func (m *manager) Set(ctx context.Context, id uuid.UUID, data *model.QRRecordData) (err error) {
-	return m.storage.WriteQR(ctx, id, &common.QR{
+	return m.WriteQR(ctx, id, &common.QR{
 		Tea:            uuid.UUID(data.Tea),
 		BowlingTemp:    data.BowlingTemp,
 		ExpirationDate: data.ExpirationDate,
@@ -33,7 +33,7 @@ func (m *manager) Set(ctx context.Context, id uuid.UUID, data *model.QRRecordDat
 }
 
 func (m *manager) Get(ctx context.Context, id uuid.UUID) (*model.QRRecordData, error) {
-	data, err := m.storage.ReadQR(ctx, id)
+	data, err := m.ReadQR(ctx, id)
 	if err != nil {
 		return nil, err
 	}

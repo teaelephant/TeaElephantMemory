@@ -56,13 +56,8 @@ spec:
           env:
             - name: LOG_LEVEL
               value: debug
-            - name: DATABASE_TYPE
-              value: "postgres"
-            - name: POSTGRES_CONNECTION_STRING
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-connection
-                  key: connection-string
+            - name: DATABASEPATH
+              value: "/etc/fdb/fdb.cluster"
             - name: OPEN_AI_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -88,9 +83,14 @@ spec:
             - name: APPLE_AUTH_SECRET_PATH
               value: "/keys/AuthKey_39D5B439QV.p8"
           volumeMounts:
+            - name: db-cluster
+              mountPath: /etc/fdb/
             - name: keys
               mountPath: /keys/
       volumes:
+        - name: db-cluster
+          configMap:
+            name: fdb.cluster
         - name: keys
           secret:
             secretName: apple-auth

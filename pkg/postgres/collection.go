@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -13,6 +14,7 @@ import (
 // CreateCollection creates a new collection for a user
 func (d *pgDB) CreateCollection(ctx context.Context, userID uuid.UUID, name string) (uuid.UUID, error) {
 	id := uuid.New()
+
 	idBytes, err := id.MarshalBinary()
 	if err != nil {
 		return uuid.UUID{}, err
@@ -46,6 +48,7 @@ func (d *pgDB) AddTeaToCollection(ctx context.Context, id uuid.UUID, teas []uuid
 	if err != nil {
 		return err
 	}
+
 	defer func() {
 		if err != nil {
 			_ = tx.Rollback()
@@ -70,6 +73,7 @@ func (d *pgDB) AddTeaToCollection(ctx context.Context, id uuid.UUID, teas []uuid
 		}
 
 		var exists bool
+
 		err = tx.QueryRowContext(ctx, `
 			SELECT EXISTS(SELECT 1 FROM tea_records WHERE id = $1)
 		`, teaIDBytes).Scan(&exists)
@@ -101,6 +105,7 @@ func (d *pgDB) DeleteTeaFromCollection(ctx context.Context, id uuid.UUID, teas [
 	if err != nil {
 		return err
 	}
+
 	defer func() {
 		if err != nil {
 			_ = tx.Rollback()
@@ -181,8 +186,10 @@ func (d *pgDB) Collections(ctx context.Context, userID uuid.UUID) ([]*common.Col
 	defer rows.Close()
 
 	collections := make([]*common.Collection, 0)
+
 	for rows.Next() {
 		var idBytes []byte
+
 		var name string
 
 		if err := rows.Scan(&idBytes, &name); err != nil {
@@ -226,7 +233,7 @@ func (d *pgDB) Collection(ctx context.Context, id, userID uuid.UUID) (*common.Co
 		WHERE id = $1 AND user_id = $2
 	`, idBytes, userIDBytes).Scan(&name)
 
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, common.ErrCollectionNotFound
 	} else if err != nil {
 		return nil, err
@@ -258,11 +265,16 @@ func (d *pgDB) CollectionRecords(ctx context.Context, id uuid.UUID) ([]*common.C
 	defer rows.Close()
 
 	records := make([]*common.CollectionRecord, 0)
+
 	for rows.Next() {
 		var qrIDBytes, teaIDBytes []byte
+
 		var name, description string
+
 		var teaType int
+
 		var bowlingTemp sql.NullInt32
+
 		var expirationDate sql.NullTime
 
 		if err := rows.Scan(&qrIDBytes, &teaIDBytes, &name, &teaType, &description, &bowlingTemp, &expirationDate); err != nil {
@@ -273,6 +285,7 @@ func (d *pgDB) CollectionRecords(ctx context.Context, id uuid.UUID) ([]*common.C
 		if err := qrID.UnmarshalBinary(qrIDBytes); err != nil {
 			return nil, fmt.Errorf("invalid QR ID: %w", err)
 		}
+
 		if err := teaID.UnmarshalBinary(teaIDBytes); err != nil {
 			return nil, fmt.Errorf("invalid tea ID: %w", err)
 		}

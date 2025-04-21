@@ -7,7 +7,7 @@ import (
 )
 
 func TestWeather_String(t *testing.T) {
-	t.Run("no rain", func(t *testing.T) {
+	t.Run("no rain", func(t *testing.T) { //nolint:goconst
 		w := Weather{
 			Temperature: -10.5,
 			Clouds:      99,

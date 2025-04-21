@@ -2,62 +2,41 @@ package subscribers
 
 import (
 	"context"
-	"sync"
 
+	commonSubs "github.com/teaelephant/TeaElephantMemory/common/subscribers"
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common"
 )
 
-type idSubscriber struct {
-	ctx context.Context
-	ch  chan<- common.ID
-}
-
+// IDSubscribers is an interface for managing ID subscribers
 type IDSubscribers interface {
 	Push(ctx context.Context, ch chan<- common.ID)
 	SendAll(message common.ID)
 	CleanDone()
 }
 
-type idSubscribers struct {
-	mu   sync.RWMutex
-	subs []idSubscriber
+// idSubscribersImpl implements IDSubscribers using the generic implementation
+type idSubscribersImpl struct {
+	subs commonSubs.Subscribers[common.ID]
 }
 
-func (t *idSubscribers) CleanDone() {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	forRemove := make([]int, 0)
-	for i, sub := range t.subs {
-		select {
-		case <-sub.ctx.Done():
-			close(sub.ch)
-			forRemove = append(forRemove, i)
-		default:
-		}
-	}
-	for j := len(forRemove) - 1; j >= 0; j-- {
-		t.subs[forRemove[j]] = t.subs[len(t.subs)-len(forRemove)+j]
-	}
-	t.subs = t.subs[:len(t.subs)-len(forRemove)]
+// CleanDone removes subscribers whose context is done
+func (t *idSubscribersImpl) CleanDone() {
+	t.subs.CleanDone()
 }
 
-func (t *idSubscribers) SendAll(message common.ID) {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-	for _, el := range t.subs {
-		el.ch <- message
-	}
+// SendAll sends a message to all subscribers
+func (t *idSubscribersImpl) SendAll(message common.ID) {
+	t.subs.SendAll(message)
 }
 
-func (t *idSubscribers) Push(ctx context.Context, ch chan<- common.ID) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	t.subs = append(t.subs, idSubscriber{
-		ctx: ctx,
-		ch:  ch,
-	})
+// Push adds a new subscriber
+func (t *idSubscribersImpl) Push(ctx context.Context, ch chan<- common.ID) {
+	t.subs.Push(ctx, ch)
 }
 
+// NewIDSubscribers creates a new IDSubscribers instance
 func NewIDSubscribers() IDSubscribers {
-	return &idSubscribers{subs: make([]idSubscriber, 0)}
+	return &idSubscribersImpl{
+		subs: commonSubs.NewSubscribers[common.ID](),
+	}
 }

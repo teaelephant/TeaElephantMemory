@@ -297,7 +297,7 @@ func (d *db) GetTag(ctx context.Context, id uuid.UUID) (*common.Tag, error) {
 	}, nil
 }
 
-func (d *db) ListTags(ctx context.Context, name *string, categoryID *uuid.UUID) (list []common.Tag, err error) {
+func (d *db) ListTags(ctx context.Context, name *string, categoryID *uuid.UUID) (list []common.Tag, err error) { //nolint:funlen
 	records := make([]common.Tag, 0)
 
 	tr, err := d.db.NewTransaction(ctx)

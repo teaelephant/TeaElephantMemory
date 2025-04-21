@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/google/uuid"
 
@@ -45,8 +46,10 @@ func (d *pgDB) Notifications(ctx context.Context, userID uuid.UUID) ([]common.No
 	defer rows.Close()
 
 	notifications := make([]common.Notification, 0)
+
 	for rows.Next() {
 		var idBytes, userIDBytes []byte
+
 		var notificationType int
 
 		if err := rows.Scan(&idBytes, &userIDBytes, &notificationType); err != nil {
@@ -89,7 +92,7 @@ func (d *pgDB) AddDeviceForUser(ctx context.Context, userID, deviceID uuid.UUID)
 		SELECT token FROM devices WHERE id = $1
 	`, deviceIDBytes).Scan(&token)
 
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return common.ErrDeviceNotFound
 	} else if err != nil {
 		return err
@@ -123,11 +126,13 @@ func (d *pgDB) MapUserIdToDeviceID(ctx context.Context, userID uuid.UUID) ([]str
 	defer rows.Close()
 
 	tokens := make([]string, 0)
+
 	for rows.Next() {
 		var token string
 		if err := rows.Scan(&token); err != nil {
 			return nil, err
 		}
+
 		tokens = append(tokens, token)
 	}
 

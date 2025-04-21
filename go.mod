@@ -1,6 +1,8 @@
 module github.com/teaelephant/TeaElephantMemory
 
-go 1.23
+go 1.22.5
+
+toolchain go1.24.1
 
 require (
 	github.com/99designs/gqlgen v0.17.60
@@ -16,6 +18,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/lib/pq v1.10.9
 	github.com/prometheus/client_golang v1.20.5
 	github.com/sashabaranov/go-openai v1.36.0
 	github.com/sideshow/apns2 v0.25.0
@@ -41,7 +44,6 @@ require (
 	github.com/gorilla/i18n v0.0.0-20150820051429-8b358169da46 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/klauspost/compress v1.17.11 // indirect
-	github.com/lib/pq v1.10.9 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

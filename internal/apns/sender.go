@@ -10,6 +10,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const apnsID = "apns id"
+
 type Sender interface {
 	Send(ctx context.Context, userID, itemID uuid.UUID, title, body string) error
 }
@@ -27,7 +29,7 @@ type sender struct {
 }
 
 func (s *sender) Send(ctx context.Context, userID, itemID uuid.UUID, title, body string) error {
-	deviceTokens, err := s.userIDMapper.MapUserIdToDeviceID(ctx, userID)
+	deviceTokens, err := s.MapUserIdToDeviceID(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -51,12 +53,12 @@ func (s *sender) Send(ctx context.Context, userID, itemID uuid.UUID, title, body
 		}
 
 		if res.Sent() {
-			s.log.WithField("apns id", res.ApnsID).Debug("Sent signal")
+			s.log.WithField(apnsID, res.ApnsID).Debug("Sent signal")
 		} else {
 			s.log.
 				WithField("host", s.client.Host).
 				WithField("status code", res.StatusCode).
-				WithField("apns id", res.ApnsID).
+				WithField(apnsID, res.ApnsID).
 				WithField("reason", res.Reason).
 				Warn("Notification not Sent")
 		}

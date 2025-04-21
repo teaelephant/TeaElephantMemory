@@ -1,6 +1,9 @@
 package printqr
 
-import "github.com/unidoc/unipdf/v3/creator"
+import (
+	"github.com/pkg/errors"
+	"github.com/unidoc/unipdf/v3/creator"
+)
 
 type Client struct {
 	creator *creator.Creator
@@ -34,7 +37,7 @@ func (c *Client) writeQRCodes(images [][]byte) error {
 func (c *Client) addQRCode(table *creator.Table, data []byte, index int) error {
 	image, err := c.creator.NewImageFromData(data)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to create image")
 	}
 
 	indexOnList := index % codesOnList
@@ -65,5 +68,9 @@ func (c *Client) addQRCode(table *creator.Table, data []byte, index int) error {
 	cell := table.NewCell()
 	cell.SetBackgroundColor(creator.ColorBlack)
 
-	return cell.SetContent(image)
+	if err = cell.SetContent(image); err != nil {
+		return errors.Wrap(err, "failed to set image")
+	}
+
+	return nil
 }

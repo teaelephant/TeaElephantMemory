@@ -16,6 +16,7 @@ func TestDecode(t *testing.T) {
 		require.NoError(t, err)
 
 		var el []string
+
 		require.NoError(t, Decode(data, &el))
 		assert.Equal(t, input, el)
 	})
@@ -25,6 +26,7 @@ func TestDecode(t *testing.T) {
 		require.NoError(t, err)
 
 		var el []uuid.UUID
+
 		require.NoError(t, Decode(data, &el))
 		assert.Equal(t, input, el)
 	})

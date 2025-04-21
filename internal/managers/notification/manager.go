@@ -29,7 +29,7 @@ func (m *manager) BindDevice(ctx context.Context, userID uuid.UUID, deviceID uui
 }
 
 func (m *manager) RegisterDeviceToken(ctx context.Context, deviceID uuid.UUID, deviceToken string) error {
-	return m.repository.CreateOrUpdateDeviceToken(ctx, deviceID, deviceToken)
+	return m.CreateOrUpdateDeviceToken(ctx, deviceID, deviceToken)
 }
 
 func NewManager(repository repository) Manager {

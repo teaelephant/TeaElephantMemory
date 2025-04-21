@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// Collection tea collection struct
 type Collection struct {
 	ID   uuid.UUID
 	Name string

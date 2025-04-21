@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -77,8 +78,8 @@ type DB interface {
 }
 
 type pgDB struct {
-	dbConn  *sql.DB
-	log *logrus.Entry
+	dbConn *sql.DB
+	log    *logrus.Entry
 }
 
 func (d *pgDB) GetUsers(ctx context.Context) ([]common.User, error) {
@@ -89,15 +90,19 @@ func (d *pgDB) GetUsers(ctx context.Context) ([]common.User, error) {
 	defer rows.Close()
 
 	users := make([]common.User, 0)
+
 	for rows.Next() {
 		var user common.User
+
 		var id []byte
 		if err := rows.Scan(&id, &user.AppleID); err != nil {
 			return nil, err
 		}
+
 		if err := user.ID.UnmarshalBinary(id); err != nil {
 			return nil, err
 		}
+
 		users = append(users, user)
 	}
 
@@ -110,6 +115,7 @@ func (d *pgDB) GetUsers(ctx context.Context) ([]common.User, error) {
 
 func (d *pgDB) GetOrCreateUser(ctx context.Context, unique string) (uuid.UUID, error) {
 	var userID uuid.UUID
+
 	var id []byte
 
 	// Try to get existing user
@@ -118,13 +124,15 @@ func (d *pgDB) GetOrCreateUser(ctx context.Context, unique string) (uuid.UUID, e
 		if err := userID.UnmarshalBinary(id); err != nil {
 			return uuid.Nil, err
 		}
+
 		return userID, nil
-	} else if err != sql.ErrNoRows {
+	} else if !errors.Is(err, sql.ErrNoRows) {
 		return uuid.Nil, err
 	}
 
 	// Create new user
 	userID = uuid.New()
+
 	id, err = userID.MarshalBinary()
 	if err != nil {
 		return uuid.Nil, err
@@ -141,7 +149,7 @@ func (d *pgDB) GetOrCreateUser(ctx context.Context, unique string) (uuid.UUID, e
 // NewDB creates a new PostgreSQL DB instance
 func NewDB(db *sql.DB, log *logrus.Entry) DB {
 	return &pgDB{
-		dbConn:  db,
-		log: log,
+		dbConn: db,
+		log:    log,
 	}
 }
