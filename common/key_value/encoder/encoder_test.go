@@ -28,4 +28,14 @@ func TestDecode(t *testing.T) {
 		require.NoError(t, Decode(data, &el))
 		assert.Equal(t, input, el)
 	})
+	t.Run("decode uuids without pointer", func(t *testing.T) {
+		input := []uuid.UUID{uuid.New()}
+		data, err := json.Marshal(input)
+		require.NoError(t, err)
+
+		var el []uuid.UUID
+		err = Decode(data, el)
+		assert.Error(t, err)
+		assert.Empty(t, el)
+	})
 }
