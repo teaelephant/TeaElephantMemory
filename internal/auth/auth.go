@@ -55,7 +55,7 @@ func (a *auth) Validate(_ context.Context, jwtToken string) (*common.User, error
 			return nil, fmt.Errorf("Unexpected signing method: %v.", token.Header["alg"])
 		}
 
-		// hmacSampleSecret is a []byte containing your secret, e.g. []byte("my_secret_key")
+		// getSecret() returns the ECDSA private key used for signing and verification
 		key, err := a.getSecret()
 		if err != nil {
 			return nil, err
