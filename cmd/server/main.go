@@ -1,7 +1,7 @@
 package main
 
 import (
-	foundeationDB "github.com/apple/foundationdb/bindings/go/src/fdb"
+	foundationDB "github.com/apple/foundationdb/bindings/go/src/fdb"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/sashabaranov/go-openai"
 	"github.com/sideshow/apns2"
@@ -45,9 +45,9 @@ func main() {
 
 	logrusLogger := logrus.New()
 	logrusLogger.SetLevel(cfg.LoggerLevel)
-	foundeationDB.MustAPIVersion(foundationDBVersion)
+	foundationDB.MustAPIVersion(foundationDBVersion)
 
-	db, err := foundeationDB.OpenDatabase(cfg.DatabasePath)
+	db, err := foundationDB.OpenDatabase(cfg.DatabasePath)
 	if err != nil {
 		panic(err)
 	}

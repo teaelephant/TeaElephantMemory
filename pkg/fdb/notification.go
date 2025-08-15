@@ -119,7 +119,7 @@ func (d *db) Notifications(ctx context.Context, userID uuid.UUID) ([]common.Noti
 
 	nt := make([]uuid.UUID, 0)
 
-	if err = encoder.Decode(data, nt); err != nil {
+	if err = encoder.Decode(data, &nt); err != nil {
 		return nil, err
 	}
 
