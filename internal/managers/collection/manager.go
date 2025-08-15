@@ -34,11 +34,11 @@ type manager struct {
 }
 
 func (m *manager) ListRecords(ctx context.Context, id, userID uuid.UUID) ([]*model.QRRecord, error) {
-	if _, err := m.storage.Collection(ctx, id, userID); err != nil {
+	if _, err := m.Collection(ctx, id, userID); err != nil {
 		return nil, err
 	}
 
-	records, err := m.storage.CollectionRecords(ctx, id)
+	records, err := m.CollectionRecords(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func (m *manager) ListRecords(ctx context.Context, id, userID uuid.UUID) ([]*mod
 }
 
 func (m *manager) Create(ctx context.Context, userID uuid.UUID, name string) (*model.Collection, error) {
-	id, err := m.storage.CreateCollection(ctx, userID, name)
+	id, err := m.CreateCollection(ctx, userID, name)
 	if err != nil {
 		return nil, err
 	}
@@ -70,15 +70,15 @@ func (m *manager) Create(ctx context.Context, userID uuid.UUID, name string) (*m
 }
 
 func (m *manager) AddRecords(ctx context.Context, userID, id uuid.UUID, teas []uuid.UUID) (*model.Collection, error) {
-	if _, err := m.storage.Collection(ctx, id, userID); err != nil {
+	if _, err := m.Collection(ctx, id, userID); err != nil {
 		return nil, err
 	}
 
-	if err := m.storage.AddTeaToCollection(ctx, id, teas); err != nil {
+	if err := m.AddTeaToCollection(ctx, id, teas); err != nil {
 		return nil, err
 	}
 
-	collection, err := m.storage.Collection(ctx, id, userID)
+	collection, err := m.Collection(ctx, id, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -91,15 +91,15 @@ func (m *manager) AddRecords(ctx context.Context, userID, id uuid.UUID, teas []u
 }
 
 func (m *manager) DeleteRecords(ctx context.Context, userID uuid.UUID, id uuid.UUID, teas []uuid.UUID) (*model.Collection, error) {
-	if _, err := m.storage.Collection(ctx, id, userID); err != nil {
+	if _, err := m.Collection(ctx, id, userID); err != nil {
 		return nil, err
 	}
 
-	if err := m.storage.DeleteTeaFromCollection(ctx, id, teas); err != nil {
+	if err := m.DeleteTeaFromCollection(ctx, id, teas); err != nil {
 		return nil, err
 	}
 
-	collection, err := m.storage.Collection(ctx, id, userID)
+	collection, err := m.Collection(ctx, id, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -112,11 +112,11 @@ func (m *manager) DeleteRecords(ctx context.Context, userID uuid.UUID, id uuid.U
 }
 
 func (m *manager) Delete(ctx context.Context, userID uuid.UUID, id uuid.UUID) error {
-	return m.storage.DeleteCollection(ctx, id, userID)
+	return m.DeleteCollection(ctx, id, userID)
 }
 
 func (m *manager) List(ctx context.Context, userID uuid.UUID) ([]*model.Collection, error) {
-	list, err := m.storage.Collections(ctx, userID)
+	list, err := m.Collections(ctx, userID)
 	if err != nil {
 		return nil, err
 	}

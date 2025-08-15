@@ -60,9 +60,11 @@ func (a *auth) Validate(_ context.Context, jwtToken string) (*common.User, error
 		if err != nil {
 			return nil, err
 		}
+
 		if privKey, ok := key.(*ecdsa.PrivateKey); ok {
 			return &privKey.PublicKey, nil
 		}
+
 		return key, nil
 	})
 	if err != nil {
@@ -138,7 +140,7 @@ func (a *auth) Auth(ctx context.Context, token string) (*common.Session, error) 
 		return nil, err
 	}
 
-	user, err := a.storage.GetOrCreateUser(ctx, unique)
+	user, err := a.GetOrCreateUser(ctx, unique)
 	if err != nil {
 		return nil, err
 	}

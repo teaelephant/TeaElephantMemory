@@ -45,7 +45,7 @@ func (s *service) RecommendTea(
 	resp, err := s.client.CreateChatCompletion(
 		ctx,
 		openai.ChatCompletionRequest{
-			Model: openai.GPT4oLatest,
+			Model: openai.GPT5,
 			Messages: []openai.ChatCompletionMessage{
 				{
 					Role:    openai.ChatMessageRoleUser,
@@ -73,8 +73,9 @@ func (s *service) sortTeas(teas []common.Tea, weather common.Weather, feelings s
 		TimeOfDay: time.Now().Add(3 * time.Hour).Format(time.TimeOnly),
 		Feelings:  Feelings(feelings),
 	}
+
 	for _, tea := range teas {
-		switch tea.Type { //nolint:exhaustive
+		switch tea.Type {
 		case common.TeaBeverageType:
 			t.Teas = append(t.Teas, tea)
 		case common.HerbBeverageType:
@@ -82,6 +83,7 @@ func (s *service) sortTeas(teas []common.Tea, weather common.Weather, feelings s
 		default:
 		}
 	}
+
 	return t
 }
 
@@ -89,10 +91,12 @@ func (s *service) RecommendTeaStream(
 	ctx context.Context, teas []common.Tea, weather common.Weather, feelings string, res chan<- string,
 ) error {
 	t := s.sortTeas(teas, weather, feelings)
+
 	content, err := s.execute(t)
 	if err != nil {
 		return err
 	}
+
 	req := openai.ChatCompletionRequest{
 		Model: openai.GPT4oLatest,
 		Messages: []openai.ChatCompletionMessage{
@@ -102,6 +106,7 @@ func (s *service) RecommendTeaStream(
 			},
 		},
 	}
+
 	stream, err := s.client.CreateChatCompletionStream(ctx, req)
 	if err != nil {
 		s.log.WithError(err).Error("description generation error")
@@ -130,6 +135,7 @@ func (s *service) readStream(stream *openai.ChatCompletionStream, res chan<- str
 
 		res <- response.Choices[0].Delta.Content
 	}
+
 	close(res)
 }
 

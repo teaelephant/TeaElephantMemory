@@ -17,5 +17,4 @@ func Test_service_CurrentCyprus(t *testing.T) {
 		_, err := s.CurrentCyprus(context.Background())
 		require.NoError(t, err)
 	})
-
 }

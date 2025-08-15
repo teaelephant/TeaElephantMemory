@@ -1,6 +1,7 @@
 package printqr
 
 import (
+	"github.com/pkg/errors"
 	"github.com/unidoc/unipdf/v3/common/license"
 	"github.com/unidoc/unipdf/v3/creator"
 )
@@ -39,7 +40,7 @@ func (g *generator) GenerateAndSave(lists int) (err error) {
 func (g *generator) GenerateQRPdf(images [][]byte) error {
 	err := license.SetMeteredKey(g.key)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to set metered key")
 	}
 
 	c := creator.New()

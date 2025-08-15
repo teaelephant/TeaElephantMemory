@@ -18,7 +18,7 @@ const (
 	asyncGenerateTimeout       = 5 * time.Minute
 	requestTemplate            = "Опиши взвешенно и информативно без маркетинга напиток %s, чтобы помочь сделать выбор человеку на основании вкусовых качеств, пользы для организма, стимуляции к деятельности" //nolint:lll
 	descriptionGenerationError = "description generation error"
-	descriptionModel           = openai.GPT4TurboPreview
+	descriptionModel           = openai.GPT5
 )
 
 type DescriptionGenerator interface {

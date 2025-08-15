@@ -20,18 +20,20 @@ import (
 
 // Records is the resolver for the records field.
 func (r *collectionResolver) Records(ctx context.Context, obj *model.Collection) ([]*model.QRRecord, error) {
-	return r.collectionManager.ListRecords(ctx, uuid.UUID(obj.ID), uuid.UUID(obj.UserID))
+	return r.ListRecords(ctx, uuid.UUID(obj.ID), uuid.UUID(obj.UserID))
 }
 
 // AuthApple is the resolver for the authApple field.
 func (r *mutationResolver) AuthApple(ctx context.Context, appleCode string, deviceID common.ID) (*model.Session, error) {
-	session, err := r.auth.Auth(ctx, appleCode)
+	session, err := r.Auth(ctx, appleCode)
 	if err != nil {
 		return nil, gqlerror.Wrap(err)
 	}
-	if err = r.notificationsManager.BindDevice(ctx, session.User.ID, uuid.UUID(deviceID)); err != nil {
+
+	if err = r.BindDevice(ctx, session.User.ID, uuid.UUID(deviceID)); err != nil {
 		return nil, err
 	}
+
 	return &model.Session{
 		Token:     session.JWT,
 		ExpiredAt: session.ExpiredAt,
@@ -44,6 +46,7 @@ func (r *mutationResolver) NewTea(ctx context.Context, tea model.TeaData) (*mode
 	if err != nil {
 		return nil, err
 	}
+
 	return model.FromCommonTea(res), nil
 }
 
@@ -53,6 +56,7 @@ func (r *mutationResolver) UpdateTea(ctx context.Context, id common.ID, tea mode
 	if err != nil {
 		return nil, err
 	}
+
 	return model.FromCommonTea(res), nil
 }
 
@@ -61,6 +65,7 @@ func (r *mutationResolver) AddTagToTea(ctx context.Context, teaID common.ID, tag
 	if err := r.tagManager.AddTagToTea(ctx, uuid.UUID(teaID), uuid.UUID(tagID)); err != nil {
 		return nil, err
 	}
+
 	t, err := r.teaData.Get(ctx, uuid.UUID(teaID))
 	if err != nil {
 		return nil, err
@@ -74,10 +79,12 @@ func (r *mutationResolver) DeleteTagFromTea(ctx context.Context, teaID common.ID
 	if err := r.tagManager.DeleteTagFromTea(ctx, uuid.UUID(teaID), uuid.UUID(tagID)); err != nil {
 		return nil, err
 	}
+
 	t, err := r.teaData.Get(ctx, uuid.UUID(teaID))
 	if err != nil {
 		return nil, err
 	}
+
 	return model.FromCommonTea(t), nil
 }
 
@@ -86,18 +93,21 @@ func (r *mutationResolver) DeleteTea(ctx context.Context, id common.ID) (common.
 	if err := r.teaData.Delete(ctx, uuid.UUID(id)); err != nil {
 		return common.ID{}, err
 	}
+
 	return id, nil
 }
 
 // WriteToQR is the resolver for the writeToQR field.
 func (r *mutationResolver) WriteToQR(ctx context.Context, id common.ID, data model.QRRecordData) (*model.QRRecord, error) {
-	if err := r.qrManager.Set(ctx, uuid.UUID(id), &data); err != nil {
+	if err := r.Set(ctx, uuid.UUID(id), &data); err != nil {
 		return nil, err
 	}
+
 	tea, err := r.teaData.Get(ctx, uuid.UUID(data.Tea))
 	if err != nil {
 		return nil, err
 	}
+
 	return &model.QRRecord{
 		ID: id,
 		Tea: &model.Tea{
@@ -113,10 +123,11 @@ func (r *mutationResolver) WriteToQR(ctx context.Context, id common.ID, data mod
 
 // CreateTagCategory is the resolver for the createTagCategory field.
 func (r *mutationResolver) CreateTagCategory(ctx context.Context, name string) (*model.TagCategory, error) {
-	category, err := r.tagManager.CreateCategory(ctx, name)
+	category, err := r.CreateCategory(ctx, name)
 	if err != nil {
 		return nil, err
 	}
+
 	return &model.TagCategory{
 		ID:   common.ID(category.ID),
 		Name: category.Name,
@@ -125,10 +136,11 @@ func (r *mutationResolver) CreateTagCategory(ctx context.Context, name string) (
 
 // UpdateTagCategory is the resolver for the updateTagCategory field.
 func (r *mutationResolver) UpdateTagCategory(ctx context.Context, id common.ID, name string) (*model.TagCategory, error) {
-	cat, err := r.tagManager.UpdateCategory(ctx, uuid.UUID(id), name)
+	cat, err := r.UpdateCategory(ctx, uuid.UUID(id), name)
 	if err != nil {
 		return nil, err
 	}
+
 	return &model.TagCategory{
 		ID:   common.ID(cat.ID),
 		Name: cat.Name,
@@ -137,9 +149,10 @@ func (r *mutationResolver) UpdateTagCategory(ctx context.Context, id common.ID, 
 
 // DeleteTagCategory is the resolver for the deleteTagCategory field.
 func (r *mutationResolver) DeleteTagCategory(ctx context.Context, id common.ID) (common.ID, error) {
-	if err := r.tagManager.DeleteCategory(ctx, uuid.UUID(id)); err != nil {
+	if err := r.DeleteCategory(ctx, uuid.UUID(id)); err != nil {
 		return common.ID{}, err
 	}
+
 	return id, nil
 }
 
@@ -149,6 +162,7 @@ func (r *mutationResolver) CreateTag(ctx context.Context, name string, color str
 	if err != nil {
 		return nil, err
 	}
+
 	return &model.Tag{
 		ID:    common.ID(tag.ID),
 		Name:  tag.Name,
@@ -162,6 +176,7 @@ func (r *mutationResolver) UpdateTag(ctx context.Context, id common.ID, name str
 	if err != nil {
 		return nil, err
 	}
+
 	return &model.Tag{
 		ID:    common.ID(tag.ID),
 		Name:  tag.Name,
@@ -171,10 +186,11 @@ func (r *mutationResolver) UpdateTag(ctx context.Context, id common.ID, name str
 
 // ChangeTagCategory is the resolver for the changeTagCategory field.
 func (r *mutationResolver) ChangeTagCategory(ctx context.Context, id common.ID, category common.ID) (*model.Tag, error) {
-	tag, err := r.tagManager.ChangeCategory(ctx, uuid.UUID(id), uuid.UUID(category))
+	tag, err := r.ChangeCategory(ctx, uuid.UUID(id), uuid.UUID(category))
 	if err != nil {
 		return nil, err
 	}
+
 	return &model.Tag{
 		ID:    common.ID(tag.ID),
 		Name:  tag.Name,
@@ -187,6 +203,7 @@ func (r *mutationResolver) DeleteTag(ctx context.Context, id common.ID) (common.
 	if err := r.tagManager.Delete(ctx, uuid.UUID(id)); err != nil {
 		return [16]byte{}, err
 	}
+
 	return id, nil
 }
 
@@ -196,6 +213,7 @@ func (r *mutationResolver) CreateCollection(ctx context.Context, name string) (*
 	if err != nil {
 		return nil, err
 	}
+
 	return r.collectionManager.Create(ctx, user.ID, name)
 }
 
@@ -211,7 +229,7 @@ func (r *mutationResolver) AddRecordsToCollection(ctx context.Context, id common
 		ids[i] = uuid.UUID(uid)
 	}
 
-	return r.collectionManager.AddRecords(ctx, user.ID, uuid.UUID(id), ids)
+	return r.AddRecords(ctx, user.ID, uuid.UUID(id), ids)
 }
 
 // DeleteRecordsFromCollection is the resolver for the deleteRecordsFromCollection field.
@@ -226,7 +244,7 @@ func (r *mutationResolver) DeleteRecordsFromCollection(ctx context.Context, id c
 		ids[i] = uuid.UUID(uid)
 	}
 
-	return r.collectionManager.DeleteRecords(ctx, user.ID, uuid.UUID(id), ids)
+	return r.DeleteRecords(ctx, user.ID, uuid.UUID(id), ids)
 }
 
 // DeleteCollection is the resolver for the deleteCollection field.
@@ -244,6 +262,7 @@ func (r *mutationResolver) RegisterDeviceToken(ctx context.Context, deviceID com
 	if err := r.notificationsManager.RegisterDeviceToken(ctx, uuid.UUID(deviceID), deviceToken); err != nil {
 		return false, err
 	}
+
 	return true, nil
 }
 
@@ -254,7 +273,7 @@ func (r *mutationResolver) Send(ctx context.Context) (bool, error) {
 		return false, err
 	}
 
-	if err = r.debug.Run(ctx); err != nil {
+	if err = r.Run(ctx); err != nil {
 		return false, err
 	}
 
@@ -268,15 +287,16 @@ func (r *mutationResolver) TeaRecommendation(ctx context.Context, collectionID c
 		return "", err
 	}
 
-	wth, err := r.weather.CurrentCyprus(ctx)
+	wth, err := r.CurrentCyprus(ctx)
 	if err != nil {
 		return "", err
 	}
 
-	records, err := r.collectionManager.ListRecords(ctx, uuid.UUID(collectionID), user.ID)
+	records, err := r.ListRecords(ctx, uuid.UUID(collectionID), user.ID)
 	if err != nil {
 		return "", err
 	}
+
 	if len(records) == 0 {
 		return "", errors.New("you should have more teas")
 	}
@@ -287,7 +307,7 @@ func (r *mutationResolver) TeaRecommendation(ctx context.Context, collectionID c
 		teas[i] = rec.Tea.ToCommonTea()
 	}
 
-	return r.adviser.RecommendTea(ctx, teas, wth, feelings)
+	return r.RecommendTea(ctx, teas, wth, feelings)
 }
 
 // Me is the resolver for the me field.
@@ -296,7 +316,8 @@ func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &model.User{TokenExpiredAt: user.Session.ExpiredAt}, nil
+
+	return &model.User{TokenExpiredAt: user.ExpiredAt}, nil
 }
 
 // Teas is the resolver for the teas field.
@@ -305,10 +326,12 @@ func (r *queryResolver) Teas(ctx context.Context, prefix *string) ([]*model.Tea,
 	if err != nil {
 		return nil, err
 	}
+
 	data := make([]*model.Tea, len(res))
 	for i, el := range res {
 		data[i] = model.FromCommonTea(&el)
 	}
+
 	return data, nil
 }
 
@@ -318,6 +341,7 @@ func (r *queryResolver) Tea(ctx context.Context, id common.ID) (*model.Tea, erro
 	if err != nil {
 		return nil, err
 	}
+
 	return model.FromCommonTea(res), nil
 }
 
@@ -332,10 +356,12 @@ func (r *queryResolver) QRRecord(ctx context.Context, id common.ID) (*model.QRRe
 	if err != nil {
 		return nil, castGQLError(ctx, err)
 	}
+
 	res, err := r.teaData.Get(ctx, uuid.UUID(qr.Tea))
 	if err != nil {
 		return nil, castGQLError(ctx, err)
 	}
+
 	return &model.QRRecord{
 		ID:             id,
 		Tea:            model.FromCommonTea(res),
@@ -350,6 +376,7 @@ func (r *queryResolver) Tag(ctx context.Context, id common.ID) (*model.Tag, erro
 	if err != nil {
 		return nil, err
 	}
+
 	return &model.Tag{
 		ID:    common.ID(tag.ID),
 		Name:  tag.Name,
@@ -362,10 +389,11 @@ func (r *queryResolver) Tag(ctx context.Context, id common.ID) (*model.Tag, erro
 
 // TagsCategories is the resolver for the tagsCategories field.
 func (r *queryResolver) TagsCategories(ctx context.Context, name *string) ([]*model.TagCategory, error) {
-	categories, err := r.tagManager.ListCategory(ctx, name)
+	categories, err := r.ListCategory(ctx, name)
 	if err != nil {
 		return nil, err
 	}
+
 	result := make([]*model.TagCategory, len(categories))
 	for i, cat := range categories {
 		result[i] = &model.TagCategory{
@@ -373,6 +401,7 @@ func (r *queryResolver) TagsCategories(ctx context.Context, name *string) ([]*mo
 			Name: cat.Name,
 		}
 	}
+
 	return result, nil
 }
 
@@ -382,6 +411,7 @@ func (r *queryResolver) Collections(ctx context.Context) ([]*model.Collection, e
 	if err != nil {
 		return nil, err
 	}
+
 	return r.collectionManager.List(ctx, user.ID)
 }
 
@@ -403,17 +433,17 @@ func (r *subscriptionResolver) OnDeleteTea(ctx context.Context) (<-chan common.I
 
 // OnCreateTagCategory is the resolver for the onCreateTagCategory field.
 func (r *subscriptionResolver) OnCreateTagCategory(ctx context.Context) (<-chan *model.TagCategory, error) {
-	return r.tagManager.SubscribeOnCreateCategory(ctx)
+	return r.SubscribeOnCreateCategory(ctx)
 }
 
 // OnUpdateTagCategory is the resolver for the onUpdateTagCategory field.
 func (r *subscriptionResolver) OnUpdateTagCategory(ctx context.Context) (<-chan *model.TagCategory, error) {
-	return r.tagManager.SubscribeOnUpdateCategory(ctx)
+	return r.SubscribeOnUpdateCategory(ctx)
 }
 
 // OnDeleteTagCategory is the resolver for the onDeleteTagCategory field.
 func (r *subscriptionResolver) OnDeleteTagCategory(ctx context.Context) (<-chan common.ID, error) {
-	return r.tagManager.SubscribeOnDeleteCategory(ctx)
+	return r.SubscribeOnDeleteCategory(ctx)
 }
 
 // OnCreateTag is the resolver for the onCreateTag field.
@@ -433,12 +463,12 @@ func (r *subscriptionResolver) OnDeleteTag(ctx context.Context) (<-chan common.I
 
 // OnAddTagToTea is the resolver for the onAddTagToTea field.
 func (r *subscriptionResolver) OnAddTagToTea(ctx context.Context) (<-chan *model.Tea, error) {
-	return r.tagManager.SubscribeOnAddTagToTea(ctx)
+	return r.SubscribeOnAddTagToTea(ctx)
 }
 
 // OnDeleteTagFromTea is the resolver for the onDeleteTagFromTea field.
 func (r *subscriptionResolver) OnDeleteTagFromTea(ctx context.Context) (<-chan *model.Tea, error) {
-	return r.tagManager.SubscribeOnDeleteTagToTea(ctx)
+	return r.SubscribeOnDeleteTagToTea(ctx)
 }
 
 // StartGenerateDescription is the resolver for the startGenerateDescription field.
@@ -454,15 +484,16 @@ func (r *subscriptionResolver) RecommendTea(ctx context.Context, collectionID co
 		return nil, err
 	}
 
-	wth, err := r.weather.CurrentCyprus(ctx)
+	wth, err := r.CurrentCyprus(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	records, err := r.collectionManager.ListRecords(ctx, uuid.UUID(collectionID), user.ID)
+	records, err := r.ListRecords(ctx, uuid.UUID(collectionID), user.ID)
 	if err != nil {
 		return nil, err
 	}
+
 	if len(records) == 0 {
 		return nil, errors.New("you should have more teas")
 	}
@@ -474,9 +505,10 @@ func (r *subscriptionResolver) RecommendTea(ctx context.Context, collectionID co
 	}
 
 	res := make(chan string, 1000)
-	if err = r.adviser.RecommendTeaStream(ctx, teas, wth, feelings, res); err != nil {
+	if err = r.RecommendTeaStream(ctx, teas, wth, feelings, res); err != nil {
 		return nil, err
 	}
+
 	return res, nil
 }
 
@@ -485,13 +517,16 @@ func (r *tagResolver) Category(ctx context.Context, obj *model.Tag) (*model.TagC
 	if obj.Category == nil {
 		return nil, nil
 	}
+
 	if obj.Category.Name != "" {
 		return obj.Category, nil
 	}
-	cat, err := r.tagManager.GetCategory(ctx, uuid.UUID(obj.Category.ID))
+
+	cat, err := r.GetCategory(ctx, uuid.UUID(obj.Category.ID))
 	if err != nil {
 		return nil, err
 	}
+
 	return &model.TagCategory{
 		ID:   common.ID(cat.ID),
 		Name: cat.Name,
@@ -504,18 +539,22 @@ func (r *tagCategoryResolver) Tags(ctx context.Context, obj *model.TagCategory, 
 	if obj != nil {
 		cat = uuid.UUID(obj.ID)
 	}
+
 	tags, err := r.tagManager.List(ctx, name, &cat)
 	if err != nil {
 		return nil, err
 	}
+
 	result := make([]*model.Tag, len(tags))
 	if len(tags) == 0 {
 		return result, nil
 	}
-	categories, err := r.tagManager.ListCategory(ctx, nil)
+
+	categories, err := r.ListCategory(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
+
 	catMap := map[uuid.UUID]*model.TagCategory{}
 	for _, ctg := range categories {
 		catMap[ctg.ID] = &model.TagCategory{
@@ -523,6 +562,7 @@ func (r *tagCategoryResolver) Tags(ctx context.Context, obj *model.TagCategory, 
 			Name: ctg.Name,
 		}
 	}
+
 	for i, tag := range tags {
 		result[i] = &model.Tag{
 			ID:       common.ID(tag.ID),
@@ -531,15 +571,17 @@ func (r *tagCategoryResolver) Tags(ctx context.Context, obj *model.TagCategory, 
 			Category: catMap[tag.CategoryID],
 		}
 	}
+
 	return result, nil
 }
 
 // Tags is the resolver for the tags field.
 func (r *teaResolver) Tags(ctx context.Context, obj *model.Tea) ([]*model.Tag, error) {
-	tags, err := r.tagManager.ListByTea(ctx, uuid.UUID(obj.ID))
+	tags, err := r.ListByTea(ctx, uuid.UUID(obj.ID))
 	if err != nil {
 		return nil, err
 	}
+
 	result := make([]*model.Tag, len(tags))
 	for i, t := range tags {
 		result[i] = &model.Tag{
@@ -549,6 +591,7 @@ func (r *teaResolver) Tags(ctx context.Context, obj *model.Tea) ([]*model.Tag, e
 			Category: &model.TagCategory{ID: common.ID(t.CategoryID)},
 		}
 	}
+
 	return result, nil
 }
 
@@ -563,17 +606,20 @@ func (r *userResolver) Notifications(ctx context.Context, obj *model.User) ([]*m
 	if err != nil {
 		return nil, err
 	}
+
 	notifications, err := r.notificationsManager.Notifications(ctx, user.ID)
 	if err != nil {
 		return nil, err
 	}
 
 	res := make([]*model.Notification, len(notifications))
+
 	for i, not := range notifications {
 		t := new(model.NotificationType)
 		t.FromCommon(not.Type)
 		res[i] = &model.Notification{Type: *t}
 	}
+
 	return res, nil
 }
 

@@ -85,7 +85,7 @@ func (t *transaction) Commit() (err error) {
 		}
 
 		if err == nil {
-			return
+			return err
 		}
 
 		var fe fdb.Error
@@ -94,7 +94,7 @@ func (t *transaction) Commit() (err error) {
 		}
 
 		if err != nil {
-			return
+			return err
 		}
 	}
 }

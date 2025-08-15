@@ -11,11 +11,12 @@ func (m *manager) loop() {
 	for {
 		select {
 		case tag := <-m.create:
-			cat, err := m.storage.GetTagCategory(context.TODO(), tag.CategoryID)
+			cat, err := m.GetTagCategory(context.TODO(), tag.CategoryID)
 			if err != nil {
 				m.log.Error(err)
 				continue
 			}
+
 			m.createSubscribers.SendAll(&model.Tag{
 				ID:    common.ID(tag.ID),
 				Name:  tag.Name,
@@ -26,11 +27,12 @@ func (m *manager) loop() {
 				},
 			})
 		case tag := <-m.update:
-			cat, err := m.storage.GetTagCategory(context.TODO(), tag.CategoryID)
+			cat, err := m.GetTagCategory(context.TODO(), tag.CategoryID)
 			if err != nil {
 				m.log.Error(err)
 				continue
 			}
+
 			m.updateSubscribers.SendAll(&model.Tag{
 				ID:    common.ID(tag.ID),
 				Name:  tag.Name,
@@ -60,6 +62,7 @@ func (m *manager) loop() {
 				m.log.Error(err)
 				continue
 			}
+
 			m.addTagToTeaSubscribers.SendAll(model.FromCommonTea(tea))
 		case id := <-m.deleteTagFromTea:
 			tea, err := m.teaManager.Get(context.TODO(), id)
@@ -67,6 +70,7 @@ func (m *manager) loop() {
 				m.log.Error(err)
 				continue
 			}
+
 			m.deleteTagToTeaSubscribers.SendAll(model.FromCommonTea(tea))
 		}
 

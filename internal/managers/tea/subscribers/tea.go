@@ -26,24 +26,30 @@ type teaSubscribers struct {
 func (t *teaSubscribers) CleanDone() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+
 	forRemove := make([]int, 0)
+
 	for i, sub := range t.subs {
 		select {
 		case <-sub.ctx.Done():
 			close(sub.ch)
+
 			forRemove = append(forRemove, i)
 		default:
 		}
 	}
+
 	for j := len(forRemove) - 1; j >= 0; j-- {
 		t.subs[forRemove[j]] = t.subs[len(t.subs)-len(forRemove)+j]
 	}
+
 	t.subs = t.subs[:len(t.subs)-len(forRemove)]
 }
 
 func (t *teaSubscribers) SendAll(message *model.Tea) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
+
 	for _, el := range t.subs {
 		el.ch <- message
 	}

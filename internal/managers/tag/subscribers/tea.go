@@ -33,6 +33,7 @@ func (t *teaSubscribers) CleanDone() {
 		select {
 		case <-sub.ctx.Done():
 			close(sub.ch)
+
 			forRemove = append(forRemove, i)
 		default:
 		}

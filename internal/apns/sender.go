@@ -27,7 +27,7 @@ type sender struct {
 }
 
 func (s *sender) Send(ctx context.Context, userID, itemID uuid.UUID, title, body string) error {
-	deviceTokens, err := s.userIDMapper.MapUserIdToDeviceID(ctx, userID)
+	deviceTokens, err := s.MapUserIdToDeviceID(ctx, userID)
 	if err != nil {
 		return err
 	}

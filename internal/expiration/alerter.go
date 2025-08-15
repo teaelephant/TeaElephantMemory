@@ -54,20 +54,22 @@ func (a *alerter) Stop() error {
 }
 
 func (a *alerter) Run(ctx context.Context) error {
-	users, err := a.storage.GetUsers(ctx)
+	users, err := a.GetUsers(ctx)
 	if err != nil {
 		return err
 	}
+
 	for _, user := range users {
 		if err := a.processUserCollections(ctx, user.ID); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
 func (a *alerter) processUserCollections(ctx context.Context, userID uuid.UUID) error {
-	collections, err := a.storage.Collections(ctx, userID)
+	collections, err := a.Collections(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -77,11 +79,12 @@ func (a *alerter) processUserCollections(ctx context.Context, userID uuid.UUID) 
 			return err
 		}
 	}
+
 	return nil
 }
 
 func (a *alerter) processCollectionRecords(ctx context.Context, userID uuid.UUID, col *common.Collection) error {
-	records, err := a.storage.CollectionRecords(ctx, col.ID)
+	records, err := a.CollectionRecords(ctx, col.ID)
 	if err != nil {
 		return err
 	}
@@ -91,6 +94,7 @@ func (a *alerter) processCollectionRecords(ctx context.Context, userID uuid.UUID
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -104,7 +108,8 @@ func (a *alerter) processRecord(ctx context.Context, userID uuid.UUID, col *comm
 	}
 
 	body := fmt.Sprintf("tea %s from collection %s expired %s", record.Tea.Name, col.Name, record.ExpirationDate)
-	return a.sender.Send(ctx, userID, record.ID, "tea expired", body)
+
+	return a.Send(ctx, userID, record.ID, "tea expired", body)
 }
 
 func (a *alerter) loop() {
