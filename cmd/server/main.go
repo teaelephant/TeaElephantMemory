@@ -13,6 +13,7 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/internal/adviser"
 	"github.com/teaelephant/TeaElephantMemory/internal/apns"
 	"github.com/teaelephant/TeaElephantMemory/internal/auth"
+	"github.com/teaelephant/TeaElephantMemory/internal/consumption"
 	"github.com/teaelephant/TeaElephantMemory/internal/descrgen"
 	"github.com/teaelephant/TeaElephantMemory/internal/expiration"
 	"github.com/teaelephant/TeaElephantMemory/internal/managers/collection"
@@ -98,10 +99,12 @@ func main() {
 		panic(err)
 	}
 
+	cons := consumption.NewMemoryStore(0)
+
 	resolvers := graphql.NewResolver(
 		logrusLogger.WithField(pkgKey, "graphql"),
 		teaManager, qrManager, tagManager, collectionManager, authM, ai, notificationManager, expirationAlerter,
-		adv, weather,
+		adv, weather, cons,
 	)
 
 	s := server.NewServer(resolvers, []gql.HandlerExtension{authM.Middleware()}, authM.WsInitFunc)

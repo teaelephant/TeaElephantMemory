@@ -8,8 +8,8 @@ import (
 )
 
 type idSubscriber struct {
-	ctx context.Context
-	ch  chan<- common.ID
+	done <-chan struct{}
+	ch   chan<- common.ID
 }
 
 type IDSubscribers interface {
@@ -31,7 +31,7 @@ func (t *idSubscribers) CleanDone() {
 
 	for i, sub := range t.subs {
 		select {
-		case <-sub.ctx.Done():
+		case <-sub.done:
 			close(sub.ch)
 
 			forRemove = append(forRemove, i)
@@ -58,9 +58,10 @@ func (t *idSubscribers) SendAll(message common.ID) {
 func (t *idSubscribers) Push(ctx context.Context, ch chan<- common.ID) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+
 	t.subs = append(t.subs, idSubscriber{
-		ctx: ctx,
-		ch:  ch,
+		done: ctx.Done(),
+		ch:   ch,
 	})
 }
 

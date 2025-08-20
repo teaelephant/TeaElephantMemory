@@ -2,3 +2,41 @@
 /.idea/
 qr_codes.pdf
 /AuthKey_39D5B439QV.p8
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.fleet/
+.qodana/
+.cache/
+
+# Environment & secrets
+.env
+.env.*
+AuthKey_*.p8
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Binaries and build dirs
+/bin/
+/build/
+/dist/
+/coverage/
+coverage.*
+*.coverprofile
+*.cov
+
+# Vendor (if used)
+/vendor/

@@ -8,8 +8,8 @@ import (
 )
 
 type tagCategorySubscriber struct {
-	ctx context.Context
-	ch  chan<- *model.TagCategory
+	done <-chan struct{}
+	ch   chan<- *model.TagCategory
 }
 
 type TagCategorySubscribers interface {
@@ -31,7 +31,7 @@ func (t *tagCategorySubscribers) CleanDone() {
 
 	for i, sub := range t.subs {
 		select {
-		case <-sub.ctx.Done():
+		case <-sub.done:
 			close(sub.ch)
 
 			forRemove = append(forRemove, i)
@@ -59,8 +59,8 @@ func (t *tagCategorySubscribers) Push(ctx context.Context, ch chan<- *model.TagC
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.subs = append(t.subs, tagCategorySubscriber{
-		ctx: ctx,
-		ch:  ch,
+		done: ctx.Done(),
+		ch:   ch,
 	})
 }
 

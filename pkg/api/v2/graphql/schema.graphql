@@ -16,6 +16,8 @@ type Query {
     tagsCategories(name: String): [TagCategory!]!
     "Collection of teas, authorization required"
     collections: [Collection!]!
+    "Get tea of the day"
+    teaOfTheDay: TeaOfTheDay
 }
 
 type Mutation {
@@ -47,6 +49,11 @@ type Mutation {
     send: Boolean!
     "get tea recommendation"
     teaRecommendation(collectionID: ID!, feelings: String!): String!
+}
+
+type TeaOfTheDay {
+    tea: Tea!
+    date: Date!
 }
 
 type Subscription {

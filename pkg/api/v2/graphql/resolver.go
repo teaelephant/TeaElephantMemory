@@ -2,15 +2,17 @@ package graphql
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
+	"github.com/teaelephant/TeaElephantMemory/internal/consumption"
 	gqlCommon "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common"
 	model "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/models"
 )
 
-//go:generate go run ../scripts/gqlgen.go
+//go:generate go run github.com/99designs/gqlgen --config gqlgen.yml generate
 
 type logger interface {
 	Debug(msgs ...interface{})
@@ -88,6 +90,7 @@ type debug interface {
 type adviser interface {
 	RecommendTea(ctx context.Context, teas []common.Tea, weather common.Weather, feelings string) (string, error)
 	RecommendTeaStream(ctx context.Context, teas []common.Tea, weather common.Weather, feelings string, res chan<- string) error
+	ContextScores(ctx context.Context, teas []string, weather common.Weather, day time.Weekday) (map[string]int, error)
 }
 
 type weather interface {
@@ -105,6 +108,7 @@ type Resolver struct {
 	debug
 	adviser
 	weather
+	consumption consumption.Store
 
 	log logger
 }
@@ -121,6 +125,7 @@ func NewResolver(
 	debug debug,
 	adviser adviser,
 	weather weather,
+	cons consumption.Store,
 ) *Resolver {
 	return &Resolver{
 		teaData:              teaData,
@@ -133,6 +138,7 @@ func NewResolver(
 		debug:                debug,
 		adviser:              adviser,
 		weather:              weather,
+		consumption:          cons,
 		log:                  logger,
 	}
 }

@@ -3,6 +3,7 @@
 package model
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"strconv"
@@ -16,6 +17,9 @@ type Collection struct {
 	Name    string      `json:"name"`
 	UserID  common.ID   `json:"userID"`
 	Records []*QRRecord `json:"records"`
+}
+
+type Mutation struct {
 }
 
 type Notification struct {
@@ -35,9 +39,15 @@ type QRRecordData struct {
 	ExpirationDate time.Time `json:"expirationDate"`
 }
 
+type Query struct {
+}
+
 type Session struct {
 	Token     string    `json:"token"`
 	ExpiredAt time.Time `json:"expiredAt"`
+}
+
+type Subscription struct {
 }
 
 type Tag struct {
@@ -65,6 +75,11 @@ type TeaData struct {
 	Name        string `json:"name"`
 	Type        Type   `json:"type"`
 	Description string `json:"description"`
+}
+
+type TeaOfTheDay struct {
+	Tea  *Tea      `json:"tea"`
+	Date time.Time `json:"date"`
 }
 
 type User struct {
@@ -99,7 +114,7 @@ func (e NotificationType) String() string {
 	return string(e)
 }
 
-func (e *NotificationType) UnmarshalGQL(v interface{}) error {
+func (e *NotificationType) UnmarshalGQL(v any) error {
 	str, ok := v.(string)
 	if !ok {
 		return fmt.Errorf("enums must be strings")
@@ -114,6 +129,20 @@ func (e *NotificationType) UnmarshalGQL(v interface{}) error {
 
 func (e NotificationType) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *NotificationType) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e NotificationType) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }
 
 type Type string
@@ -146,7 +175,7 @@ func (e Type) String() string {
 	return string(e)
 }
 
-func (e *Type) UnmarshalGQL(v interface{}) error {
+func (e *Type) UnmarshalGQL(v any) error {
 	str, ok := v.(string)
 	if !ok {
 		return fmt.Errorf("enums must be strings")
@@ -161,4 +190,18 @@ func (e *Type) UnmarshalGQL(v interface{}) error {
 
 func (e Type) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *Type) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e Type) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }
