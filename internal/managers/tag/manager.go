@@ -95,6 +95,7 @@ func (m *manager) AddTagToTea(ctx context.Context, tea uuid.UUID, tag uuid.UUID)
 	if err := m.storage.AddTagToTea(ctx, tea, tag); err != nil {
 		return err
 	}
+
 	m.addTagToTea <- tea
 
 	return nil
@@ -104,6 +105,7 @@ func (m *manager) DeleteTagFromTea(ctx context.Context, tea uuid.UUID, tag uuid.
 	if err := m.storage.DeleteTagFromTea(ctx, tea, tag); err != nil {
 		return err
 	}
+
 	m.deleteTagFromTea <- tea
 
 	return nil
@@ -118,6 +120,7 @@ func (m *manager) CreateCategory(ctx context.Context, name string) (category *co
 	if err != nil {
 		return nil, err
 	}
+
 	m.createCategory <- cat
 
 	return cat, nil
@@ -132,6 +135,7 @@ func (m *manager) DeleteCategory(ctx context.Context, id uuid.UUID) error {
 	for _, t := range tags {
 		m.delete <- t
 	}
+
 	m.deleteCategory <- id
 
 	return nil
@@ -150,6 +154,7 @@ func (m *manager) Create(ctx context.Context, name, color string, categoryID uui
 	if err != nil {
 		return nil, err
 	}
+
 	m.create <- tag
 
 	return tag, nil
@@ -160,6 +165,7 @@ func (m *manager) Update(ctx context.Context, id uuid.UUID, name, color string) 
 	if err != nil {
 		return nil, err
 	}
+
 	m.update <- tag
 
 	return tag, nil
@@ -170,6 +176,7 @@ func (m *manager) ChangeCategory(ctx context.Context, id, categoryID uuid.UUID) 
 	if err != nil {
 		return nil, err
 	}
+
 	m.update <- tag
 
 	return tag, nil
@@ -179,6 +186,7 @@ func (m *manager) Delete(ctx context.Context, id uuid.UUID) error {
 	if err := m.DeleteTag(ctx, id); err != nil {
 		return err
 	}
+
 	m.delete <- id
 
 	return nil

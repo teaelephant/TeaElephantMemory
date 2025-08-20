@@ -77,6 +77,7 @@ func (g *generator) StartGenerateDescription(ctx context.Context, name string, r
 	}
 
 	result <- res
+
 	close(result)
 
 	return nil
@@ -100,6 +101,7 @@ func (g *generator) generateDescription(name string, result chan<- string) {
 	cancel()
 
 	result <- res
+
 	close(result)
 }
 

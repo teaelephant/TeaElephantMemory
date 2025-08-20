@@ -79,6 +79,7 @@ func (m *manager) Create(ctx context.Context, data *common.TeaData) (*common.Tea
 	if err != nil {
 		return nil, err
 	}
+
 	m.create <- res
 
 	return res, nil
@@ -89,6 +90,7 @@ func (m *manager) Update(ctx context.Context, id uuid.UUID, rec *common.TeaData)
 	if err != nil {
 		return nil, err
 	}
+
 	m.update <- res
 
 	return res, nil
@@ -98,6 +100,7 @@ func (m *manager) Delete(ctx context.Context, id uuid.UUID) error {
 	if err := m.storage.Delete(ctx, id); err != nil {
 		return err
 	}
+
 	m.delete <- id
 
 	return nil

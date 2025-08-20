@@ -62,7 +62,9 @@ func (m *MemoryStore) Record(_ context.Context, userID uuid.UUID, teaID uuid.UUI
 func (m *MemoryStore) Recent(_ context.Context, userID uuid.UUID, since time.Time) ([]Consumption, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
 	events := m.data[userID]
+
 	out := make([]Consumption, 0, len(events))
 	for _, e := range events {
 		if !e.Time.Before(since) {
@@ -71,5 +73,6 @@ func (m *MemoryStore) Recent(_ context.Context, userID uuid.UUID, since time.Tim
 	}
 	// Sort by time desc (most recent first)
 	sort.Slice(out, func(i, j int) bool { return out[i].Time.After(out[j].Time) })
+
 	return out, nil
 }

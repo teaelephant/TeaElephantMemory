@@ -8,8 +8,8 @@ import (
 )
 
 type teaSubscriber struct {
-	ctx context.Context
-	ch  chan<- *model.Tea
+	done <-chan struct{}
+	ch   chan<- *model.Tea
 }
 
 type TeaSubscribers interface {
@@ -31,7 +31,7 @@ func (t *teaSubscribers) CleanDone() {
 
 	for i, sub := range t.subs {
 		select {
-		case <-sub.ctx.Done():
+		case <-sub.done:
 			close(sub.ch)
 
 			forRemove = append(forRemove, i)
@@ -59,8 +59,8 @@ func (t *teaSubscribers) Push(ctx context.Context, ch chan<- *model.Tea) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.subs = append(t.subs, teaSubscriber{
-		ctx: ctx,
-		ch:  ch,
+		done: ctx.Done(),
+		ch:   ch,
 	})
 }
 

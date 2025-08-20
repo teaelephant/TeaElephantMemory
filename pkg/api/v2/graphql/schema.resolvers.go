@@ -21,6 +21,11 @@ import (
 	model "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/models"
 )
 
+var (
+	ErrNoTeas          = errors.New("you should have more teas")
+	ErrNoTeaCandidates = errors.New("no tea candidates")
+)
+
 // Records is the resolver for the records field.
 func (r *collectionResolver) Records(ctx context.Context, obj *model.Collection) ([]*model.QRRecord, error) {
 	return r.ListRecords(ctx, uuid.UUID(obj.ID), uuid.UUID(obj.UserID))
@@ -439,10 +444,12 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 		if err != nil {
 			return nil, err
 		}
+
 		for _, rec := range records {
 			if rec.Tea == nil {
 				continue
 			}
+
 			id := rec.Tea.ID
 			if _, ok := teas[id]; !ok {
 				teas[id] = rec.Tea
@@ -456,7 +463,7 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 	}
 
 	if len(teas) == 0 {
-		return nil, errors.New("you should have more teas")
+		return nil, ErrNoTeas
 	}
 
 	now := time.Now()
@@ -465,6 +472,7 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 
 	// Recent consumption for last 4 days
 	recent, _ := r.consumption.Recent(ctx, user.ID, now.Add(-96*time.Hour))
+
 	lastByTea := make(map[uuid.UUID]time.Time)
 	for _, c := range recent {
 		if t, ok := lastByTea[c.TeaID]; !ok || c.Time.After(t) {
@@ -475,6 +483,7 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 	// Prepare candidates and name mappings
 	names := make([]string, 0, len(teas))
 	nameToID := make(map[string]uuid.UUID, len(teas))
+
 	candidates := make([]scoring.Candidate, 0, len(teas))
 	for id, tea := range teas {
 		uid := uuid.UUID(id)
@@ -486,6 +495,7 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 
 	// Ask AI for context scores (weather + day-of-week)
 	ctxScoresByName, _ := r.adviser.ContextScores(ctx, names, w, now.Weekday())
+
 	aiScores := make(map[uuid.UUID]int, len(ctxScoresByName))
 	for name, score := range ctxScoresByName {
 		if id, ok := nameToID[strings.ToLower(strings.TrimSpace(name))]; ok {
@@ -501,7 +511,7 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 
 	bestID, _ := scoring.SelectBest(aiScores, candidates, lastBy, now)
 	if bestID == uuid.Nil {
-		return nil, errors.New("no tea candidates")
+		return nil, ErrNoTeaCandidates
 	}
 
 	best := teas[common.ID(bestID)]

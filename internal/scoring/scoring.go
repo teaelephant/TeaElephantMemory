@@ -31,6 +31,7 @@ func SelectBest(
 ) (uuid.UUID, int) {
 	best := uuid.Nil
 	bestScore := -1 << 30
+
 	var bestExp time.Time
 
 	for _, c := range candidates {
@@ -43,6 +44,7 @@ func SelectBest(
 			} else if v > 15 {
 				v = 15
 			}
+
 			score += v
 		}
 

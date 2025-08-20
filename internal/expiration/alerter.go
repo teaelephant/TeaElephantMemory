@@ -114,6 +114,7 @@ func (a *alerter) processRecord(ctx context.Context, userID uuid.UUID, col *comm
 
 func (a *alerter) loop() {
 	ticker := time.NewTicker(time.Hour * 24 * 7)
+
 loop:
 	for {
 		select {
@@ -125,6 +126,7 @@ loop:
 			}
 		}
 	}
+
 	close(a.stop)
 }
 
