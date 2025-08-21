@@ -478,9 +478,12 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 		return nil, castGQLError(ctx, err)
 	}
 
-	earlyExp := make(map[common.ID]time.Time)
 	earliestRec := make(map[common.ID]*model.QRRecord)
-	teas := make(map[common.ID]*model.Tea)
+	// Build candidates and name mappings on the fly to avoid extra iteration.
+	candidates := make([]scoring.Candidate, 0, 32)
+	names := make([]string, 0, 32)
+	nameToID := make(map[string]uuid.UUID, 32)
+	idToIdx := make(map[uuid.UUID]int, 32)
 
 	for _, c := range cols {
 		records, err := r.ListRecords(ctx, uuid.UUID(c.ID), user.ID)
@@ -493,16 +496,28 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 				continue
 			}
 
-			id := rec.Tea.ID
-			if _, seen := teas[id]; !seen || rec.ExpirationDate.Before(earlyExp[id]) {
-				teas[id] = rec.Tea
-				earlyExp[id] = rec.ExpirationDate
-				earliestRec[id] = rec
+			idCommon := rec.Tea.ID
+			uid := uuid.UUID(idCommon)
+			name := rec.Tea.Name
+
+			if prev, seen := earliestRec[idCommon]; !seen {
+				// first time we see this tea: record earliestRec and add candidate + name mappings
+				earliestRec[idCommon] = rec
+				candidates = append(candidates, scoring.Candidate{ID: uid, Name: name, Expiration: rec.ExpirationDate})
+				idToIdx[uid] = len(candidates) - 1
+				names = append(names, name)
+				nameToID[strings.ToLower(strings.TrimSpace(name))] = uid
+			} else if rec.ExpirationDate.Before(prev.ExpirationDate) {
+				// found an earlier expiration for this tea: update earliestRec and candidate expiration
+				earliestRec[idCommon] = rec
+				if idx, ok := idToIdx[uid]; ok {
+					candidates[idx].Expiration = rec.ExpirationDate
+				}
 			}
 		}
 	}
 
-	if len(teas) == 0 {
+	if len(earliestRec) == 0 {
 		return nil, ErrNoTeas
 	}
 
@@ -517,17 +532,6 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 		}
 	}
 
-	// Prepare candidates and name mappings for AI scoring
-	candidates := make([]scoring.Candidate, 0, len(teas))
-	names := make([]string, 0, len(teas))
-	nameToID := make(map[string]uuid.UUID, len(teas))
-	for id, tea := range teas {
-		uid := uuid.UUID(id)
-		candidates = append(candidates, scoring.Candidate{ID: uid, Name: tea.Name, Expiration: earlyExp[id]})
-		names = append(names, tea.Name)
-		nameToID[strings.ToLower(strings.TrimSpace(tea.Name))] = uid
-	}
-
 	ctxScores, _ := r.ContextScores(ctx, names, w, now.Weekday()) // prefer recommendation even if AI scoring fails
 	aiScores := make(map[uuid.UUID]int, len(ctxScores))
 	for name, score := range ctxScores {
@@ -536,7 +540,35 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 		}
 	}
 
-	bestID, _ := scoring.SelectBest(aiScores, candidates, lastBy, now)
+	// High-level context log
+	if r.log != nil {
+		weekday := now.Weekday().String()
+		var wStr string = w.String()
+		r.log.
+			WithField("user", user.ID.String()).
+			WithField("weekday", weekday).
+			WithField("weather", wStr).
+			WithField("candidates", len(candidates)).
+			Debug("tea_of_day context")
+	}
+
+	// Delegate detailed candidate and selection logging to scoring package
+	var bestID uuid.UUID
+	if r.log != nil {
+		bestID, _ = scoring.SelectBestWithLogging(aiScores, candidates, lastBy, now, func(fields map[string]interface{}, msg string) {
+			entry := r.log.
+				WithField("user", user.ID.String()).
+				WithField("weekday", now.Weekday().String()).
+				WithField("weather", w.String())
+			for k, v := range fields {
+				entry = entry.WithField(k, v)
+			}
+			entry.Debug(msg)
+		})
+	} else {
+		bestID, _ = scoring.SelectBest(aiScores, candidates, lastBy, now)
+	}
+
 	if bestID == uuid.Nil {
 		return nil, ErrNoTeaCandidates
 	}
@@ -546,12 +578,7 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 	// Build QRRecord for the selected tea using the earliest record we observed
 	qrr := earliestRec[common.ID(bestID)]
 	if qrr == nil {
-		qrr = &model.QRRecord{
-			ID:             common.ID(bestID),
-			Tea:            teas[common.ID(bestID)],
-			BowlingTemp:    0,
-			ExpirationDate: earlyExp[common.ID(bestID)],
-		}
+		return nil, ErrNoTeaCandidates
 	}
 
 	res := &model.TeaOfTheDay{Tea: qrr, Date: now}

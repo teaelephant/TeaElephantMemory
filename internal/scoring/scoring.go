@@ -156,3 +156,79 @@ func candidateName(cands []Candidate, id uuid.UUID) string {
 
 	return ""
 }
+
+// LogFunc is a lightweight logging callback used by SelectBestWithLogging to avoid
+// bringing a logging dependency into the scoring package. The provided fields map
+// is expected to be safe for read-only use by the callee.
+type LogFunc func(fields map[string]interface{}, msg string)
+
+func formatTimeRFC3339OrDash(t time.Time) string {
+	if t.IsZero() {
+		return "-"
+	}
+	return t.Format(time.RFC3339)
+}
+
+// SelectBestWithLogging selects the best tea and emits detailed logs via the provided
+// logf callback. If logf is nil, no logs are emitted. It preserves the same scoring
+// rules as SelectBest and returns the chosen tea ID and its total score.
+func SelectBestWithLogging(
+	aiScores map[uuid.UUID]int,
+	candidates []Candidate,
+	lastByTea map[uuid.UUID]time.Time,
+	now time.Time,
+	logf LogFunc,
+) (uuid.UUID, int) {
+	best := Candidate{}
+	bestScore := initialBestScore
+
+	for _, c := range candidates {
+		aiRaw := aiScores[c.ID]
+		aiClamped := clampedAIScore(aiScores, c.ID)
+		recent := recentPenalty(lastByTea, c.ID, now)
+		expBonus := expirationBonus(c.Expiration, now)
+		total := aiClamped + recent + expBonus
+
+		if logf != nil {
+			fields := map[string]interface{}{
+				"name":            c.Name,
+				"id":              c.ID.String(),
+				"aiRaw":           aiRaw,
+				"aiClamped":       aiClamped,
+				"recentPenalty":   recent,
+				"expirationBonus": expBonus,
+				"total":           total,
+				"lastConsumption": formatTimeRFC3339OrDash(lastByTea[c.ID]),
+				"expiration":      formatTimeRFC3339OrDash(c.Expiration),
+			}
+			logf(fields, "tea_of_day candidate")
+		}
+
+		if best.ID == uuid.Nil || betterCandidate(c, total, best, bestScore, candidates) {
+			best = c
+			bestScore = total
+		}
+	}
+
+	if logf != nil && best.ID != uuid.Nil {
+		aiRaw := aiScores[best.ID]
+		aiClamped := clampedAIScore(aiScores, best.ID)
+		recent := recentPenalty(lastByTea, best.ID, now)
+		expBonus := expirationBonus(best.Expiration, now)
+		fields := map[string]interface{}{
+			"name":            best.Name,
+			"id":              best.ID.String(),
+			"aiClamped":       aiClamped,
+			"recentPenalty":   recent,
+			"expirationBonus": expBonus,
+			"total":           aiClamped + recent + expBonus,
+			"lastConsumption": formatTimeRFC3339OrDash(lastByTea[best.ID]),
+			"expiration":      formatTimeRFC3339OrDash(best.Expiration),
+		}
+		// Keep aiRaw in selection log as well for completeness
+		fields["aiRaw"] = aiRaw
+		logf(fields, "tea_of_day selected")
+	}
+
+	return best.ID, bestScore
+}
