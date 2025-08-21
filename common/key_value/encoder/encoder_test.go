@@ -36,8 +36,10 @@ func TestDecode(t *testing.T) {
 		require.NoError(t, err)
 
 		var el []uuid.UUID
+
 		err = Decode(data, el)
 		assert.Error(t, err)
+
 		assert.Empty(t, el)
 	})
 }

@@ -58,6 +58,7 @@ func (t *idSubscribers) SendAll(message common.ID) {
 func (t *idSubscribers) Push(ctx context.Context, ch chan<- common.ID) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+
 	t.subs = append(t.subs, idSubscriber{
 		done: ctx.Done(),
 		ch:   ch,

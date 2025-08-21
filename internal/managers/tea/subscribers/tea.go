@@ -58,6 +58,7 @@ func (t *teaSubscribers) SendAll(message *model.Tea) {
 func (t *teaSubscribers) Push(ctx context.Context, ch chan<- *model.Tea) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+
 	t.subs = append(t.subs, teaSubscriber{
 		done: ctx.Done(),
 		ch:   ch,

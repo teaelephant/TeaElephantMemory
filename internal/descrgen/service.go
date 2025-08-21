@@ -35,8 +35,8 @@ type generator struct {
 
 func (g *generator) GenerateDescription(ctx context.Context, productName string) (string, error) {
 	request := g.createChatCompletionRequest(productName)
-	descriptionResponse, err := g.client.CreateChatCompletion(ctx, request)
 
+	descriptionResponse, err := g.client.CreateChatCompletion(ctx, request)
 	if err != nil {
 		g.log.WithError(err).Error(descriptionGenerationError)
 		return "", err

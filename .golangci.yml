@@ -87,7 +87,7 @@ linters:
     # - godox
     # Go linter to check the errors handling expressions.
     - err113
-    # - mnd
+    - mnd
     # Checks that printf-like functions are named with f at the end.
     - goprintffuncname
     # Inspects source code for security problems.
@@ -336,7 +336,7 @@ linters:
     # Computes and checks the cyclomatic complexity of functions.
     gocyclo:
       # Minimal code complexity to report, 30 by default but recommend 10-20.
-      min-complexity: 20
+      min-complexity: 10
 
     mnd:
       # List of enabled checks, see https://github.com/tommy-muehle/go-mnd/#checks for description.
@@ -352,17 +352,6 @@ linters:
       # The numbers should be written as string.
       # Values always ignored: "1", "1.0", "0" and "0.0"
       # Default: []
-      ignored-numbers:
-        - '3'
-        - '7'
-        - '10'
-        - '15'
-        - '60'
-        - '64'
-        - '100'
-        - '1000'
-        - '1024'
-        - '100000000'
       # List of file patterns to exclude from analysis.
       # Values always ignored: `.+_test.go`
       # Default: []

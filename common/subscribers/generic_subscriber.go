@@ -65,6 +65,7 @@ func (s *subscribersImpl[T]) SendAll(message T) {
 func (s *subscribersImpl[T]) Push(ctx context.Context, ch chan<- T) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	s.subs = append(s.subs, Subscriber[T]{
 		ctx: ctx,
 		ch:  ch,

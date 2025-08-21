@@ -40,6 +40,7 @@ func NewMemoryStore(retention time.Duration) *MemoryStore {
 	if retention <= 0 {
 		retention = 30 * 24 * time.Hour // default 30 days
 	}
+
 	return &MemoryStore{data: make(map[uuid.UUID][]Consumption), retention: retention}
 }
 
@@ -53,6 +54,7 @@ func (m *MemoryStore) Record(_ context.Context, userID uuid.UUID, teaID uuid.UUI
 	// Retain only events within retention window
 	cutoff := ts.Add(-m.retention)
 	events := m.data[userID]
+
 	filtered := events[:0]
 	for _, e := range events {
 		if e.Time.After(cutoff) {
@@ -61,6 +63,7 @@ func (m *MemoryStore) Record(_ context.Context, userID uuid.UUID, teaID uuid.UUI
 	}
 	// Copy to avoid aliasing if needed
 	m.data[userID] = append([]Consumption(nil), filtered...)
+
 	return nil
 }
 
