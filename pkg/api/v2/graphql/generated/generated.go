@@ -1068,7 +1068,7 @@ type Mutation {
 }
 
 type TeaOfTheDay {
-    tea: Tea!
+    tea: QRRecord!
     date: Date!
 }
 
@@ -5542,9 +5542,9 @@ func (ec *executionContext) _TeaOfTheDay_tea(ctx context.Context, field graphql.
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.Tea)
+	res := resTmp.(*model.QRRecord)
 	fc.Result = res
-	return ec.marshalNTea2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTea(ctx, field.Selections, res)
+	return ec.marshalNQRRecord2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐQRRecord(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_TeaOfTheDay_tea(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -5556,17 +5556,15 @@ func (ec *executionContext) fieldContext_TeaOfTheDay_tea(_ context.Context, fiel
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_Tea_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Tea_name(ctx, field)
-			case "type":
-				return ec.fieldContext_Tea_type(ctx, field)
-			case "description":
-				return ec.fieldContext_Tea_description(ctx, field)
-			case "tags":
-				return ec.fieldContext_Tea_tags(ctx, field)
+				return ec.fieldContext_QRRecord_id(ctx, field)
+			case "tea":
+				return ec.fieldContext_QRRecord_tea(ctx, field)
+			case "bowlingTemp":
+				return ec.fieldContext_QRRecord_bowlingTemp(ctx, field)
+			case "expirationDate":
+				return ec.fieldContext_QRRecord_expirationDate(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Tea", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type QRRecord", field.Name)
 		},
 	}
 	return fc, nil

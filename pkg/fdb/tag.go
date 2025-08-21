@@ -2,6 +2,7 @@ package fdb
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/apple/foundationdb/bindings/go/src/fdb"
 	"github.com/google/uuid"
@@ -88,52 +89,57 @@ func (d *db) GetTagCategory(ctx context.Context, id uuid.UUID) (category *common
 }
 
 func (d *db) ListTagCategories(ctx context.Context, search *string) (list []common.TagCategory, err error) {
-	records := make([]common.TagCategory, 0)
-
 	tr, err := d.db.NewTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
-
 	if search == nil || *search == "" {
-		pr, err := fdb.PrefixRange(d.keyBuilder.TagCategories())
-		if err != nil {
-			return nil, err
-		}
-
-		kvs, err := tr.GetRange(pr)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, kv := range kvs {
-			id, err := uuid.FromBytes(kv.Key[1:])
-			if err != nil {
-				id = uuid.Nil
-			}
-
-			records = append(records, common.TagCategory{
-				ID:   id,
-				Name: string(kv.Value),
-			})
-		}
-
-		return records, nil
+		return d.readAllCategories(tr)
 	}
 
-	pr, err := fdb.PrefixRange(d.keyBuilder.TagCategoryByName(*search))
+	return d.readCategoriesByName(tr, *search)
+}
+
+func (d *db) readAllCategories(tr fdbclient.Transaction) ([]common.TagCategory, error) {
+	records := make([]common.TagCategory, 0)
+
+	pr, err := fdb.PrefixRange(d.keyBuilder.TagCategories())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tag categories prefix range: %w", err)
 	}
 
 	kvs, err := tr.GetRange(pr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get range categories: %w", err)
+	}
+
+	for _, kv := range kvs {
+		id, err := uuid.FromBytes(kv.Key[1:])
+		if err != nil {
+			id = uuid.Nil
+		}
+
+		records = append(records, common.TagCategory{ID: id, Name: string(kv.Value)})
+	}
+
+	return records, nil
+}
+
+func (d *db) readCategoriesByName(tr fdbclient.Transaction, search string) ([]common.TagCategory, error) {
+	records := make([]common.TagCategory, 0)
+
+	pr, err := fdb.PrefixRange(d.keyBuilder.TagCategoryByName(search))
+	if err != nil {
+		return nil, fmt.Errorf("tag categories by name prefix range: %w", err)
+	}
+
+	kvs, err := tr.GetRange(pr)
+	if err != nil {
+		return nil, fmt.Errorf("get range categories by name: %w", err)
 	}
 
 	for _, kv := range kvs {
 		id := new(uuid.UUID)
-
 		if err = id.UnmarshalBinary(kv.Value); err != nil {
 			return nil, err
 		}
@@ -298,8 +304,6 @@ func (d *db) GetTag(ctx context.Context, id uuid.UUID) (*common.Tag, error) {
 }
 
 func (d *db) ListTags(ctx context.Context, name *string, categoryID *uuid.UUID) (list []common.Tag, err error) {
-	records := make([]common.Tag, 0)
-
 	tr, err := d.db.NewTransaction(ctx)
 	if err != nil {
 		return nil, err
@@ -307,77 +311,75 @@ func (d *db) ListTags(ctx context.Context, name *string, categoryID *uuid.UUID) 
 
 	hasFilterByName := name != nil && *name != ""
 	if !hasFilterByName && categoryID == nil {
-		pr, err := fdb.PrefixRange(d.keyBuilder.Tags())
-		if err != nil {
-			return nil, err
-		}
-
-		kvs, err := tr.GetRange(pr)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, kv := range kvs {
-			tagData := new(encoder.TagData)
-			if err = tagData.Decode(kv.Value); err != nil {
-				return nil, err
-			}
-
-			id, err := uuid.FromBytes(kv.Key[1:])
-			if err != nil {
-				id = uuid.Nil
-			}
-
-			records = append(records, common.Tag{
-				ID:      id,
-				TagData: (*common.TagData)(tagData),
-			})
-		}
-
-		return records, nil
+		return d.listAllTags(tr)
 	}
 
 	if categoryID == nil {
-		pr, err := fdb.PrefixRange(d.keyBuilder.TagsByName(*name))
-		if err != nil {
-			return nil, err
-		}
-
-		kvs, err := tr.GetRange(pr)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, kv := range kvs {
-			id := new(uuid.UUID)
-			if err = id.UnmarshalBinary(kv.Value); err != nil {
-				return nil, err
-			}
-
-			rec, err := d.readTag(*id, tr)
-			if err != nil {
-				return nil, err
-			}
-
-			records = append(records, common.Tag{
-				ID:      *id,
-				TagData: rec,
-			})
-		}
-
-		return records, nil
+		return d.listTagsByName(tr, *name)
 	}
 
 	if !hasFilterByName {
-		if records, err = d.readTagsByCategoryID(tr, *categoryID); err != nil {
+		return d.readTagsByCategoryID(tr, *categoryID)
+	}
+
+	return d.readTagsByNameAndCategoryID(tr, *name, *categoryID)
+}
+
+func (d *db) listAllTags(tr fdbclient.Transaction) ([]common.Tag, error) {
+	records := make([]common.Tag, 0)
+
+	pr, err := fdb.PrefixRange(d.keyBuilder.Tags())
+	if err != nil {
+		return nil, fmt.Errorf("tags prefix range: %w", err)
+	}
+
+	kvs, err := tr.GetRange(pr)
+	if err != nil {
+		return nil, fmt.Errorf("get range tags: %w", err)
+	}
+
+	for _, kv := range kvs {
+		tagData := new(encoder.TagData)
+		if err = tagData.Decode(kv.Value); err != nil {
 			return nil, err
 		}
 
-		return records, nil
+		id, err := uuid.FromBytes(kv.Key[1:])
+		if err != nil {
+			id = uuid.Nil
+		}
+
+		records = append(records, common.Tag{ID: id, TagData: (*common.TagData)(tagData)})
 	}
 
-	if records, err = d.readTagsByNameAndCategoryID(tr, *name, *categoryID); err != nil {
-		return nil, err
+	return records, nil
+}
+
+func (d *db) listTagsByName(tr fdbclient.Transaction, name string) ([]common.Tag, error) {
+	records := make([]common.Tag, 0)
+
+	pr, err := fdb.PrefixRange(d.keyBuilder.TagsByName(name))
+	if err != nil {
+		return nil, fmt.Errorf("tags by name prefix range: %w", err)
+	}
+
+	kvs, err := tr.GetRange(pr)
+	if err != nil {
+		return nil, fmt.Errorf("get range tags by name: %w", err)
+	}
+
+	for _, kv := range kvs {
+		id := new(uuid.UUID)
+		if err = id.UnmarshalBinary(kv.Value); err != nil {
+			return nil, err
+		}
+
+		rec, err := d.readTag(*id, tr)
+		if err != nil {
+			return nil, err
+		}
+
+		records = append(records, common.Tag{ID: *id, TagData: rec})
 	}
 
 	return records, nil

@@ -52,7 +52,7 @@ type Mutation {
 }
 
 type TeaOfTheDay {
-    tea: Tea!
+    tea: QRRecord!
     date: Date!
 }
 

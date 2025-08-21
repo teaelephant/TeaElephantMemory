@@ -78,7 +78,7 @@ type TeaData struct {
 }
 
 type TeaOfTheDay struct {
-	Tea  *Tea      `json:"tea"`
+	Tea  *QRRecord `json:"tea"`
 	Date time.Time `json:"date"`
 }
 

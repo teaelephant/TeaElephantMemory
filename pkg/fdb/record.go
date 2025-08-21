@@ -2,6 +2,7 @@ package fdb
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/apple/foundationdb/bindings/go/src/fdb"
 	"github.com/google/uuid"
@@ -11,6 +12,8 @@ import (
 	common2 "github.com/teaelephant/TeaElephantMemory/pkg/fdb/common"
 	"github.com/teaelephant/TeaElephantMemory/pkg/fdbclient"
 )
+
+const iteratorGetFmt = "iterator get: %w"
 
 type record interface {
 	WriteRecord(ctx context.Context, rec *common.TeaData) (record *common.Tea, err error)
@@ -34,76 +37,73 @@ func (d *db) ReadRecord(ctx context.Context, id uuid.UUID) (*common.Tea, error) 
 }
 
 func (d *db) ReadAllRecords(ctx context.Context, search string) ([]common.Tea, error) {
-	records := make([]common.Tea, 0)
-
 	tr, err := d.db.NewTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	if search == "" {
-		pr, err := fdb.PrefixRange(d.keyBuilder.Records())
-		if err != nil {
-			return nil, err
-		}
-
-		it := tr.GetIterator(pr)
-
-		for it.Advance() {
-			kv, err := it.Get()
-			if err != nil {
-				return nil, err
-			}
-
-			rec := new(encoder.TeaData)
-			if err = rec.Decode(kv.Value); err != nil {
-				return nil, err
-			}
-
-			id, err := uuid.FromBytes(kv.Key[1:])
-			if err != nil {
-				id = uuid.Nil
-			}
-
-			records = append(records, common.Tea{
-				ID:      id,
-				TeaData: rec.ToCommonTeaData(),
-			})
-		}
-
-		return records, nil
+		return d.readAllWithoutSearch(tr)
 	}
 
+	return d.readAllByPrefix(tr, search)
+}
+
+func (d *db) readAllWithoutSearch(tr fdbclient.Transaction) ([]common.Tea, error) {
+	records := make([]common.Tea, 0)
+
+	pr, err := fdb.PrefixRange(d.keyBuilder.Records())
+	if err != nil {
+		return nil, fmt.Errorf("records prefix range: %w", err)
+	}
+
+	it := tr.GetIterator(pr)
+	for it.Advance() {
+		kv, err := it.Get()
+		if err != nil {
+			return nil, fmt.Errorf(iteratorGetFmt, err)
+		}
+
+		rec := new(encoder.TeaData)
+		if err = rec.Decode(kv.Value); err != nil {
+			return nil, fmt.Errorf("decode tea data: %w", err)
+		}
+
+		id, err := uuid.FromBytes(kv.Key[1:])
+		if err != nil {
+			id = uuid.Nil
+		}
+
+		records = append(records, common.Tea{ID: id, TeaData: rec.ToCommonTeaData()})
+	}
+
+	return records, nil
+}
+
+func (d *db) readAllByPrefix(tr fdbclient.Transaction, search string) ([]common.Tea, error) {
 	prefix := d.keyBuilder.RecordsByName(search)
-
 	d.log.WithField("prefix", string(prefix)).Debug("search by prefix")
-
 	pr, err := fdb.PrefixRange(prefix)
 	if err != nil {
 		return nil, err
 	}
-
 	it := tr.GetIterator(pr)
-
+	records := make([]common.Tea, 0)
 	for it.Advance() {
 		kv, err := it.Get()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf(iteratorGetFmt, err)
 		}
-
 		id := new(uuid.UUID)
 		if err = id.UnmarshalBinary(kv.Value); err != nil {
 			return nil, err
 		}
-
 		rec, err := d.readRecord(*id, tr)
 		if err != nil {
 			return nil, err
 		}
-
 		records = append(records, *rec)
 	}
-
 	return records, nil
 }
 

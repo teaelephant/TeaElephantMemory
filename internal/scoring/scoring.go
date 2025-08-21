@@ -42,6 +42,80 @@ type Candidate struct {
 	Expiration time.Time // earliest expiration among user records for this tea; zero if unknown
 }
 
+func clampedAIScore(aiScores map[uuid.UUID]int, id uuid.UUID) int {
+	v, ok := aiScores[id]
+	if !ok {
+		return 0
+	}
+
+	if v < aiScoreMin {
+		return aiScoreMin
+	}
+
+	if v > aiScoreMax {
+		return aiScoreMax
+	}
+
+	return v
+}
+
+func recentPenalty(lastByTea map[uuid.UUID]time.Time, id uuid.UUID, now time.Time) int {
+	last, ok := lastByTea[id]
+	if !ok {
+		return 0
+	}
+
+	diff := now.Sub(last)
+	if diff <= recent24h {
+		return -penaltyWithin24h
+	}
+
+	if diff <= recent48h {
+		return -penaltyWithin48h
+	}
+
+	return 0
+}
+
+func expirationBonus(exp time.Time, now time.Time) int {
+	if exp.IsZero() {
+		return 0
+	}
+
+	delta := exp.Sub(now)
+	if delta <= expSoonThreshold {
+		return bonusExpSoon
+	}
+
+	if delta <= expUpcomingThreshold {
+		return bonusExpUpcoming
+	}
+
+	return 0
+}
+
+func betterCandidate(curr Candidate, currScore int, best Candidate, bestScore int, candidates []Candidate) bool {
+	if currScore > bestScore {
+		return true
+	}
+
+	if currScore < bestScore {
+		return false
+	}
+	// equal scores: tie-breakers
+	if !curr.Expiration.IsZero() {
+		if best.Expiration.IsZero() || curr.Expiration.Before(best.Expiration) {
+			return true
+		}
+
+		if curr.Expiration.After(best.Expiration) {
+			return false
+		}
+	}
+	// same expiration (or both zero) -> lexical by name
+	return strings.Compare(curr.Name, candidateName(candidates, best.ID)) < 0
+}
+
 // SelectBest selects the best tea according to the scoring rules.
 // Inputs:
 // - aiScores: context-aware scores (0..15) provided by AI per tea ID (weather + day-of-week)
@@ -55,67 +129,22 @@ func SelectBest(
 	lastByTea map[uuid.UUID]time.Time,
 	now time.Time,
 ) (uuid.UUID, int) {
-	best := uuid.Nil
+	best := Candidate{}
 	bestScore := initialBestScore
-
-	var bestExp time.Time
 
 	for _, c := range candidates {
 		score := 0
+		score += clampedAIScore(aiScores, c.ID)
+		score += recentPenalty(lastByTea, c.ID, now)
+		score += expirationBonus(c.Expiration, now)
 
-		// AI-provided context score (weather + day-of-week), clamp to [aiScoreMin, aiScoreMax]
-		if v, ok := aiScores[c.ID]; ok {
-			if v < aiScoreMin {
-				v = aiScoreMin
-			} else if v > aiScoreMax {
-				v = aiScoreMax
-			}
-
-			score += v
-		}
-
-		// Recent consumption penalty
-		if last, ok := lastByTea[c.ID]; ok {
-			diff := now.Sub(last)
-			if diff <= recent24h {
-				score -= penaltyWithin24h
-			} else if diff <= recent48h {
-				score -= penaltyWithin48h
-			}
-		}
-
-		// Expiration bonus
-		if !c.Expiration.IsZero() {
-			delta := c.Expiration.Sub(now)
-			if delta <= expSoonThreshold {
-				score += bonusExpSoon
-			} else if delta <= expUpcomingThreshold {
-				score += bonusExpUpcoming
-			}
-		}
-
-		// Compare with current best. Tie-breakers: earliest expiration, then lexical by name.
-		switch {
-		case score > bestScore:
-			best = c.ID
+		if best.ID == uuid.Nil || betterCandidate(c, score, best, bestScore, candidates) {
+			best = c
 			bestScore = score
-			bestExp = c.Expiration
-		case score == bestScore:
-			if !c.Expiration.IsZero() {
-				if bestExp.IsZero() || c.Expiration.Before(bestExp) {
-					best = c.ID
-					bestExp = c.Expiration
-				}
-			} else if c.Expiration.Equal(bestExp) {
-				// stable tie-breaker by name
-				if strings.Compare(c.Name, candidateName(candidates, best)) < 0 {
-					best = c.ID
-				}
-			}
 		}
 	}
 
-	return best, bestScore
+	return best.ID, bestScore
 }
 
 func candidateName(cands []Candidate, id uuid.UUID) string {

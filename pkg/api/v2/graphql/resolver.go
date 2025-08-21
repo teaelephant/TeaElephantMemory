@@ -2,6 +2,7 @@ package graphql
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,6 +15,13 @@ import (
 )
 
 //go:generate go run github.com/99designs/gqlgen --config gqlgen.yml generate
+
+var (
+	// ErrNoTeas indicates the user has no teas in their collections to select from.
+	ErrNoTeas = errors.New("you should have more teas")
+	// ErrNoTeaCandidates indicates scoring produced no valid tea candidates.
+	ErrNoTeaCandidates = errors.New("no tea candidates")
+)
 
 type logger interface {
 	Debug(args ...interface{})

@@ -40,29 +40,8 @@ func (c *Client) addQRCode(table *creator.Table, data []byte, index int) error {
 		return errors.Wrap(err, "failed to create image")
 	}
 
-	indexOnList := index % codesOnList
-
-	var (
-		top, bottom, left, right float64
-	)
-
-	if indexOnList != 0 && indexOnList != 1 {
-		top = 7
-	}
-
-	if indexOnList != 4 && indexOnList != 5 {
-		bottom = 7
-	}
-
-	if indexOnList != 0 && indexOnList != 2 && indexOnList != 4 {
-		left = 7
-	}
-
-	if indexOnList != 1 && indexOnList != 3 && indexOnList != 5 {
-		right = 7
-	}
-
-	image.SetMargins(left, right, top, bottom)
+	l, r, t, b := qrMargins(index % codesOnList)
+	image.SetMargins(l, r, t, b)
 	image.SetFitMode(creator.FitModeFillWidth)
 
 	cell := table.NewCell()
@@ -73,4 +52,18 @@ func (c *Client) addQRCode(table *creator.Table, data []byte, index int) error {
 	}
 
 	return nil
+}
+
+var qrMarginTable = [codesOnList][4]float64{
+	{0, 7, 0, 7}, // idx 0
+	{7, 0, 0, 7}, // idx 1
+	{0, 7, 7, 7}, // idx 2
+	{7, 0, 7, 7}, // idx 3
+	{0, 7, 7, 0}, // idx 4
+	{7, 0, 7, 0}, // idx 5
+}
+
+func qrMargins(indexOnList int) (left, right, top, bottom float64) {
+	m := qrMarginTable[indexOnList]
+	return m[0], m[1], m[2], m[3]
 }

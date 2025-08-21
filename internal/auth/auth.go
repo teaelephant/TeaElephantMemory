@@ -70,49 +70,19 @@ type auth struct {
 }
 
 func (a *auth) Validate(_ context.Context, jwtToken string) (*common.User, error) {
-	result, err := jwt.Parse(jwtToken, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
-			return nil, fmt.Errorf("%w: %v", errUnexpectedSigningMethod, token.Header["alg"])
-		}
-
-		// getSecret() returns the ECDSA private key used for signing and verification
-		key, err := a.getSecret()
-		if err != nil {
-			return nil, fmt.Errorf(getSecretWrapF, err)
-		}
-
-		if privKey, ok := key.(*ecdsa.PrivateKey); ok {
-			return &privKey.PublicKey, nil
-		}
-
-		return key, nil
-	})
+	result, err := jwt.Parse(jwtToken, a.verificationKey)
 	if err != nil {
 		return nil, fmt.Errorf("parse jwt: %w", err)
 	}
 
-	claims, ok := result.Claims.(jwt.MapClaims)
-	if !ok || !result.Valid {
-		return nil, common.ErrInvalidToken
-	}
-
-	exp, err := claims.GetExpirationTime()
+	claims, exp, err := extractValidClaims(result)
 	if err != nil {
-		return nil, fmt.Errorf("get expiration time: %w", err)
+		return nil, err
 	}
 
-	if time.Now().After(exp.Time) {
-		return nil, common.ErrExpiredToken
-	}
-
-	userIDStr, err := claims.GetIssuer()
+	userID, err := issuerUUID(claims)
 	if err != nil {
-		return nil, fmt.Errorf("get issuer: %w", err)
-	}
-
-	userID, err := uuid.Parse(userIDStr)
-	if err != nil {
-		return nil, fmt.Errorf("parse uuid: %w", err)
+		return nil, err
 	}
 
 	return &common.User{
@@ -120,9 +90,59 @@ func (a *auth) Validate(_ context.Context, jwtToken string) (*common.User, error
 		ID: userID,
 		Session: common.Session{
 			JWT:       jwtToken,
-			ExpiredAt: exp.Time,
+			ExpiredAt: exp,
 		},
 	}, nil
+}
+
+// verificationKey validates the signing method and returns the appropriate key for verification
+func (a *auth) verificationKey(token *jwt.Token) (interface{}, error) {
+	if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
+		return nil, fmt.Errorf("%w: %v", errUnexpectedSigningMethod, token.Header["alg"])
+	}
+
+	key, err := a.getSecret()
+	if err != nil {
+		return nil, fmt.Errorf(getSecretWrapF, err)
+	}
+
+	if privKey, ok := key.(*ecdsa.PrivateKey); ok {
+		return &privKey.PublicKey, nil
+	}
+
+	return key, nil
+}
+
+func extractValidClaims(result *jwt.Token) (jwt.MapClaims, time.Time, error) {
+	claims, ok := result.Claims.(jwt.MapClaims)
+	if !ok || !result.Valid {
+		return nil, time.Time{}, common.ErrInvalidToken
+	}
+
+	exp, err := claims.GetExpirationTime()
+	if err != nil {
+		return nil, time.Time{}, fmt.Errorf("get expiration time: %w", err)
+	}
+
+	if time.Now().After(exp.Time) {
+		return nil, time.Time{}, common.ErrExpiredToken
+	}
+
+	return claims, exp.Time, nil
+}
+
+func issuerUUID(claims jwt.MapClaims) (uuid.UUID, error) {
+	userIDStr, err := claims.GetIssuer()
+	if err != nil {
+		return uuid.UUID{}, fmt.Errorf("get issuer: %w", err)
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return uuid.UUID{}, fmt.Errorf("parse uuid: %w", err)
+	}
+
+	return userID, nil
 }
 
 func (a *auth) Start() (err error) {
