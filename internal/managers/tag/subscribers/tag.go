@@ -1,3 +1,4 @@
+//nolint:dupl // similar structure to tag_category subscribers
 package subscribers
 
 import (
@@ -12,6 +13,7 @@ type tagSubscriber struct {
 	ch   chan<- *model.Tag
 }
 
+// TagSubscribers manages a set of subscribers receiving Tag updates.
 type TagSubscribers interface {
 	Push(ctx context.Context, ch chan<- *model.Tag)
 	SendAll(message *model.Tag)
@@ -65,6 +67,7 @@ func (t *tagSubscribers) Push(ctx context.Context, ch chan<- *model.Tag) {
 	})
 }
 
+// NewTagSubscribers creates a new TagSubscribers collection.
 func NewTagSubscribers() TagSubscribers {
 	return &tagSubscribers{subs: make([]tagSubscriber, 0)}
 }

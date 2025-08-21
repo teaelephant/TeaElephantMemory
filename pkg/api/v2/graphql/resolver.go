@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
 	"github.com/teaelephant/TeaElephantMemory/internal/consumption"
@@ -15,7 +16,8 @@ import (
 //go:generate go run github.com/99designs/gqlgen --config gqlgen.yml generate
 
 type logger interface {
-	Debug(msgs ...interface{})
+	Debug(args ...interface{})
+	WithField(key string, value interface{}) *logrus.Entry
 }
 
 type teaData interface {
@@ -97,6 +99,7 @@ type weather interface {
 	CurrentCyprus(ctx context.Context) (common.Weather, error)
 }
 
+// Resolver wires together data sources and services for GraphQL resolvers.
 type Resolver struct {
 	teaData
 	qrManager
@@ -110,9 +113,11 @@ type Resolver struct {
 	weather
 	consumption consumption.Store
 
-	log logger
+	todCache *teaOfTheDayCache
+	log      logger
 }
 
+// NewResolver constructs a Resolver with its required dependencies.
 func NewResolver(
 	logger logger,
 	teaData teaData,
@@ -139,6 +144,7 @@ func NewResolver(
 		adviser:              adviser,
 		weather:              weather,
 		consumption:          cons,
+		todCache:             newTeaOfTheDayCache(),
 		log:                  logger,
 	}
 }

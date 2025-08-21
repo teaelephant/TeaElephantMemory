@@ -1,7 +1,9 @@
+// Package apns provides Apple Push Notification sending.
 package apns
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,6 +12,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const apnsIDField = "apns id"
+
+// Sender delivers APNS notifications for a user's devices.
 type Sender interface {
 	Send(ctx context.Context, userID, itemID uuid.UUID, title, body string) error
 }
@@ -29,7 +34,7 @@ type sender struct {
 func (s *sender) Send(ctx context.Context, userID, itemID uuid.UUID, title, body string) error {
 	deviceTokens, err := s.MapUserIdToDeviceID(ctx, userID)
 	if err != nil {
-		return err
+		return fmt.Errorf("map user id to device id: %w", err)
 	}
 
 	for _, device := range deviceTokens {
@@ -47,16 +52,16 @@ func (s *sender) Send(ctx context.Context, userID, itemID uuid.UUID, title, body
 
 		res, err := s.client.PushWithContext(ctx, notification)
 		if err != nil {
-			return err
+			return fmt.Errorf("push apns: %w", err)
 		}
 
 		if res.Sent() {
-			s.log.WithField("apns id", res.ApnsID).Debug("Sent signal")
+			s.log.WithField(apnsIDField, res.ApnsID).Debug("Sent signal")
 		} else {
 			s.log.
 				WithField("host", s.client.Host).
 				WithField("status code", res.StatusCode).
-				WithField("apns id", res.ApnsID).
+				WithField(apnsIDField, res.ApnsID).
 				WithField("reason", res.Reason).
 				Warn("Notification not Sent")
 		}
@@ -65,6 +70,7 @@ func (s *sender) Send(ctx context.Context, userID, itemID uuid.UUID, title, body
 	return nil
 }
 
+// NewSender constructs a new APNS sender with a client, topic, mapper and logger.
 func NewSender(client *apns2.Client, topic string, mapper userIDMapper, log *logrus.Entry) Sender {
 	return &sender{
 		topic:        topic,

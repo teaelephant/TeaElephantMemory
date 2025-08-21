@@ -12,6 +12,7 @@ type idSubscriber struct {
 	ch   chan<- common.ID
 }
 
+// IDSubscribers manages a set of subscribers receiving ID updates.
 type IDSubscribers interface {
 	Push(ctx context.Context, ch chan<- common.ID)
 	SendAll(message common.ID)
@@ -65,6 +66,7 @@ func (t *idSubscribers) Push(ctx context.Context, ch chan<- common.ID) {
 	})
 }
 
+// NewIDSubscribers creates a new IDSubscribers collection.
 func NewIDSubscribers() IDSubscribers {
 	return &idSubscribers{subs: make([]idSubscriber, 0)}
 }

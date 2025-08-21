@@ -1,6 +1,8 @@
+// Package server wires HTTP server, GraphQL transports, routes, and middlewares.
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -21,6 +23,12 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/graphql/generated"
 )
 
+const (
+	v2QueryPath     = "/v2/query"
+	staticIndexPath = "./static/index.html"
+)
+
+// Server aggregates the GraphQL resolvers, router, middlewares and ws init logic.
 type Server struct {
 	resolvers   generated.ResolverRoot
 	router      *mux.Router
@@ -28,8 +36,10 @@ type Server struct {
 	wsInitFunc  transport.WebsocketInitFunc
 }
 
+// Middleware represents an HTTP middleware function.
 type Middleware func(handler http.Handler) http.Handler
 
+// Run starts the HTTP server.
 func (s *Server) Run() error {
 	http.Handle("/", s.router)
 
@@ -37,9 +47,14 @@ func (s *Server) Run() error {
 
 	logrus.Info("server start on port 8080")
 
-	return http.ListenAndServe(":8080", handlers.CORS(originsOk)(s.router))
+	if err := http.ListenAndServe(":8080", handlers.CORS(originsOk)(s.router)); err != nil { //nolint:gosec // dev server without custom timeouts
+		return fmt.Errorf("listen and serve: %w", err)
+	}
+
+	return nil
 }
 
+// InitV2Api configures GraphQL transports, cache, middlewares, and routes.
 func (s *Server) InitV2Api() {
 	srv := handler.New(
 		generated.NewExecutableSchema(
@@ -49,7 +64,7 @@ func (s *Server) InitV2Api() {
 		InitFunc:              s.wsInitFunc,
 		KeepAlivePingInterval: 10 * time.Second,
 		Upgrader: websocket.Upgrader{
-			CheckOrigin: func(r *http.Request) bool {
+			CheckOrigin: func(_ *http.Request) bool {
 				// Check against your desired domains here
 				return true
 			},
@@ -76,9 +91,9 @@ func (s *Server) InitV2Api() {
 	// srv.Use(extension.FixedComplexityLimit(100))
 
 	s.router.Use()
-	s.router.Handle("/v2/", playground.Handler("GraphQL playground", "/v2/query"))
-	s.router.Handle("/v2/query", srv)
-	s.router.Handle("/health", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s.router.Handle("/v2/", playground.Handler("GraphQL playground", v2QueryPath))
+	s.router.Handle(v2QueryPath, srv)
+	s.router.Handle("/health", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	s.router.Handle("/metrics", promhttp.Handler())
@@ -86,13 +101,14 @@ func (s *Server) InitV2Api() {
 		http.ServeFile(w, r, "./static/apple-app-site-association")
 	})
 	s.router.HandleFunc("/index.html", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./static/index.html")
+		http.ServeFile(w, r, staticIndexPath)
 	})
 	s.router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./static/index.html")
+		http.ServeFile(w, r, staticIndexPath)
 	})
 }
 
+// NewServer creates the HTTP server wiring resolvers, middlewares, and websocket init.
 func NewServer(resolvers generated.ResolverRoot, middlewares []graphql.HandlerExtension, wsInitFunc transport.WebsocketInitFunc) *Server {
 	return &Server{resolvers: resolvers, router: mux.NewRouter(), middlewares: middlewares, wsInitFunc: wsInitFunc}
 }

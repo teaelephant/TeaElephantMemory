@@ -1,3 +1,4 @@
+// Package graphql contains GraphQL schema-related helpers and error handling utilities.
 package graphql
 
 import (
@@ -9,8 +10,10 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/common"
 )
 
+// GQLErrorCode provides machine-readable codes for GraphQL errors returned to clients.
 type GQLErrorCode int
 
+// Predefined GraphQL error codes for commonly encountered errors.
 const (
 	ErrQRRecordNotExist GQLErrorCode = iota
 	ErrExpiredToken

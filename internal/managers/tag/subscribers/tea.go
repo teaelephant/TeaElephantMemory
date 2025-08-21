@@ -1,3 +1,4 @@
+//nolint:dupl // similar structure to tag and tag_category subscribers
 package subscribers
 
 import (
@@ -12,6 +13,7 @@ type teaSubscriber struct {
 	ch   chan<- *model.Tea
 }
 
+// TeaSubscribers manages a set of subscribers receiving Tea updates.
 type TeaSubscribers interface {
 	Push(ctx context.Context, ch chan<- *model.Tea)
 	SendAll(message *model.Tea)
@@ -58,12 +60,14 @@ func (t *teaSubscribers) SendAll(message *model.Tea) {
 func (t *teaSubscribers) Push(ctx context.Context, ch chan<- *model.Tea) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+
 	t.subs = append(t.subs, teaSubscriber{
 		done: ctx.Done(),
 		ch:   ch,
 	})
 }
 
+// NewTeaSubscribers creates a new TeaSubscribers collection.
 func NewTeaSubscribers() TeaSubscribers {
 	return &teaSubscribers{subs: make([]teaSubscriber, 0)}
 }

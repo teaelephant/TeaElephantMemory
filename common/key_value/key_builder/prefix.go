@@ -25,4 +25,5 @@ var (
 	userIndexAppleID       = []byte{'i', 'i'}
 	userIndexNotifications = []byte{'i', 'u'}
 	userIndexDevices       = []byte{'i', 'd'}
+	userIndexConsumption   = []byte{'i', 'x'}
 )

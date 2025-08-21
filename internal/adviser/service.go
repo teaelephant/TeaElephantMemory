@@ -6,6 +6,7 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"text/template"
 	"time"
@@ -19,11 +20,19 @@ import (
 const (
 	prompt             = "prompt.gotpl"
 	contextScoringTmpl = "context_scoring.gotpl"
+
+	logDescGenErrMsg = "description generation error"
+	logRequestField  = "request"
+	logResponseField = "response"
+
+	errExecuteTemplateF      = "execute template: %w"
+	errCreateChatCompletionF = "create chat completion: %w"
 )
 
 //go:embed prompt.gotpl context_scoring.gotpl
 var f embed.FS
 
+// Adviser defines AI-powered tea recommendation and scoring capabilities.
 type Adviser interface {
 	RecommendTea(ctx context.Context, teas []common.Tea, weather common.Weather, feelings string) (string, error)
 	RecommendTeaStream(ctx context.Context, teas []common.Tea, weather common.Weather, feelings string, res chan<- string) error
@@ -45,7 +54,7 @@ func (s *service) RecommendTea(
 
 	content, err := s.execute(t)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf(errExecuteTemplateF, err)
 	}
 
 	resp, err := s.client.CreateChatCompletion(
@@ -60,13 +69,12 @@ func (s *service) RecommendTea(
 			},
 		},
 	)
-
 	if err != nil {
-		s.log.WithError(err).Error("description generation error")
-		return "", err
+		s.log.WithError(err).Error(logDescGenErrMsg)
+		return "", fmt.Errorf(errCreateChatCompletionF, err)
 	}
 
-	s.log.WithField("request", content).WithField("response", resp).Debug("recommendation result")
+	s.log.WithField(logRequestField, content).WithField(logResponseField, resp).Debug("recommendation result")
 
 	return resp.Choices[0].Message.Content, nil
 }
@@ -100,7 +108,7 @@ func (s *service) RecommendTeaStream(
 
 	content, err := s.execute(t)
 	if err != nil {
-		return err
+		return fmt.Errorf(errExecuteTemplateF, err)
 	}
 
 	req := openai.ChatCompletionRequest{
@@ -115,8 +123,8 @@ func (s *service) RecommendTeaStream(
 
 	stream, err := s.client.CreateChatCompletionStream(ctx, req)
 	if err != nil {
-		s.log.WithError(err).Error("description generation error")
-		return err
+		s.log.WithError(err).Error(logDescGenErrMsg)
+		return fmt.Errorf("create chat completion stream: %w", err)
 	}
 
 	go s.readStream(stream, res)
@@ -125,7 +133,9 @@ func (s *service) RecommendTeaStream(
 }
 
 func (s *service) readStream(stream *openai.ChatCompletionStream, res chan<- string) {
-	defer stream.Close()
+	defer func() {
+		_ = stream.Close() //nolint:errcheck // we are in defer and intentionally ignore close error
+	}()
 
 	for {
 		response, err := stream.Recv()
@@ -148,7 +158,7 @@ func (s *service) readStream(stream *openai.ChatCompletionStream, res chan<- str
 func (s *service) LoadPrompt() error {
 	tmpl, err := template.New("").ParseFS(f, prompt, contextScoringTmpl)
 	if err != nil {
-		return err
+		return fmt.Errorf("parse templates: %w", err)
 	}
 
 	s.tmpl = tmpl.Lookup(prompt)
@@ -162,7 +172,7 @@ func (s *service) execute(params Template) (string, error) {
 
 	err := s.tmpl.ExecuteTemplate(buf, prompt, params)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf(errExecuteTemplateF, err)
 	}
 
 	return buf.String(), nil
@@ -176,20 +186,22 @@ func (s *service) ContextScores(ctx context.Context, teas []string, weather comm
 	}
 
 	p := params{Teas: teas, Weather: weather, DayOfWeek: day.String()}
+
 	var tpl bytes.Buffer
 	if err := s.contextTmpl.Execute(&tpl, p); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("execute context template: %w", err)
 	}
 
 	resp, err := s.getCompletion(ctx, tpl.String())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get completion: %w", err)
 	}
 
 	var raw map[string]any
 	if err := json.Unmarshal([]byte(resp), &raw); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unmarshal completion: %w", err)
 	}
+
 	res := make(map[string]int, len(raw))
 	for k, v := range raw {
 		switch t := v.(type) {
@@ -200,13 +212,16 @@ func (s *service) ContextScores(ctx context.Context, teas []string, weather comm
 		default:
 			continue
 		}
+
 		if res[k] < 0 {
 			res[k] = 0
 		}
+
 		if res[k] > 15 {
 			res[k] = 15
 		}
 	}
+
 	return res, nil
 }
 
@@ -225,13 +240,15 @@ func (s *service) getCompletion(ctx context.Context, content string) (string, er
 	)
 	if err != nil {
 		s.log.WithError(err).Error("tea of the day generation error")
-		return "", err
+		return "", fmt.Errorf(errCreateChatCompletionF, err)
 	}
 
 	s.log.WithField("request", content).WithField("response", resp).Debug("tea of the day result")
+
 	return resp.Choices[0].Message.Content, nil
 }
 
+// NewService constructs a new Adviser service.
 func NewService(client *openai.Client, log *logrus.Entry) Adviser {
 	return &service{client: client, log: log}
 }

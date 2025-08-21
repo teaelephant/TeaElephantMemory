@@ -2,6 +2,7 @@ package common
 
 import "fmt"
 
+// Weather captures environmental conditions relevant to recommendations.
 type Weather struct {
 	Temperature float64
 	Clouds      int
@@ -11,6 +12,7 @@ type Weather struct {
 	Visibility  int
 }
 
+// Rain represents precipitation intensity in mm/h.
 type Rain float64
 
 func (r Rain) String() string {

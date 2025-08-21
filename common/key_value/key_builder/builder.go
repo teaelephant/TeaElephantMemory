@@ -1,9 +1,16 @@
 package key_builder
 
 import (
+	"encoding/binary"
+	"math"
+	"time"
+
 	"github.com/google/uuid"
 )
 
+// Builder constructs byte-encoded keys for the FoundationDB keyspace.
+// It centralizes key layouts to keep them consistent across the codebase.
+// The returned slices are suitable for direct use with FDB APIs.
 type Builder interface {
 	Version() []byte
 	Records() []byte
@@ -33,9 +40,31 @@ type Builder interface {
 	DevicesByUserID(id uuid.UUID) []byte
 	Notification(id uuid.UUID) []byte
 	NotificationByUserID(id uuid.UUID) []byte
+	ConsumptionByUserID(id uuid.UUID) []byte
+	ConsumptionKey(userID uuid.UUID, ts time.Time, teaID uuid.UUID) []byte
 }
 
 type builder struct {
+}
+
+func (b *builder) ConsumptionByUserID(id uuid.UUID) []byte {
+	return appendIndex(userIndexConsumption, id[:])
+}
+
+func (b *builder) ConsumptionKey(userID uuid.UUID, ts time.Time, teaID uuid.UUID) []byte {
+	prefix := b.ConsumptionByUserID(userID)
+	key := make([]byte, 0, len(prefix)+8+16)
+	key = append(key, prefix...)
+
+	var tb [8]byte
+	// ts.UnixNano() is expected to be non-negative (post-epoch). Casting to uint64 is safe in this domain.
+	//nolint:gosec // G115: application-level timestamps are >= 0; we intentionally encode as uint64 for ordering.
+	binary.BigEndian.PutUint64(tb[:], uint64(ts.UnixNano()))
+
+	key = append(key, tb[:]...)
+	key = append(key, teaID[:]...)
+
+	return key
 }
 
 func (b *builder) Users() []byte {
@@ -171,4 +200,39 @@ func appendIndex(prefix []byte, data []byte) []byte {
 
 func NewBuilder() Builder {
 	return &builder{}
+}
+
+// internal constants for sizes used in consumption key composition
+const (
+	uuidSize      = 16
+	timestampSize = 8
+)
+
+// ParseConsumptionKey parses a consumption key that starts with the provided prefix
+// and returns the timestamp and teaID encoded in the key. It returns ok=false if the key
+// does not match the prefix or has insufficient length.
+func ParseConsumptionKey(prefix, key []byte) (time.Time, uuid.UUID, bool) {
+	need := len(prefix) + timestampSize + uuidSize
+	if len(key) < need {
+		return time.Time{}, uuid.UUID{}, false
+	}
+	// verify prefix matches
+	for i := 0; i < len(prefix); i++ {
+		if key[i] != prefix[i] {
+			return time.Time{}, uuid.UUID{}, false
+		}
+	}
+
+	u := binary.BigEndian.Uint64(key[len(prefix) : len(prefix)+timestampSize])
+	if u > math.MaxInt64 { // clamp to avoid overflow on int64 cast
+		u = math.MaxInt64
+	}
+	//nolint:gosec // G115: value is clamped to MaxInt64 above; conversion is safe.
+	n := int64(u)
+	ts := time.Unix(0, n)
+
+	var teaID uuid.UUID
+	copy(teaID[:], key[len(prefix)+timestampSize:need])
+
+	return ts, teaID, true
 }

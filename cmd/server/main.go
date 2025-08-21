@@ -25,6 +25,7 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/internal/server"
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/graphql"
 	"github.com/teaelephant/TeaElephantMemory/pkg/fdb"
+	"github.com/teaelephant/TeaElephantMemory/pkg/fdbclient"
 )
 
 const (
@@ -99,7 +100,7 @@ func main() {
 		panic(err)
 	}
 
-	cons := consumption.NewMemoryStore(0)
+	cons := consumption.NewFDBStore(fdbclient.NewDatabase(db), 0)
 
 	resolvers := graphql.NewResolver(
 		logrusLogger.WithField(pkgKey, "graphql"),

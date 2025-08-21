@@ -1,3 +1,4 @@
+// Package auth provides JWT and Apple Sign In authentication, along with GraphQL middleware.
 package auth
 
 import (
@@ -21,13 +22,32 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/common"
 )
 
+// ErrAppleAuth indicates that Apple Sign In authentication failed.
+var (
+	ErrAppleAuth        = errors.New("apple authentication failed")
+	ErrEmptyBlockDecode = errors.New("empty block after decoding")
+)
+
+type ctxKey string
+
 const (
-	userCtxKey      = "user"
+	userCtxKey ctxKey = "user"
+	// JwtDurationHour is the number of hours for which the issued JWT will be valid.
 	JwtDurationHour = 24
 )
 
 var signingMethod = jwt.SigningMethodES256
 
+var errUnexpectedSigningMethod = errors.New("unexpected signing method")
+
+const (
+	bearerPrefix   = "Bearer "
+	invalidJWTMsg  = "Invalid jwt"
+	getSecretWrapF = "get secret: %w"
+)
+
+// Auth defines the authentication operations for issuing and validating JWTs
+// and providing GraphQL middleware support.
 type Auth interface {
 	Auth(ctx context.Context, token string) (*common.Session, error)
 	Validate(ctx context.Context, jwt string) (*common.User, error)
@@ -52,13 +72,13 @@ type auth struct {
 func (a *auth) Validate(_ context.Context, jwtToken string) (*common.User, error) {
 	result, err := jwt.Parse(jwtToken, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v.", token.Header["alg"])
+			return nil, fmt.Errorf("%w: %v", errUnexpectedSigningMethod, token.Header["alg"])
 		}
 
 		// getSecret() returns the ECDSA private key used for signing and verification
 		key, err := a.getSecret()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf(getSecretWrapF, err)
 		}
 
 		if privKey, ok := key.(*ecdsa.PrivateKey); ok {
@@ -68,7 +88,7 @@ func (a *auth) Validate(_ context.Context, jwtToken string) (*common.User, error
 		return key, nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse jwt: %w", err)
 	}
 
 	claims, ok := result.Claims.(jwt.MapClaims)
@@ -78,7 +98,7 @@ func (a *auth) Validate(_ context.Context, jwtToken string) (*common.User, error
 
 	exp, err := claims.GetExpirationTime()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get expiration time: %w", err)
 	}
 
 	if time.Now().After(exp.Time) {
@@ -87,12 +107,12 @@ func (a *auth) Validate(_ context.Context, jwtToken string) (*common.User, error
 
 	userIDStr, err := claims.GetIssuer()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get issuer: %w", err)
 	}
 
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse uuid: %w", err)
 	}
 
 	return &common.User{
@@ -107,7 +127,11 @@ func (a *auth) Validate(_ context.Context, jwtToken string) (*common.User, error
 
 func (a *auth) Start() (err error) {
 	a.secret, err = apple.GenerateClientSecret(a.cfg.Secret, a.cfg.TeamID, a.cfg.ClientID, a.cfg.KeyID)
-	return err
+	if err != nil {
+		return fmt.Errorf("generate apple client secret: %w", err)
+	}
+
+	return nil
 }
 
 func (a *auth) Auth(ctx context.Context, token string) (*common.Session, error) {
@@ -121,28 +145,28 @@ func (a *auth) Auth(ctx context.Context, token string) (*common.Session, error) 
 
 	// Do the verification
 	if err := a.appleClient.VerifyAppToken(ctx, vReq, &resp); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("verify apple app token: %w", err)
 	}
 
 	if resp.Error != "" {
-		return nil, errors.New(resp.ErrorDescription)
+		return nil, fmt.Errorf("%w: %s", ErrAppleAuth, resp.ErrorDescription)
 	}
 
 	claims, err := apple.GetClaims(resp.IDToken)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get claims: %w", err)
 	}
 
 	a.log.Info(claims)
 
 	unique, err := apple.GetUniqueID(resp.IDToken)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get unique id: %w", err)
 	}
 
 	user, err := a.GetOrCreateUser(ctx, unique)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get or create user: %w", err)
 	}
 
 	exp := time.Now().Add(time.Hour * JwtDurationHour).UTC()
@@ -157,12 +181,12 @@ func (a *auth) Auth(ctx context.Context, token string) (*common.Session, error) 
 
 	privKey, err := a.getSecret()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf(getSecretWrapF, err)
 	}
 
 	signedJWT, err := jwtToken.SignedString(privKey)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("sign jwt: %w", err)
 	}
 
 	session := &common.Session{
@@ -180,35 +204,44 @@ func (a *auth) Auth(ctx context.Context, token string) (*common.Session, error) 
 func (a *auth) getSecret() (any, error) {
 	block, _ := pem.Decode([]byte(a.cfg.Secret))
 	if block == nil {
-		return "", errors.New("empty block after decoding")
+		return "", ErrEmptyBlockDecode
 	}
 
-	return x509.ParsePKCS8PrivateKey(block.Bytes)
+	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("parse pkcs8 private key: %w", err)
+	}
+
+	return key, nil
 }
 
+// Middleware returns the GraphQL handler extension that enforces authentication.
 func (a *auth) Middleware() graphql.HandlerExtension {
 	return &Middleware{auth: a}
 }
 
+// NewAuth constructs the Auth service with provided configuration, storage, and logger.
 func NewAuth(cfg *Configuration, storage storage, logger *logrus.Entry) Auth {
 	return &auth{cfg: cfg, appleClient: apple.New(), storage: storage, log: logger}
 }
 
+// Middleware implements a GraphQL extension to authenticate requests.
 type Middleware struct {
 	*auth
 }
 
+// WsInitFunc initializes the WebSocket connection by validating Authorization header if provided.
 func (a *auth) WsInitFunc(ctx context.Context, payload transport.InitPayload) (context.Context, *transport.InitPayload, error) {
 	authHeader := payload.Authorization()
 	if authHeader == "" {
 		return ctx, nil, nil
 	}
 
-	token := strings.Replace(authHeader, "Bearer ", "", 1)
+	token := strings.Replace(authHeader, bearerPrefix, "", 1)
 
 	user, err := a.Validate(ctx, token)
 	if err != nil {
-		a.log.WithError(err).Warn("Invalid jwt")
+		a.log.WithError(err).Warn(invalidJWTMsg)
 
 		return ctx, nil, common.ErrJwtIncorrect
 	}
@@ -216,6 +249,7 @@ func (a *auth) WsInitFunc(ctx context.Context, payload transport.InitPayload) (c
 	return context.WithValue(ctx, userCtxKey, user), nil, nil
 }
 
+// InterceptResponse intercepts GraphQL responses to ensure the user is authenticated.
 func (a *Middleware) InterceptResponse(ctx context.Context, next graphql.ResponseHandler) *graphql.Response {
 	if !graphql.HasOperationContext(ctx) {
 		return next(ctx)
@@ -228,11 +262,11 @@ func (a *Middleware) InterceptResponse(ctx context.Context, next graphql.Respons
 		return next(ctx)
 	}
 
-	token := strings.Replace(header, "Bearer ", "", 1)
+	token := strings.Replace(header, bearerPrefix, "", 1)
 
 	user, err := a.auth.Validate(ctx, token)
 	if err != nil {
-		a.log.WithError(err).Warn("Invalid jwt")
+		a.log.WithError(err).Warn(invalidJWTMsg)
 		// FIXME
 		graphql.AddError(ctx, &gqlerror.Error{
 			Message: common.ErrJwtIncorrect.Error(),
@@ -249,14 +283,17 @@ func (a *Middleware) InterceptResponse(ctx context.Context, next graphql.Respons
 	return next(context.WithValue(ctx, userCtxKey, user))
 }
 
+// ExtensionName returns the name of the GraphQL extension.
 func (a *Middleware) ExtensionName() string {
 	return "Auth"
 }
 
+// Validate implements the GraphQL extension validator (no-op).
 func (a *Middleware) Validate(graphql.ExecutableSchema) error {
 	return nil
 }
 
+// GetUser extracts the authenticated user from the context.
 func GetUser(ctx context.Context) (*common.User, error) {
 	value := ctx.Value(userCtxKey)
 	if user, ok := (value).(*common.User); ok {
