@@ -40,3 +40,4 @@ coverage.*
 
 # Vendor (if used)
 /vendor/
+/deployment/secret.yaml
