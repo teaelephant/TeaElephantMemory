@@ -34,9 +34,13 @@ const (
 )
 
 type configuration struct {
-	LoggerLevel  logrus.Level `envconfig:"LOG_LEVEL" default:"info"`
-	DatabasePath string       `default:"/usr/local/etc/foundationdb/fdb.cluster"`
-	OpenAIToken  string       `envconfig:"OPEN_AI_TOKEN" require:"true"`
+	LoggerLevel     logrus.Level `envconfig:"LOG_LEVEL" default:"info"`
+	DatabasePath    string       `default:"/usr/local/etc/foundationdb/fdb.cluster"`
+	OpenAIToken     string       `envconfig:"OPEN_AI_TOKEN" require:"true"`
+	DatabaseBackend string       `envconfig:"DATABASE_BACKEND" default:"foundationdb"`
+	PGDSN           string       `envconfig:"PG_DSN" default:""`
+	FFDualWrite     bool         `envconfig:"FF_PG_DUAL_WRITE" default:"false"`
+	FFReadPercent   int          `envconfig:"FF_PG_READ_PERCENT" default:"0"`
 }
 
 func main() {

@@ -28,5 +28,6 @@ ADD . .
 
 ARG VERSION
 RUN go build -v -ldflags="-w -s -X main.version=${VERSION}" -o /bin/server cmd/server/*.go
+RUN go build -v -ldflags="-w -s -X main.version=${VERSION}" -o /bin/backfill cmd/backfill/*.go
 
 CMD /bin/server

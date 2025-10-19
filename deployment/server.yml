@@ -56,6 +56,13 @@ spec:
           env:
             - name: LOG_LEVEL
               value: debug
+            - name: DATABASE_BACKEND
+              value: postgres
+            - name: PG_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-dsn
+                  key: dsn
             - name: DATABASEPATH
               value: "/etc/fdb/fdb.cluster"
             - name: OPEN_AI_TOKEN
