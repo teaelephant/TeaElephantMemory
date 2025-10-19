@@ -1,6 +1,10 @@
 # Data Migration Runbook (FoundationDB → PostgreSQL)
 
-This runbook is a concise, execution‑oriented plan for migrating TeaElephant data from FoundationDB (FDB) to PostgreSQL (PG). It complements the detailed design in docs/FDB_TO_POSTGRES_MIGRATION_PLAN.md and assumes sqlc scaffolding and the backfill tool are present (they are in this repo).
+Update 2025-10-19: Migration to PostgreSQL is completed. FoundationDB is no longer required at runtime. This runbook is retained for historical reference and potential disaster recovery/re-seeding scenarios. See Section 19 of the Migration Plan for post-migration decommission steps.
+
+Note: The legacy backfill tool and FDB packages were removed from mainline after the cut-over. To rebuild them for DR you must check out the archival migration branch (the last commit before cleanup) and build with the `legacy_backfill` tag.
+
+This runbook is a concise, execution‑oriented plan for migrating TeaElephant data from FoundationDB (FDB) to PostgreSQL (PG). It complements the detailed design in docs/FDB_TO_POSTGRES_MIGRATION_PLAN.md. sqlc scaffolding resides under db/sqlc.yaml and db/queries/*, producing Go code in pkg/pgstore.
 
 Audience: SREs and backend engineers executing the migration with minimal downtime.
 
@@ -20,19 +24,18 @@ Audience: SREs and backend engineers executing the migration with minimal downti
 - Services available:
   - FoundationDB (clients installed on host; DATABASEPATH accessible)
   - PostgreSQL (reachable via PG_DSN; migrations applied)
-- Repo prerequisites (already in repo):
-  - sqlc config: db/sqlc.yaml
+- Repo prerequisites:
   - schema: db/schema.sql
+  - sqlc config: db/sqlc.yaml
   - queries: db/queries/*.sql
-  - backfill tool: cmd/backfill
+  - backfill tool: cmd/backfill (available on archival branch for reference only)
 - Local toolchain:
   - Go 1.25
-  - sqlc (optional; for regen)
 
 Commands:
 - Build server: go build -v -o ./bin/server ./cmd/server
-- Build backfill: go build -v -o ./bin/backfill ./cmd/backfill
-- Run backfill: PG_DSN=postgres://… ./bin/backfill
+- Build backfill (from archival branch): go build -tags legacy_backfill -v -o ./bin/backfill ./cmd/backfill
+- Run backfill (from archival branch): PG_DSN=postgres://… ./bin/backfill
 
 ---
 
@@ -70,8 +73,8 @@ Step C — Initial Full Backfill
   8. devices
   9. notifications
   10. consumptions
-- [ ] Command example:
-  - Build: go build -v -o ./bin/backfill ./cmd/backfill
+- [ ] Command example (archival branch):
+  - Build: go build -tags legacy_backfill -v -o ./bin/backfill ./cmd/backfill
   - Run: PG_DSN=postgres://user:pass@host:5432/tea?sslmode=disable ./bin/backfill
 - [ ] For large tables, prefer batched INSERT or COPY (future optimization)
 
@@ -107,11 +110,11 @@ Step H — Decommissioning
 ---
 
 ## 4) Backfill Details & Notes
-- The provided backfill tool (cmd/backfill) currently includes:
+- The historical backfill tool (`cmd/backfill` on the archival branch) currently includes:
   - Teas: streaming from FDB (Records prefix), inserting into PG with ON CONFLICT upsert
   - Skeleton for consumptions (needs per-user iteration implementation)
-- Extend it to cover all domains; ensure operations are idempotent (ON CONFLICT DO NOTHING/UPDATE)
-- Use encoder package to decode FDB values; use key_builder helpers to parse composite keys (e.g., ParseConsumptionKey)
+  - Extend it to cover all domains; ensure operations are idempotent (ON CONFLICT DO NOTHING/UPDATE)
+  - Use encoder package to decode FDB values; use key_builder helpers to parse composite keys (e.g., ParseConsumptionKey)
 - Recommended batch size: 1k–10k rows; consider COPY for large tables
 
 ---

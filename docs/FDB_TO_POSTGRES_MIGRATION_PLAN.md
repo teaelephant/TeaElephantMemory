@@ -1,7 +1,9 @@
 # FoundationDB → PostgreSQL Migration Plan
 
 ## 1. Executive Summary
-This document proposes a pragmatic, low-risk path to migrate TeaElephant backend persistence from FoundationDB (FDB) key–value storage to PostgreSQL (PG). The plan is tailored to the current codebase and data model, preserving behavior and performance expectations while enabling relational queries, mature operational tooling, and easier developer onboarding.
+
+Update 2025-10-19: Data migration to PostgreSQL is finished. The application now runs on PostgreSQL exclusively, and FoundationDB is no longer required at runtime. The main branch no longer ships any FDB-specific code; this document is retained for historical context and audit trails.
+This document describes the completed migration path from FoundationDB (FDB) to PostgreSQL (PG) and highlights the cleanup that removed FDB code paths, configs, and deployment mounts from the project.
 
 Approach highlights:
 - Introduce PostgreSQL alongside FDB, implement dual-read/-write shims, backfill, verify, and cut over behind feature flags.
@@ -10,28 +12,11 @@ Approach highlights:
 - Roll out incrementally per domain (users/devices → teas/tags → QR/collections → notifications → consumption).
 
 
-## 2. Current State (as of 2025-09-20)
-The backend persists via FoundationDB and a small compatibility layer:
-- Access layer: pkg/fdb (domain-specific methods) over pkg/fdbclient (thin wrapper around FDB bindings).
-- Key building and indices: common/key_value/key_builder.
-- Value encoding: common/key_value/encoder (JSON over KV).
-- Main domains exposed by pkg/fdb.DB interface:
-  - Users and session metadata
-  - Teas (aka "records") and search by name prefix
-  - Tags and tag categories; tea↔tag relations (many-to-many)
-  - QR records (per-item preparation/expiration metadata pointing to a Tea)
-  - Collections (per-user) and collection↔QR membership
-  - Devices and Notifications
-  - Consumption (append-only, per-user time series; used for recommendation heuristics)
-
-Notable files:
-- pkg/fdb/db.go (users)
-- pkg/fdb/record.go (teas; name index)
-- pkg/fdb/tag.go (tags/categories and relations)
-- pkg/fdb/qr.go (QR metadata)
-- pkg/fdb/collection.go (collections and membership; lists QR items with joined Tea)
-- pkg/fdb/notification.go (devices and notifications; per-user device list index)
-- internal/consumption/store.go (in-memory and FDB-backed implementations; prefix-ordered keys by user, timestamp, tea)
+## 2. Current State (as of 2025-10-19)
+The backend persists via PostgreSQL exclusively.
+- Runtime storage: PostgreSQL using the schema in db/schema.sql with sqlc-generated accessors in pkg/pgstore and the thin adapter in pkg/pg.
+- Consumption (history) uses a Postgres-backed Store (internal/consumption/pg_store.go) that also relies on sqlc-generated helpers.
+- The legacy FDB backfill tool and helpers have been removed from main; recovery would require checking out the archival migration branch.
 
 
 ## 3. Target State (PostgreSQL)
@@ -269,7 +254,7 @@ Repository scaffolding already added:
 - Output package: pkg/pgstore (sqlc target; generated code lives here)
 
 How to generate code:
-```text
+```
 # 1) Install sqlc (see https://docs.sqlc.dev/en/latest/overview/install.html)
 # 2) From repository root:
 sqlc generate
@@ -278,22 +263,10 @@ sqlc generate
 Notes:
 - The generated code uses pgx/v5 (github.com/jackc/pgx/v5). The dependency is present in go.mod.
 - Keep SQL changes in db/queries/*.sql and db/schema.sql; re-run sqlc generate when they change.
-- Thin adapters in pkg/pg can wrap sqlc Queries to satisfy the existing pkg/fdb.DB method set where needed.
+- Thin adapters in pkg/pg wrap sqlc Queries to satisfy the existing pkg/fdb.DB method set where needed.
 
-### 5.6. Backfill/Migration Utility (FDB → PG)
-A starter backfill tool exists at cmd/backfill. It streams domain data from FDB and inserts into PG, using the encoder package to decode FDB payloads.
-
-Env vars:
-- PG_DSN: Postgres DSN (required), e.g. postgres://user:pass@localhost:5432/tea?sslmode=disable
-- DATABASEPATH: Path to fdb.cluster (optional; defaults per FDB client installation)
-
-Run example:
-```text
-PG_DSN=postgres://user:pass@localhost:5432/tea?sslmode=disable \
-./bin/backfill  # if you built it, or: go run ./cmd/backfill
-```
-
-Extend the tool to cover all domains (users → tags → teas → tea_tags → qr_records → collections → collection_qr_items → devices → notifications → consumptions). It should be idempotent (ON CONFLICT DO NOTHING/UPDATE) and batched (COPY preferred for large volumes).
+### 5.6. Backfill/Migration Utility (Historical)
+The original FDB→PG backfill lived under `cmd/backfill` and relied on the legacy FDB helpers. Those components were removed from the main branch after the cut-over; recovering the tool requires checking out the archival migration branch or rebuilding from history.
 
 ## 6. Application Changes (Incremental)
 Goal: keep GraphQL API unchanged; swap storage behind interfaces.
@@ -433,11 +406,12 @@ Multi-entity operations:
 
 
 ## 14. Acceptance Criteria
-- All GraphQL queries and mutations backed by FDB have functional equivalents on PG with identical observable behavior.
+- All GraphQL queries and mutations are backed by PostgreSQL with identical observable behavior to the legacy FDB-backed API.
 - Data parity validated: row counts match and spot-check hashes on each table after backfill.
 - Operational readiness: migrations, backups, observability in place; README/docs updated.
-- Feature flags allow safe rollback to FDB.
-- sqlc is adopted for Postgres access with configuration at db/sqlc.yaml, queries in db/queries/*.sql, and code generation instructions present in this document. 
+- FoundationDB is no longer required at runtime; all deployments run with PG only (PG_DSN configured).
+- FDB code paths and keyspace helpers are removed from the repository (or kept under an archival branch/tag), including pkg/fdb, pkg/fdbclient, common/key_value/key_builder, and common/key_value/encoder.
+- Postgres access is mediated by sqlc-generated code in pkg/pgstore with pkg/pg providing the thin adapter layer documented here.
 - A backfill utility exists at cmd/backfill with documented environment variables and example run command in this document.
 
 ## 18. Technical Concerns Addressed (Decisions)
@@ -502,3 +476,26 @@ func (d *DualDB) WriteRecord(ctx context.Context, rec *common.TeaData) (*common.
 
 ---
 This plan keeps changes minimal in application layers, focuses on safety via dual-write and verification, and provides concrete table schemas and roll-out steps tailored to TeaElephantMemory’s current FoundationDB layouts and usages.
+
+## 19. Post-migration Decommission Plan — Remove FoundationDB and Key-Value Relations
+- Remove FDB application code:
+  - Delete pkg/fdb/* (DB adapters per domain).
+  - Delete pkg/fdbclient/* (FDB client wrapper).
+  - Delete common/key_value/key_builder/* (keyspace builders) and common/key_value/encoder/* (KV encoders).
+  - Delete config/fdb.cluster and fdb-go-install.sh from the repo.
+- Replace remaining FDB usages in managers/resolvers with PG implementations:
+  - Keep pkg/pg as the canonical Postgres adapter; extend it alongside the sqlc-generated pkg/pgstore queries as features evolve.
+  - Wire all managers (users, teas, tags, QR, collections, devices, notifications) to PG repositories.
+- Clean up build/runtime dependencies:
+  - Remove FoundationDB client libs from Dockerfile and CI (no foundationdb-clients packages).
+  - Remove DATABASEPATH and DATABASE_BACKEND from deployment manifests; keep only PG_DSN.
+  - Remove FDB-related volumes/mounts from deployment/server.yml (ConfigMap fdb.cluster, paths under /etc/fdb/).
+- Configuration and flags:
+  - Remove FF_PG_DUAL_WRITE and FF_PG_READ_PERCENT flags from code and manifests (obsolete after full cutover).
+- Codebase hygiene:
+  - Run go mod tidy to drop FDB bindings and transitive deps.
+  - Update db/schema.sql alongside any query changes and keep pg-specific unit tests covering new behaviour.
+  - Update README/docs to reflect PG-only architecture and decommission timeline.
+- Observability and ops:
+  - Remove FDB dashboards/alerts; ensure PG metrics are primary.
+  - Backups and DR now rely on PostgreSQL tooling only.
