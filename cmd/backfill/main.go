@@ -45,14 +45,30 @@ func main() {
 	// Init FDB
 	foundationdb.MustAPIVersion(fdbAPIVersion)
 
-	fdb, err := foundationdb.OpenDefault()
+	// Prefer explicit cluster file via env to avoid relying on container CWD/defaults
+	clusterPath := os.Getenv("DATABASEPATH")
+	if clusterPath == "" {
+		clusterPath = os.Getenv("FDB_CLUSTER_FILE")
+	}
+
+	var (
+		fdbDB foundationdb.Database
+		err   error
+	)
+	if clusterPath != "" {
+		log.Printf("opening FDB using cluster file: %s", clusterPath)
+		fdbDB, err = foundationdb.OpenDatabase(clusterPath)
+	} else {
+		log.Printf("opening FDB using default search path (no cluster env provided)")
+		fdbDB, err = foundationdb.OpenDefault()
+	}
 	if err != nil {
 		log.Printf("open FDB: %v", err)
 		return
 	}
 
 	// Wrap with our thin client
-	db := fdbclient.NewDatabase(fdb)
+	db := fdbclient.NewDatabase(fdbDB)
 	kb := key_builder.NewBuilder()
 
 	// Connect Postgres via pgx stdlib
