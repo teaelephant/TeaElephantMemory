@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -137,10 +138,17 @@ func (d *db) Delete(ctx context.Context, id uuid.UUID) error {
 // ===== QR =====
 
 func (d *db) WriteQR(ctx context.Context, id uuid.UUID, data *common.QR) error {
+	// Clamp to int32 range to avoid overflow (gosec G115)
+	bt := data.BowlingTemp
+	if bt > math.MaxInt32 {
+		bt = math.MaxInt32
+	} else if bt < math.MinInt32 {
+		bt = math.MinInt32
+	}
 	if err := d.queries.UpsertQR(ctx, pgstore.QRRecord{
 		ID:             id,
 		TeaID:          data.Tea,
-		BoilingTemp:    int32(data.BowlingTemp),
+		BoilingTemp:    int32(bt), //nolint:gosec // domain: boiling temp is bounded (0..100C), clamped above
 		ExpirationDate: data.ExpirationDate.UTC(),
 	}); err != nil {
 		return fmt.Errorf("upsert qr: %w", err)

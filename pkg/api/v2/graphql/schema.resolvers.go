@@ -463,7 +463,7 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 	if cached, ok := r.todCache.Get(user.ID, now); ok {
 		if r.log != nil {
 			r.log.
-				WithField("user", user.ID.String()).
+				WithField(logKeyUser, user.ID.String()).
 				WithField("date", now.Format(time.RFC3339)).
 				WithField("tea", cached.Tea.Tea.Name).
 				WithField("tea_id", uuid.UUID(cached.Tea.Tea.ID).String()).
@@ -522,8 +522,18 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 	}
 
 	// Weather and recent consumption (best-effort)
-	w, _ := r.CurrentCyprus(ctx)                                            // graceful fallback on weather errors
-	recent, _ := r.consumption.Recent(ctx, user.ID, now.Add(-96*time.Hour)) // best-effort recent consumption
+	w, wErr := r.CurrentCyprus(ctx)
+	if wErr != nil && r.log != nil {
+		r.log.WithField(logKeyUser, user.ID.String()).WithField(logKeyErr, wErr).Debug("tea_of_day weather fetch failed")
+	}
+
+	recent, recErr := r.consumption.Recent(ctx, user.ID, now.Add(-96*time.Hour))
+	if recErr != nil {
+		if r.log != nil {
+			r.log.WithField(logKeyUser, user.ID.String()).WithField(logKeyErr, recErr).Debug("tea_of_day recent fetch failed")
+		}
+		recent = nil
+	}
 
 	lastBy := make(map[uuid.UUID]time.Time, len(recent))
 	for _, c := range recent {
@@ -532,7 +542,13 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 		}
 	}
 
-	ctxScores, _ := r.ContextScores(ctx, names, w, now.Weekday()) // prefer recommendation even if AI scoring fails
+	ctxScores, ctxErr := r.ContextScores(ctx, names, w, now.Weekday())
+	if ctxErr != nil {
+		if r.log != nil {
+			r.log.WithField("user", user.ID.String()).WithField("err", ctxErr).Debug("tea_of_the_day scoring failed")
+		}
+		ctxScores = make(map[string]int)
+	}
 	aiScores := make(map[uuid.UUID]int, len(ctxScores))
 	for name, score := range ctxScores {
 		if id, ok := nameToID[strings.ToLower(strings.TrimSpace(name))]; ok {
@@ -543,11 +559,11 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 	// High-level context log
 	if r.log != nil {
 		weekday := now.Weekday().String()
-		var wStr string = w.String()
+		wStr := w.String()
 		r.log.
-			WithField("user", user.ID.String()).
-			WithField("weekday", weekday).
-			WithField("weather", wStr).
+			WithField(logKeyUser, user.ID.String()).
+			WithField(logKeyWeekday, weekday).
+			WithField(logKeyWeather, wStr).
 			WithField("candidates", len(candidates)).
 			Debug("tea_of_day context")
 	}
@@ -555,25 +571,29 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 	// Delegate detailed candidate and selection logging to scoring package
 	var bestID uuid.UUID
 	if r.log != nil {
-		bestID, _ = scoring.SelectBestWithLogging(aiScores, candidates, lastBy, now, func(fields map[string]interface{}, msg string) {
+		best, _ := scoring.SelectBestWithLogging(aiScores, candidates, lastBy, now, func(fields map[string]interface{}, msg string) {
 			entry := r.log.
-				WithField("user", user.ID.String()).
-				WithField("weekday", now.Weekday().String()).
-				WithField("weather", w.String())
+				WithField(logKeyUser, user.ID.String()).
+				WithField(logKeyWeekday, now.Weekday().String()).
+				WithField(logKeyWeather, w.String())
 			for k, v := range fields {
 				entry = entry.WithField(k, v)
 			}
 			entry.Debug(msg)
 		})
+		bestID = best
 	} else {
-		bestID, _ = scoring.SelectBest(aiScores, candidates, lastBy, now)
+		best, _ := scoring.SelectBest(aiScores, candidates, lastBy, now)
+		bestID = best
 	}
 
 	if bestID == uuid.Nil {
 		return nil, ErrNoTeaCandidates
 	}
 
-	_ = r.consumption.Record(ctx, user.ID, bestID, now) // best-effort record of consumption
+	if err := r.consumption.Record(ctx, user.ID, bestID, now); err != nil && r.log != nil {
+		r.log.WithField(logKeyUser, user.ID.String()).WithField(logKeyErr, err).Debug("tea_of_day record consumption failed")
+	}
 
 	// Build QRRecord for the selected tea using the earliest record we observed
 	qrr := earliestRec[common.ID(bestID)]
