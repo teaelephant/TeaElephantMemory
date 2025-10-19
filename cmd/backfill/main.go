@@ -178,6 +178,12 @@ func main() {
 		}
 	}()
 
+	// Ensure critical base tables exist before running the full schema to avoid FK ordering issues
+	if err := ensureUsersTable(ctx, pg); err != nil {
+		log.Printf("ensure users: %v", err)
+		return
+	}
+
 	// Ensure schema exists (idempotent)
 	if err := ensurePostgresSchema(ctx, pg); err != nil {
 		log.Printf("ensure schema: %v", err)
@@ -289,6 +295,20 @@ func ensurePostgresSchema(ctx context.Context, pg *sql.DB) error {
 		}
 	}
 	log.Printf("postgres schema ensured (idempotent)")
+	return nil
+}
+
+// ensureUsersTable creates the users table early to satisfy downstream FKs in case
+// the main schema execution encounters ordering issues in certain environments.
+func ensureUsersTable(ctx context.Context, pg *sql.DB) error {
+	ddl := `CREATE TABLE IF NOT EXISTS users (
+  id uuid PRIMARY KEY,
+  apple_id text NOT NULL UNIQUE,
+  created_at timestamptz NOT NULL DEFAULT now()
+);`
+	if _, err := pg.ExecContext(ctx, ddl); err != nil {
+		return fmt.Errorf("ensure users exec: %w", err)
+	}
 	return nil
 }
 
