@@ -148,3 +148,33 @@ At any point:
 - Check recent consumptions: SELECT * FROM consumptions WHERE user_id=$1 ORDER BY ts DESC LIMIT 50;
 
 For deeper context and schema specifics, see docs/FDB_TO_POSTGRES_MIGRATION_PLAN.md.
+
+
+---
+
+## 9) Kubernetes Backfill Job — Re-run guidance and immutable template
+- Kubernetes Jobs have an immutable Pod template. If you try to re-apply a Job manifest with the same name after changing image/env, you will see: `The Job "backfill" is invalid: spec.template: ... field is immutable`.
+- This repo’s manifest now uses a fixed `metadata.name: backfill` so you can use `kubectl apply -f`.
+- Important: Because the Job's Pod template is immutable, you must delete the existing Job before re-applying if you change image/env.
+
+Common commands:
+- Create or update the Job (first ensure any previous job is removed):
+  ```
+  kubectl -n teaelephant delete job/backfill || true
+  kubectl -n teaelephant apply -f deployment/backfill-job.yml
+  kubectl -n teaelephant get jobs -l app=backfill
+  ```
+- Tail logs of the latest pod:
+  ```
+  POD=$(kubectl -n teaelephant get pods -l job-name=backfill -o jsonpath='{.items[0].metadata.name}')
+  kubectl -n teaelephant logs "$POD"
+  ```
+- If you need to re-run after completion, delete the old Job and apply again:
+  ```
+  kubectl -n teaelephant delete job/backfill || true
+  kubectl -n teaelephant apply -f deployment/backfill-job.yml
+  ```
+- Cleanup completed Jobs and their pods by label (if you changed labels/names):
+  ```
+  kubectl -n teaelephant delete job -l app=backfill --field-selector=status.successful==1 || true
+  ```
