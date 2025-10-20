@@ -36,7 +36,7 @@ jobs:
 
       - name: Restore FDB dependencies from git history
         run: |
-          COMMIT="c00e5bb"
+          COMMIT="06bca0c"
 
           # Create directories
           mkdir -p pkg/fdbclient

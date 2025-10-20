@@ -1,6 +1,6 @@
 # Kubernetes Job to run FDB → PostgreSQL backfill
 # Prerequisites:
-# - ConfigMap 'fdb-cluster' exists in teaelephant namespace
+# - Apply configmap.yml first: kubectl apply -f deployment/fdb-backfill/configmap.yml
 # - Secret 'postgres-dsn' exists with PostgreSQL connection string
 # - Secret 'regcred' exists for pulling from ghcr.io
 apiVersion: batch/v1
@@ -46,7 +46,7 @@ spec:
               value: "/etc/fdb/fdb.cluster"
 
           volumeMounts:
-            - name: fdb-cluster
+            - name: fdb.cluster
               mountPath: /etc/fdb/
               readOnly: true
 
@@ -60,9 +60,9 @@ spec:
               cpu: "500m"
 
       volumes:
-        - name: fdb-cluster
+        - name: fdb.cluster
           configMap:
-            name: fdb-cluster
+            name: fdb.cluster
 
       # Pull credentials for GitHub Container Registry
       imagePullSecrets:

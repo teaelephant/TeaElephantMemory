@@ -8,7 +8,7 @@ Before running the backfill tool, you need to restore the FoundationDB-related c
 
 ### Restoring FDB Dependencies
 
-The following packages need to be temporarily restored from commit `c00e5bb`:
+The following packages need to be temporarily restored from commit `06bca0c`:
 
 1. `pkg/fdbclient/` - FDB client wrapper
 2. `common/key_value/key_builder/` - FDB keyspace builders
@@ -18,10 +18,10 @@ The following packages need to be temporarily restored from commit `c00e5bb`:
 
 ```bash
 # From repository root
-git show c00e5bb:pkg/fdbclient/client.go > pkg/fdbclient/client.go
-git show c00e5bb:common/key_value/key_builder/builder.go > common/key_value/key_builder/builder.go
-git show c00e5bb:common/key_value/key_builder/keys.go > common/key_value/key_builder/keys.go
-git show c00e5bb:common/key_value/encoder/encoder.go > common/key_value/encoder/encoder.go
+git show 06bca0c:pkg/fdbclient/client.go > pkg/fdbclient/client.go
+git show 06bca0c:common/key_value/key_builder/builder.go > common/key_value/key_builder/builder.go
+git show 06bca0c:common/key_value/key_builder/keys.go > common/key_value/key_builder/keys.go
+git show 06bca0c:common/key_value/encoder/encoder.go > common/key_value/encoder/encoder.go
 
 # Add FDB dependency to go.mod
 go get github.com/apple/foundationdb/bindings/go@v0.0.0-20231107151356-57ccdb8fee6d

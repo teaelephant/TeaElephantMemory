@@ -3,7 +3,7 @@
 
 set -e
 
-COMMIT="c00e5bb"
+COMMIT="06bca0c"
 ROOT_DIR="$(git rev-parse --show-toplevel)"
 
 echo "Restoring FDB dependencies from commit $COMMIT..."

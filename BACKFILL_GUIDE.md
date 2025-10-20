@@ -184,7 +184,7 @@ QR records are discovered by scanning collections. If collections weren't indexe
    - Transaction safety ensures consistency
 
 3. **Dependency Restoration**
-   - Temporarily restores FDB packages from git (commit c00e5bb)
+   - Temporarily restores FDB packages from git (commit 06bca0c)
    - Backs up current go.mod/go.sum
    - Restores FDB-compatible go.mod/go.sum
    - Cleanup restores PG-only dependencies

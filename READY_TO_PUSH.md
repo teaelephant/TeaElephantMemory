@@ -13,7 +13,8 @@ git push origin postgres-implementation
 # 2. Wait for GitHub Actions to build image (~5-10 min)
 # Go to: GitHub → Actions → "FDB Backfill Image"
 
-# 3. Deploy the Job
+# 3. Apply ConfigMap and Job
+kubectl apply -f deployment/fdb-backfill/configmap.yml
 kubectl apply -f deployment/fdb-backfill/job.yml
 
 # 4. Watch it run

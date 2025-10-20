@@ -269,7 +269,7 @@ Notes:
 The FDB→PG backfill tool is available at `cmd/backfill/` and includes:
 - **main.go** - Backfill implementation supporting users, teas, QR records, devices, and consumptions
 - **README.md** - Detailed instructions for running the backfill
-- **restore_fdb_deps.sh** - Helper script to restore FDB dependencies from git history (commit c00e5bb)
+- **restore_fdb_deps.sh** - Helper script to restore FDB dependencies from git history (commit 06bca0c)
 
 The backfill tool requires temporarily restoring FDB-related packages (pkg/fdbclient, common/key_value/*) that were removed from main after migration completion. See cmd/backfill/README.md for full instructions.
 

@@ -62,7 +62,7 @@ deployment/server.yml          # Current PG-only deployment (unchanged logic)
 ## What Happens After You Push
 
 1. **GitHub Actions triggers** automatically (or manually via Actions tab)
-2. **Workflow restores FDB dependencies** from git commit c00e5bb
+2. **Workflow restores FDB dependencies** from git commit 06bca0c
 3. **Docker image builds** using Dockerfile.fdb (~5-10 minutes)
 4. **Image pushes to** `ghcr.io/teaelephant/teaelephantmemory:fdb-backfill-latest`
 5. **You deploy** the Kubernetes Job
@@ -209,7 +209,7 @@ kubectl delete job fdb-backfill -n teaelephant
 
 **Build fails in GitHub Actions?**
 - Check Actions logs for errors
-- Verify FDB dependencies can be restored from commit c00e5bb
+- Verify FDB dependencies can be restored from commit 06bca0c
 
 **Job fails in Kubernetes?**
 ```bash

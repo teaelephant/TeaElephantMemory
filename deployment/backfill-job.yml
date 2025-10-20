@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: backfill
+  namespace: teaelephant
+  annotations:
+    teaelephant.io/purpose: data-backfill
+    teaelephant.io/note: "Delete the Job before re-applying to avoid immutable template errors"
+spec:
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: backfill
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: backfill
+          image: ghcr.io/teaelephant/teaelephantmemory:fdb-backfill-latest
+          imagePullPolicy: Always
+          env:
+            - name: PG_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-dsn
+                  key: dsn
+            - name: DATABASEPATH
+              value: "/etc/fdb/fdb.cluster"
+          volumeMounts:
+            - name: db-cluster
+              mountPath: /etc/fdb/
+          command: ["/bin/backfill"]
+      volumes:
+        - name: db-cluster
+          configMap:
+            name: fdb.cluster
+      imagePullSecrets:
+        - name: regcred
