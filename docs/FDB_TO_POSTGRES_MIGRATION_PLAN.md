@@ -265,8 +265,21 @@ Notes:
 - Keep SQL changes in db/queries/*.sql and db/schema.sql; re-run sqlc generate when they change.
 - Thin adapters in pkg/pg wrap sqlc Queries to satisfy the existing pkg/fdb.DB method set where needed.
 
-### 5.6. Backfill/Migration Utility (Historical)
-The original FDB→PG backfill lived under `cmd/backfill` and relied on the legacy FDB helpers. Those components were removed from the main branch after the cut-over; recovering the tool requires checking out the archival migration branch or rebuilding from history.
+### 5.6. Backfill/Migration Utility
+The FDB→PG backfill tool is available at `cmd/backfill/` and includes:
+- **main.go** - Backfill implementation supporting users, teas, QR records, devices, and consumptions
+- **README.md** - Detailed instructions for running the backfill
+- **restore_fdb_deps.sh** - Helper script to restore FDB dependencies from git history (commit c00e5bb)
+
+The backfill tool requires temporarily restoring FDB-related packages (pkg/fdbclient, common/key_value/*) that were removed from main after migration completion. See cmd/backfill/README.md for full instructions.
+
+**Quick start:**
+```bash
+cd cmd/backfill
+./restore_fdb_deps.sh
+export PG_DSN="postgres://user:pass@localhost:5432/teaelephant"
+go run main.go
+```
 
 ## 6. Application Changes (Incremental)
 Goal: keep GraphQL API unchanged; swap storage behind interfaces.
@@ -282,38 +295,31 @@ Goal: keep GraphQL API unchanged; swap storage behind interfaces.
 - For read-after-write semantics, continue to use transactions in PG (SERIALIZABLE or REPEATABLE READ where needed); most operations are single-row UPSERTs.
 
 
-## 7. Migration Strategy (Online, Zero/Low Downtime)
-Phased rollout per domain with dual-write and verifications.
+## 7. Migration Strategy (Completed - Direct Cutover)
+The migration was completed using a direct cutover approach rather than gradual dual-write.
 
 1) Prepare
-- Ship code that can talk to both stores. Add feature flags:
-  - FF_PG_DUAL_WRITE=true enables writing to PG in parallel with FDB
-  - FF_PG_READ_PERCENT=0..100 gradual read shifting to PG for specific methods (start with 0)
 - Deploy PostgreSQL and run initial migrations.
+- Implement PostgreSQL adapter (pkg/pg) with same interface as legacy FDB code.
 
 2) Backfill
-- Build a one-shot backfill tool (cmd/backfill) or admin endpoint:
+- Build a one-shot backfill tool (cmd/backfill):
   - Stream keys by prefix from FDB, decode via common/key_value/encoder, transform, and bulk-insert into PG.
   - Do in domain order with FK awareness: users → categories/tags → teas → tea_tags → qr_records → collections → collection_qr_items → devices → notifications → consumptions.
   - Use COPY for bulk throughput, batch size ~5–10k rows, idempotent on conflict DO NOTHING.
 
 3) Verify
-- Data reconciliation jobs compare row counts and a sample checksum per table (e.g., hash of concatenated fields) vs. FDB sources.
-- Enable dual-write in production and compare error rates/latency.
+- Data reconciliation jobs compare row counts and sample data per table vs. FDB sources.
+- Test all GraphQL queries and mutations against PostgreSQL backend.
 
-4) Shift Reads
-- Per method, increase FF_PG_READ_PERCENT to route a fraction of reads to PG; monitor metrics and logs.
-- If stable, move to 100% reads from PG for the method/domain.
+4) Cut Over
+- Update application to require PG_DSN and remove FDB initialization.
+- Deploy new version with PostgreSQL-only backend.
+- Monitor error rates and performance.
 
-5) Cut Over Writes
-- After read cutover, turn off FDB writes per domain. Keep backfill job in catch-up mode until lag is 0.
-- Finally, disable dual-write and remove FDB write paths.
-
-6) Decommission
-- Stop backfill; snapshot FDB; announce deprecation window; remove FDB code paths behind build tags/flags when safe.
-
-Rollback plan:
-- At any point, reduce FF_PG_READ_PERCENT to 0, disable dual-write, re-point reads and writes fully to FDB.
+5) Decommission
+- Snapshot FDB for archival.
+- Remove FDB code paths from codebase.
 
 
 ## 8. ETL/Backfill Details
@@ -350,37 +356,16 @@ Notes:
   - BRIN index on ts if volume is large
   - Partition by month if growth warrants
 
-### 9.5 Cross-store Atomicity and Error Handling (Dual-Write)
-This project will temporarily dual-write to FDB and PostgreSQL during migration. Because we cannot have a single atomic transaction across both data stores, we embrace an at-least-one-success policy with repair. The strategy is:
-- Define the primary store per phase. Initially FDB is primary; PG is shadow. Later phases flip this.
-- For each write:
-  1) Perform the write in the primary store synchronously and return the primary error to the caller if it fails (no partial success is acknowledged).
-  2) Fire a best-effort write to the shadow store. If it fails, record a durable outbox event for reconciliation.
-
-Implementation details:
-- Outbox table (in PG) or FDB key: write events with payload {domain, entity_id, op, version, body, error}.
-- Background reconciler retries failed shadow writes with exponential backoff and dead-letter after N attempts. Observability metrics (success/failure/lag) are exported.
-- Idempotency: all write operations must be idempotent. Use UPSERT/ON CONFLICT DO UPDATE in PG keyed by deterministic IDs; in FDB, Set() overwrites or conditional writes use transaction checks as needed.
-- Read Consistency: while dual-writing, reads are served from a single selected backend (via FF_PG_READ_PERCENT per method). We do not merge results at read time to avoid complexity.
-- Backfill Interaction: during backfill, dual-write remains on; reconciler ensures shadow catches up. After verification, we cut over primary.
-
-Failure matrix:
-- Primary fail, shadow not attempted or fail → return error to caller; no state change acknowledged.
-- Primary success, shadow fail → acknowledge success; create outbox entry; reconciler repairs shadow. Verification jobs will also detect divergence.
-
-Multi-entity operations:
-- Wrap all related mutations in a single transaction in the primary store, then emit one composite outbox item (or a sequence with the same correlation ID) to replicate into the shadow using a transactional unit. Example: creating a collection and adding items must be atomic in the primary DB; the shadow replication applies the same unit serially with idempotency.
 
 
 ## 10. Operations and Configuration
-- New env:
-  - DATABASE_BACKEND (default foundationdb)
-  - PG_DSN
+- Required environment variable:
+  - PG_DSN (PostgreSQL connection string)
 - Docker Compose: add a postgres service with a persistent volume; expose port 5432.
 - Kubernetes: add a StatefulSet/Deployment for PG if self-managed, or use a managed PostgreSQL service; inject PG_DSN via Secret; mount TLS if needed.
 - Migrations: run on startup or as a separate Job using goose/migrate. Gate by MIGRATE_ON_START=true for dev.
 - Backups: use pg_dump or snapshot tooling of managed service; define RPO/RTO.
-- Observability: add pgbouncer/pg_stat_statements in non-prod; scrape PG exporter metrics; add application metrics per backend to compare latencies and error rates.
+- Observability: add pgbouncer/pg_stat_statements in non-prod; scrape PG exporter metrics; monitor query performance and error rates.
 
 
 ## 11. Testing Strategy
@@ -389,20 +374,21 @@ Multi-entity operations:
 - Data verification: checksum comparisons during backfill; golden samples.
 
 
-## 12. Milestones & Timeline (indicative)
-1) Week 1–2: Schema migrations, PG adapter skeletons, config plumbing, CI jobs for PG.  
-2) Week 3: Backfill tool, domain 1 (users/devices) dual-write + read cutover.  
-3) Week 4: Teas/tags; search verification; tea_tags relations.  
-4) Week 5: QR and collections; collection listing parity checks.  
-5) Week 6: Notifications; consumption store; retention jobs.  
-6) Week 7: Turn off dual-write, decommission FDB, archival.
+## 12. Milestones & Timeline (Completed)
+The migration was completed in October 2025:
+- Schema migrations and PG adapter implementation
+- Backfill tool for data migration from FDB
+- Full verification of all domains (users, teas, tags, QR, collections, notifications, consumption)
+- Cutover to PostgreSQL-only backend
+- FDB code decommissioned and removed from main branch
 
 
-## 13. Risks and Mitigations
-- Hidden invariants in KV layout (e.g., unique tea names): model with explicit constraints or preserve behavior in code.
-- Search behavior differences (prefix vs. case-insensitive): add appropriate indexes and use ILIKE with prefix.
-- Backfill races during live writes: dual-write first, then incremental backfill to converge; use last-updated timestamps where available or compare row existence only if immutable; otherwise design a conflict policy.
-- Performance regressions: benchmark critical queries (search by name, list tags by tea, collection listing, recent consumption). Add indexes or caching as needed.
+## 13. Risks and Mitigations (Historical)
+Risks addressed during migration:
+- Hidden invariants in KV layout (e.g., unique tea names): modeled with explicit constraints in PostgreSQL schema.
+- Search behavior differences (prefix vs. case-insensitive): added appropriate indexes and use ILIKE with prefix.
+- Data consistency during migration: used backfill tool with verification before cutover.
+- Performance regressions: benchmarked critical queries (search by name, list tags by tea, collection listing, recent consumption) and added necessary indexes.
 
 
 ## 14. Acceptance Criteria
@@ -454,48 +440,35 @@ Multi-entity operations:
 - ConsumptionByUserID(), ConsumptionKey(): consumptions
 
 
-## 16. Appendix B — Code Touch Points
-- New package: pkg/pg implementing the same methods as pkg/fdb.DB (CreateTagCategory, ListTags, WriteRecord, etc.).
-- internal/consumption: add PG-backed Store implementation; wire via constructor in internal/server/server.go.
-- Configuration: extend internal/server/server.go to parse DATABASE_BACKEND and PG_DSN.
-- CI: add service container for postgres in GitHub Actions or use docker-compose for local runs; add a make target to run migrations.
-
-
-## 17. Appendix C — Example Dual-Write Wrapper
-```text
-type DualDB struct { primary, shadow fdb.DB }
-func (d *DualDB) WriteRecord(ctx context.Context, rec *common.TeaData) (*common.Tea, error) {
-  tea, err := d.primary.WriteRecord(ctx, rec)
-  if err != nil { return nil, err }
-  go func(t *common.Tea){ _ = d.shadow.Update(context.Background(), t.ID, t.TeaData) }(tea)
-  return tea, nil
-}
-// Apply same pattern for other write methods; reads are routed via feature flag.
-```
+## 16. Appendix B — Code Touch Points (Completed)
+- pkg/pg: Implements the same methods as legacy pkg/fdb.DB (CreateTagCategory, ListTags, WriteRecord, etc.).
+- internal/consumption: PG-backed Store implementation (pg_store.go).
+- Configuration: cmd/server/main.go requires PG_DSN environment variable.
+- CI: Postgres service container for integration tests.
 
 
 ---
-This plan keeps changes minimal in application layers, focuses on safety via dual-write and verification, and provides concrete table schemas and roll-out steps tailored to TeaElephantMemory’s current FoundationDB layouts and usages.
+This document provides the migration plan from FoundationDB to PostgreSQL. The migration has been completed using a direct cutover approach with comprehensive backfill and verification.
 
-## 19. Post-migration Decommission Plan — Remove FoundationDB and Key-Value Relations
-- Remove FDB application code:
-  - Delete pkg/fdb/* (DB adapters per domain).
-  - Delete pkg/fdbclient/* (FDB client wrapper).
-  - Delete common/key_value/key_builder/* (keyspace builders) and common/key_value/encoder/* (KV encoders).
-  - Delete config/fdb.cluster and fdb-go-install.sh from the repo.
-- Replace remaining FDB usages in managers/resolvers with PG implementations:
-  - Keep pkg/pg as the canonical Postgres adapter; extend it alongside the sqlc-generated pkg/pgstore queries as features evolve.
-  - Wire all managers (users, teas, tags, QR, collections, devices, notifications) to PG repositories.
-- Clean up build/runtime dependencies:
-  - Remove FoundationDB client libs from Dockerfile and CI (no foundationdb-clients packages).
-  - Remove DATABASEPATH and DATABASE_BACKEND from deployment manifests; keep only PG_DSN.
-  - Remove FDB-related volumes/mounts from deployment/server.yml (ConfigMap fdb.cluster, paths under /etc/fdb/).
-- Configuration and flags:
-  - Remove FF_PG_DUAL_WRITE and FF_PG_READ_PERCENT flags from code and manifests (obsolete after full cutover).
-- Codebase hygiene:
-  - Run go mod tidy to drop FDB bindings and transitive deps.
-  - Update db/schema.sql alongside any query changes and keep pg-specific unit tests covering new behaviour.
-  - Update README/docs to reflect PG-only architecture and decommission timeline.
-- Observability and ops:
-  - Remove FDB dashboards/alerts; ensure PG metrics are primary.
-  - Backups and DR now rely on PostgreSQL tooling only.
+## 19. Post-migration Decommission (Completed)
+All FoundationDB code and dependencies have been removed:
+- ✅ Removed FDB application code:
+  - pkg/fdb/* (DB adapters per domain)
+  - pkg/fdbclient/* (FDB client wrapper)
+  - common/key_value/key_builder/* (keyspace builders)
+  - common/key_value/encoder/* (KV encoders)
+  - cmd/backfill (archived for historical reference)
+- ✅ All managers now use PG implementations:
+  - pkg/pg is the canonical Postgres adapter
+  - All managers (users, teas, tags, QR, collections, devices, notifications) wired to PG
+- ✅ Clean build/runtime:
+  - FoundationDB client libs removed from Dockerfile
+  - deployment/server.yml uses only PG_DSN
+  - No FDB-related volumes/mounts
+- ✅ Codebase hygiene:
+  - FDB bindings removed via go mod tidy
+  - db/schema.sql maintained as source of truth
+  - README updated to reflect PG-only architecture
+- ✅ Operations:
+  - Backups rely on PostgreSQL tooling only
+  - Monitoring focused on PG metrics

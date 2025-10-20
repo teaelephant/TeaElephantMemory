@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: teaelephant
+  labels:
+    name: teaelephant
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: teaelephant
+  name: server-fdb-backfill
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: server-fdb-backfill
+  template:
+    metadata:
+      name: server-fdb-backfill
+      labels:
+        app: server-fdb-backfill
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8080"
+    spec:
+      containers:
+        - name: server
+          image: ghcr.io/teaelephant/teaelephantmemory:fdb-backfill
+          imagePullPolicy: Always
+          # No health probes for backfill pod - it's a one-time job
+          env:
+            - name: LOG_LEVEL
+              value: debug
+            - name: DATABASE_BACKEND
+              value: postgres
+            - name: PG_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-dsn
+                  key: dsn
+            - name: DATABASEPATH
+              value: "/etc/fdb/fdb.cluster"
+            - name: OPEN_AI_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: openai-token
+                  key: token
+            - name: OPENWEATHER_APIKEY
+              valueFrom:
+                secretKeyRef:
+                  name: openweather-apikey
+                  key: apikey
+            - name: APPLE_AUTH_CLIENT_ID
+              value: "xax.TeaElephant"
+            - name: APPLE_AUTH_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  key: keyid
+                  name: apple-auth
+            - name: APPLE_AUTH_TEAM_ID
+              valueFrom:
+                secretKeyRef:
+                  key: teamid
+                  name: apple-auth
+            - name: APPLE_AUTH_SECRET_PATH
+              value: "/keys/AuthKey_39D5B439QV.p8"
+          volumeMounts:
+            - name: db-cluster
+              mountPath: /etc/fdb/
+            - name: keys
+              mountPath: /keys/
+          # Override command to run backfill instead of server
+          command: ["/bin/backfill"]
+      volumes:
+        - name: db-cluster
+          configMap:
+            name: fdb.cluster
+        - name: keys
+          secret:
+            secretName: apple-auth
+      imagePullSecrets:
+        - name: regcred
+      # Ensure pod is not restarted on completion
+      restartPolicy: Never
+---
+# ConfigMap for FDB cluster file
+# Replace the content with your actual FDB cluster configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fdb.cluster
+  namespace: teaelephant
+data:
+  fdb.cluster: |
+    docker:docker@10.5.0.6:4500
