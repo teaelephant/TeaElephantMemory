@@ -36,30 +36,13 @@ jobs:
         with:
           fetch-depth: 0  # Fetch full history to access commit 06bca0c
 
-      - name: Restore FDB dependencies from git history
+      - name: Restore FDB dependencies for build
         run: |
-          COMMIT="06bca0c"
+          # Copy FDB go.mod and go.sum from backup directory
+          cp .fdb-backup/go.mod go.mod
+          cp .fdb-backup/go.sum go.sum
 
-          # Create directories
-          mkdir -p pkg/fdbclient
-          mkdir -p common/key_value/key_builder
-          mkdir -p common/key_value/encoder
-
-          # Restore fdbclient
-          git show $COMMIT:pkg/fdbclient/client.go > pkg/fdbclient/client.go
-
-          # Restore key_builder
-          git show $COMMIT:common/key_value/key_builder/builder.go > common/key_value/key_builder/builder.go
-          git show $COMMIT:common/key_value/key_builder/keys.go > common/key_value/key_builder/keys.go
-
-          # Restore encoder
-          git show $COMMIT:common/key_value/encoder/encoder.go > common/key_value/encoder/encoder.go
-
-          # Restore go.mod and go.sum with FDB dependencies
-          git show $COMMIT:go.mod > go.mod
-          git show $COMMIT:go.sum > go.sum
-
-          echo "✓ FDB dependencies restored from commit $COMMIT"
+          echo "✓ FDB dependencies restored from .fdb-backup/"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
