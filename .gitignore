@@ -42,9 +42,7 @@ coverage.*
 /vendor/
 /deployment/secret.yaml
 
-# FDB backfill temporary files (restored from git history for backfill)
-pkg/fdbclient/
-common/key_value/
+# FDB backfill temporary files
 *.pg-only.bak
 .gocache/
 

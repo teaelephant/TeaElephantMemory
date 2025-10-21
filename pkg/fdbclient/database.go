@@ -1,5 +1,3 @@
-//go:build legacy_backfill
-
 package fdbclient
 
 import (

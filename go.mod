@@ -1,10 +1,11 @@
 module github.com/teaelephant/TeaElephantMemory
 
-go 1.25.0
+go 1.25.1
 
 require (
 	github.com/99designs/gqlgen v0.17.78
 	github.com/Timothylock/go-signin-with-apple v0.2.6
+	github.com/apple/foundationdb/bindings/go v0.0.0-20231107151356-57ccdb8fee6d
 	github.com/briandowns/openweathermap v0.21.1
 	github.com/dgraph-io/ristretto v0.2.0
 	github.com/eko/gocache/lib/v4 v4.2.0

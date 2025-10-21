@@ -1,5 +1,3 @@
-//go:build legacy_backfill
-
 package fdbclient
 
 import "github.com/apple/foundationdb/bindings/go/src/fdb"
