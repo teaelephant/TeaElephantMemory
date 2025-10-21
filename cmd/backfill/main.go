@@ -57,7 +57,21 @@ func main() {
 	// Init FDB
 	foundationdb.MustAPIVersion(fdbAPIVersion)
 
-	fdb, err := foundationdb.OpenDefault()
+	// Get cluster file path from env, fallback to default
+	clusterFile := os.Getenv("DATABASEPATH")
+	if clusterFile == "" {
+		clusterFile = os.Getenv("FDB_CLUSTER_FILE")
+	}
+
+	var fdb foundationdb.Database
+	var err error
+	if clusterFile != "" {
+		log.Printf("Opening FDB with cluster file: %s", clusterFile)
+		fdb, err = foundationdb.Open(clusterFile, []byte("DB"))
+	} else {
+		log.Println("Opening FDB with default cluster file")
+		fdb, err = foundationdb.OpenDefault()
+	}
 	if err != nil {
 		log.Fatalf("open FDB: %v", err)
 	}
