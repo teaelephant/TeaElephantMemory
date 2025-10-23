@@ -231,6 +231,11 @@ func (r *mutationResolver) AddRecordsToCollection(ctx context.Context, id common
 		return nil, castGQLError(ctx, err)
 	}
 
+	entry := r.log.WithField("user_id", user.ID).
+		WithField("collection_id", uuid.UUID(id)).
+		WithField("count", len(records))
+	entry.Debug("graphql: AddRecordsToCollection request received")
+
 	ids := make([]uuid.UUID, len(records))
 	for i, uid := range records {
 		ids[i] = uuid.UUID(uid)
@@ -238,9 +243,11 @@ func (r *mutationResolver) AddRecordsToCollection(ctx context.Context, id common
 
 	col, err := r.AddRecords(ctx, user.ID, uuid.UUID(id), ids)
 	if err != nil {
+		entry.WithError(err).Error("graphql: AddRecordsToCollection failed")
 		return nil, castGQLError(ctx, err)
 	}
 
+	entry.Info("graphql: AddRecordsToCollection succeeded")
 	return col, nil
 }
 
