@@ -41,3 +41,9 @@ JOIN qr_records q ON q.id = c.qr_id
 JOIN teas t ON t.id = q.tea_id
 WHERE c.collection_id = $1
 ORDER BY q.expiration_date ASC;
+
+-- name: InsertCollectionItems :exec
+INSERT INTO collection_qr_items (collection_id, qr_id)
+SELECT $1, x
+FROM unnest($2::uuid[]) AS t(x)
+ON CONFLICT (collection_id, qr_id) DO NOTHING;

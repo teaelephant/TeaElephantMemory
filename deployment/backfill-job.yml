@@ -16,7 +16,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: backfill
-          image: ghcr.io/teaelephant/teaelephantmemory:fdb-backfill-latest
+          image: ghcr.io/teaelephant/teaelephantmemory:fdb-backfill-20251021-171014
           imagePullPolicy: Always
           env:
             - name: PG_DSN

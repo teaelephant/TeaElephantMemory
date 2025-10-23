@@ -650,6 +650,17 @@ func (q *Queries) InsertCollectionItem(ctx context.Context, collectionID uuid.UU
 	return err
 }
 
+const insertCollectionItems = `-- name: InsertCollectionItems :exec
+INSERT INTO collection_qr_items (collection_id, qr_id)
+SELECT $1, x
+FROM unnest($2::uuid[]) AS t(x)
+ON CONFLICT (collection_id, qr_id) DO NOTHING`
+
+func (q *Queries) InsertCollectionItems(ctx context.Context, collectionID uuid.UUID, qrIDs []uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, insertCollectionItems, collectionID, qrIDs)
+	return err
+}
+
 const deleteCollectionItem = `-- name: DeleteCollectionItem :exec
 DELETE FROM collection_qr_items
 WHERE collection_id = $1 AND qr_id = $2`

@@ -14,7 +14,14 @@
       "Bash(done)",
       "Bash(git ls-tree:*)",
       "Bash(git checkout:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(kubectl describe:*)",
+      "Bash(kubectl get pods:*)",
+      "Bash(kubectl get job:*)",
+      "Bash(kubectl logs:*)",
+      "Bash(kubectl exec:*)"
     ],
     "deny": [],
     "ask": []

@@ -347,11 +347,24 @@ func (d *db) CreateCollection(ctx context.Context, userID uuid.UUID, name string
 }
 
 func (d *db) AddTeaToCollection(ctx context.Context, id uuid.UUID, teas []uuid.UUID) error {
-	for _, qrID := range teas {
-		if err := d.queries.InsertCollectionItem(ctx, id, qrID); err != nil {
-			return fmt.Errorf("add qr to collection: %w", err)
-		}
+	if len(teas) == 0 {
+		// Nothing to do
+		d.log.WithField("collection_id", id).Debug("AddTeaToCollection called with empty teas slice; skipping")
+		return nil
 	}
+
+	entry := d.log.WithFields(logrus.Fields{
+		"collection_id": id,
+		"count":         len(teas),
+	})
+	entry.Debug("adding teas to collection")
+
+	if err := d.queries.InsertCollectionItems(ctx, id, teas); err != nil {
+		entry.WithError(err).Error("failed to add teas to collection")
+		return fmt.Errorf("add qr to collection (batch): %w", err)
+	}
+
+	entry.Info("teas added to collection")
 	return nil
 }
 
