@@ -41,6 +41,7 @@ coverage.*
 # Vendor (if used)
 /vendor/
 /deployment/secret.yaml
+/deployment/secret_ovh.yaml
 
 # FDB backfill temporary files
 *.pg-only.bak

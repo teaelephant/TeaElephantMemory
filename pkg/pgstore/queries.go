@@ -654,6 +654,7 @@ const insertCollectionItems = `-- name: InsertCollectionItems :exec
 INSERT INTO collection_qr_items (collection_id, qr_id)
 SELECT $1, x
 FROM unnest($2::uuid[]) AS t(x)
+JOIN qr_records q ON q.id = x
 ON CONFLICT (collection_id, qr_id) DO NOTHING`
 
 func (q *Queries) InsertCollectionItems(ctx context.Context, collectionID uuid.UUID, qrIDs []uuid.UUID) error {

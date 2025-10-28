@@ -248,6 +248,7 @@ func (r *mutationResolver) AddRecordsToCollection(ctx context.Context, id common
 	}
 
 	entry.Info("graphql: AddRecordsToCollection succeeded")
+
 	return col, nil
 }
 
@@ -844,7 +845,7 @@ func (r *teaResolver) Tags(ctx context.Context, obj *model.Tea) ([]*model.Tag, e
 }
 
 // Collections is the resolver for the collections field.
-func (r *userResolver) Collections(ctx context.Context, obj *model.User) ([]*model.Collection, error) {
+func (r *userResolver) Collections(ctx context.Context, _ *model.User) ([]*model.Collection, error) {
 	// Delegate to query-level collections (current authenticated user)
 	cols, err := r.Query().Collections(ctx)
 	if err != nil {
@@ -855,7 +856,7 @@ func (r *userResolver) Collections(ctx context.Context, obj *model.User) ([]*mod
 }
 
 // Notifications is the resolver for the notifications field.
-func (r *userResolver) Notifications(ctx context.Context, obj *model.User) ([]*model.Notification, error) {
+func (r *userResolver) Notifications(ctx context.Context, _ *model.User) ([]*model.Notification, error) {
 	user, err := authPkg.GetUser(ctx)
 	if err != nil {
 		return nil, castGQLError(ctx, err)
