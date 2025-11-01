@@ -21,7 +21,8 @@
       "Bash(kubectl get pods:*)",
       "Bash(kubectl get job:*)",
       "Bash(kubectl logs:*)",
-      "Bash(kubectl exec:*)"
+      "Bash(kubectl exec:*)",
+      "Bash(kubectl:*)"
     ],
     "deny": [],
     "ask": []
