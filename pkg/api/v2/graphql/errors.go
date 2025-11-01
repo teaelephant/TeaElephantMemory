@@ -3,6 +3,7 @@ package graphql
 
 import (
 	"context"
+	"errors"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/vektah/gqlparser/v2/gqlerror"
@@ -35,8 +36,12 @@ var errorsMap = map[error]GQLErrorCode{
 func castGQLError(ctx context.Context, err error) error {
 	extensions := map[string]interface{}{}
 
-	code, ok := errorsMap[err]
-	if ok {
+	// Standardize auth-related error codes for clients
+	if errors.Is(err, common.ErrUnauthorized) {
+		extensions["code"] = "UNAUTHENTICATED"
+	} else if errors.Is(err, common.ErrNotAdmin) {
+		extensions["code"] = "FORBIDDEN"
+	} else if code, ok := errorsMap[err]; ok {
 		extensions["code"] = code
 	}
 

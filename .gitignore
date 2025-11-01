@@ -41,3 +41,14 @@ coverage.*
 # Vendor (if used)
 /vendor/
 /deployment/secret.yaml
+/deployment/secret_ovh.yaml
+
+# FDB backfill temporary files
+*.pg-only.bak
+.gocache/
+
+# Server binary
+/server
+
+# Admin secrets
+/secrets/

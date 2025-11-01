@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./bin/golangci-lint run:*)",
+      "Bash(chmod:*)",
+      "Bash(git log:*)",
+      "Bash(find:*)",
+      "Bash(bash:*)",
+      "Bash(git rev-list:*)",
+      "Bash(while read commit)",
+      "Bash(do git ls-tree -r $commit)",
+      "Bash(echo $commit)",
+      "Bash(break)",
+      "Bash(done)",
+      "Bash(git ls-tree:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(kubectl describe:*)",
+      "Bash(kubectl get pods:*)",
+      "Bash(kubectl get job:*)",
+      "Bash(kubectl logs:*)",
+      "Bash(kubectl exec:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

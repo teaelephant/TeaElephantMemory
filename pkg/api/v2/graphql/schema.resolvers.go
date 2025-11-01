@@ -44,6 +44,9 @@ func (r *mutationResolver) AuthApple(ctx context.Context, appleCode string, devi
 
 // NewTea is the resolver for the newTea field.
 func (r *mutationResolver) NewTea(ctx context.Context, tea model.TeaData) (*model.Tea, error) {
+	if err := authPkg.RequireAdmin(ctx); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
 	res, err := r.teaData.Create(ctx, tea.ToCommonTeaData())
 	if err != nil {
 		return nil, castGQLError(ctx, err)
@@ -54,6 +57,9 @@ func (r *mutationResolver) NewTea(ctx context.Context, tea model.TeaData) (*mode
 
 // UpdateTea is the resolver for the updateTea field.
 func (r *mutationResolver) UpdateTea(ctx context.Context, id common.ID, tea model.TeaData) (*model.Tea, error) {
+	if err := authPkg.RequireAdmin(ctx); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
 	res, err := r.teaData.Update(ctx, uuid.UUID(id), tea.ToCommonTeaData())
 	if err != nil {
 		return nil, castGQLError(ctx, err)
@@ -64,6 +70,9 @@ func (r *mutationResolver) UpdateTea(ctx context.Context, id common.ID, tea mode
 
 // AddTagToTea is the resolver for the addTagToTea field.
 func (r *mutationResolver) AddTagToTea(ctx context.Context, teaID common.ID, tagID common.ID) (*model.Tea, error) {
+	if err := authPkg.RequireAdmin(ctx); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
 	if err := r.tagManager.AddTagToTea(ctx, uuid.UUID(teaID), uuid.UUID(tagID)); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
@@ -78,6 +87,9 @@ func (r *mutationResolver) AddTagToTea(ctx context.Context, teaID common.ID, tag
 
 // DeleteTagFromTea is the resolver for the deleteTagFromTea field.
 func (r *mutationResolver) DeleteTagFromTea(ctx context.Context, teaID common.ID, tagID common.ID) (*model.Tea, error) {
+	if err := authPkg.RequireAdmin(ctx); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
 	if err := r.tagManager.DeleteTagFromTea(ctx, uuid.UUID(teaID), uuid.UUID(tagID)); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
@@ -92,6 +104,9 @@ func (r *mutationResolver) DeleteTagFromTea(ctx context.Context, teaID common.ID
 
 // DeleteTea is the resolver for the deleteTea field.
 func (r *mutationResolver) DeleteTea(ctx context.Context, id common.ID) (common.ID, error) {
+	if err := authPkg.RequireAdmin(ctx); err != nil {
+		return common.ID{}, castGQLError(ctx, err)
+	}
 	if err := r.teaData.Delete(ctx, uuid.UUID(id)); err != nil {
 		return common.ID{}, castGQLError(ctx, err)
 	}
@@ -101,6 +116,9 @@ func (r *mutationResolver) DeleteTea(ctx context.Context, id common.ID) (common.
 
 // WriteToQR is the resolver for the writeToQR field.
 func (r *mutationResolver) WriteToQR(ctx context.Context, id common.ID, data model.QRRecordData) (*model.QRRecord, error) {
+	if err := authPkg.RequireAdmin(ctx); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
 	if err := r.Set(ctx, uuid.UUID(id), &data); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
@@ -125,6 +143,9 @@ func (r *mutationResolver) WriteToQR(ctx context.Context, id common.ID, data mod
 
 // CreateTagCategory is the resolver for the createTagCategory field.
 func (r *mutationResolver) CreateTagCategory(ctx context.Context, name string) (*model.TagCategory, error) {
+	if err := authPkg.RequireAdmin(ctx); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
 	category, err := r.CreateCategory(ctx, name)
 	if err != nil {
 		return nil, castGQLError(ctx, err)
@@ -138,6 +159,9 @@ func (r *mutationResolver) CreateTagCategory(ctx context.Context, name string) (
 
 // UpdateTagCategory is the resolver for the updateTagCategory field.
 func (r *mutationResolver) UpdateTagCategory(ctx context.Context, id common.ID, name string) (*model.TagCategory, error) {
+	if err := authPkg.RequireAdmin(ctx); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
 	cat, err := r.UpdateCategory(ctx, uuid.UUID(id), name)
 	if err != nil {
 		return nil, castGQLError(ctx, err)
@@ -151,6 +175,9 @@ func (r *mutationResolver) UpdateTagCategory(ctx context.Context, id common.ID, 
 
 // DeleteTagCategory is the resolver for the deleteTagCategory field.
 func (r *mutationResolver) DeleteTagCategory(ctx context.Context, id common.ID) (common.ID, error) {
+	if err := authPkg.RequireAdmin(ctx); err != nil {
+		return common.ID{}, castGQLError(ctx, err)
+	}
 	if err := r.DeleteCategory(ctx, uuid.UUID(id)); err != nil {
 		return common.ID{}, castGQLError(ctx, err)
 	}
@@ -160,6 +187,9 @@ func (r *mutationResolver) DeleteTagCategory(ctx context.Context, id common.ID) 
 
 // CreateTag is the resolver for the createTag field.
 func (r *mutationResolver) CreateTag(ctx context.Context, name string, color string, category common.ID) (*model.Tag, error) {
+	if err := authPkg.RequireAdmin(ctx); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
 	tag, err := r.tagManager.Create(ctx, name, color, uuid.UUID(category))
 	if err != nil {
 		return nil, castGQLError(ctx, err)
@@ -174,6 +204,9 @@ func (r *mutationResolver) CreateTag(ctx context.Context, name string, color str
 
 // UpdateTag is the resolver for the updateTag field.
 func (r *mutationResolver) UpdateTag(ctx context.Context, id common.ID, name string, color string) (*model.Tag, error) {
+	if err := authPkg.RequireAdmin(ctx); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
 	tag, err := r.tagManager.Update(ctx, uuid.UUID(id), name, color)
 	if err != nil {
 		return nil, castGQLError(ctx, err)
@@ -188,6 +221,9 @@ func (r *mutationResolver) UpdateTag(ctx context.Context, id common.ID, name str
 
 // ChangeTagCategory is the resolver for the changeTagCategory field.
 func (r *mutationResolver) ChangeTagCategory(ctx context.Context, id common.ID, category common.ID) (*model.Tag, error) {
+	if err := authPkg.RequireAdmin(ctx); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
 	tag, err := r.ChangeCategory(ctx, uuid.UUID(id), uuid.UUID(category))
 	if err != nil {
 		return nil, castGQLError(ctx, err)
@@ -202,6 +238,9 @@ func (r *mutationResolver) ChangeTagCategory(ctx context.Context, id common.ID, 
 
 // DeleteTag is the resolver for the deleteTag field.
 func (r *mutationResolver) DeleteTag(ctx context.Context, id common.ID) (common.ID, error) {
+	if err := authPkg.RequireAdmin(ctx); err != nil {
+		return common.ID{}, castGQLError(ctx, err)
+	}
 	if err := r.tagManager.Delete(ctx, uuid.UUID(id)); err != nil {
 		return common.ID{}, castGQLError(ctx, err)
 	}
@@ -231,6 +270,11 @@ func (r *mutationResolver) AddRecordsToCollection(ctx context.Context, id common
 		return nil, castGQLError(ctx, err)
 	}
 
+	entry := r.log.WithField("user_id", user.ID).
+		WithField("collection_id", uuid.UUID(id)).
+		WithField("count", len(records))
+	entry.Debug("graphql: AddRecordsToCollection request received")
+
 	ids := make([]uuid.UUID, len(records))
 	for i, uid := range records {
 		ids[i] = uuid.UUID(uid)
@@ -238,8 +282,11 @@ func (r *mutationResolver) AddRecordsToCollection(ctx context.Context, id common
 
 	col, err := r.AddRecords(ctx, user.ID, uuid.UUID(id), ids)
 	if err != nil {
+		entry.WithError(err).Error("graphql: AddRecordsToCollection failed")
 		return nil, castGQLError(ctx, err)
 	}
+
+	entry.Info("graphql: AddRecordsToCollection succeeded")
 
 	return col, nil
 }
@@ -463,7 +510,7 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 	if cached, ok := r.todCache.Get(user.ID, now); ok {
 		if r.log != nil {
 			r.log.
-				WithField("user", user.ID.String()).
+				WithField(logKeyUser, user.ID.String()).
 				WithField("date", now.Format(time.RFC3339)).
 				WithField("tea", cached.Tea.Tea.Name).
 				WithField("tea_id", uuid.UUID(cached.Tea.Tea.ID).String()).
@@ -522,8 +569,18 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 	}
 
 	// Weather and recent consumption (best-effort)
-	w, _ := r.CurrentCyprus(ctx)                                            // graceful fallback on weather errors
-	recent, _ := r.consumption.Recent(ctx, user.ID, now.Add(-96*time.Hour)) // best-effort recent consumption
+	w, wErr := r.CurrentCyprus(ctx)
+	if wErr != nil && r.log != nil {
+		r.log.WithField(logKeyUser, user.ID.String()).WithField(logKeyErr, wErr).Debug("tea_of_day weather fetch failed")
+	}
+
+	recent, recErr := r.consumption.Recent(ctx, user.ID, now.Add(-96*time.Hour))
+	if recErr != nil {
+		if r.log != nil {
+			r.log.WithField(logKeyUser, user.ID.String()).WithField(logKeyErr, recErr).Debug("tea_of_day recent fetch failed")
+		}
+		recent = nil
+	}
 
 	lastBy := make(map[uuid.UUID]time.Time, len(recent))
 	for _, c := range recent {
@@ -532,7 +589,13 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 		}
 	}
 
-	ctxScores, _ := r.ContextScores(ctx, names, w, now.Weekday()) // prefer recommendation even if AI scoring fails
+	ctxScores, ctxErr := r.ContextScores(ctx, names, w, now.Weekday())
+	if ctxErr != nil {
+		if r.log != nil {
+			r.log.WithField("user", user.ID.String()).WithField("err", ctxErr).Debug("tea_of_the_day scoring failed")
+		}
+		ctxScores = make(map[string]int)
+	}
 	aiScores := make(map[uuid.UUID]int, len(ctxScores))
 	for name, score := range ctxScores {
 		if id, ok := nameToID[strings.ToLower(strings.TrimSpace(name))]; ok {
@@ -543,11 +606,11 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 	// High-level context log
 	if r.log != nil {
 		weekday := now.Weekday().String()
-		var wStr string = w.String()
+		wStr := w.String()
 		r.log.
-			WithField("user", user.ID.String()).
-			WithField("weekday", weekday).
-			WithField("weather", wStr).
+			WithField(logKeyUser, user.ID.String()).
+			WithField(logKeyWeekday, weekday).
+			WithField(logKeyWeather, wStr).
 			WithField("candidates", len(candidates)).
 			Debug("tea_of_day context")
 	}
@@ -555,25 +618,29 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 	// Delegate detailed candidate and selection logging to scoring package
 	var bestID uuid.UUID
 	if r.log != nil {
-		bestID, _ = scoring.SelectBestWithLogging(aiScores, candidates, lastBy, now, func(fields map[string]interface{}, msg string) {
+		best, _ := scoring.SelectBestWithLogging(aiScores, candidates, lastBy, now, func(fields map[string]interface{}, msg string) {
 			entry := r.log.
-				WithField("user", user.ID.String()).
-				WithField("weekday", now.Weekday().String()).
-				WithField("weather", w.String())
+				WithField(logKeyUser, user.ID.String()).
+				WithField(logKeyWeekday, now.Weekday().String()).
+				WithField(logKeyWeather, w.String())
 			for k, v := range fields {
 				entry = entry.WithField(k, v)
 			}
 			entry.Debug(msg)
 		})
+		bestID = best
 	} else {
-		bestID, _ = scoring.SelectBest(aiScores, candidates, lastBy, now)
+		best, _ := scoring.SelectBest(aiScores, candidates, lastBy, now)
+		bestID = best
 	}
 
 	if bestID == uuid.Nil {
 		return nil, ErrNoTeaCandidates
 	}
 
-	_ = r.consumption.Record(ctx, user.ID, bestID, now) // best-effort record of consumption
+	if err := r.consumption.Record(ctx, user.ID, bestID, now); err != nil && r.log != nil {
+		r.log.WithField(logKeyUser, user.ID.String()).WithField(logKeyErr, err).Debug("tea_of_day record consumption failed")
+	}
 
 	// Build QRRecord for the selected tea using the earliest record we observed
 	qrr := earliestRec[common.ID(bestID)]

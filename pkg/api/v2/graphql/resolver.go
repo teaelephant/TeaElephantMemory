@@ -23,6 +23,13 @@ var (
 	ErrNoTeaCandidates = errors.New("no tea candidates")
 )
 
+const (
+	logKeyUser    = "user"
+	logKeyWeekday = "weekday"
+	logKeyWeather = "weather"
+	logKeyErr     = "err"
+)
+
 type logger interface {
 	Debug(args ...interface{})
 	WithField(key string, value interface{}) *logrus.Entry

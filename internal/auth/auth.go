@@ -1,4 +1,6 @@
 // Package auth provides JWT and Apple Sign In authentication, along with GraphQL middleware.
+//
+//nolint:wsl_v5 // allow compact style; this file frequently returns early and uses short guard clauses
 package auth
 
 import (
@@ -8,7 +10,9 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
@@ -24,8 +28,10 @@ import (
 
 // ErrAppleAuth indicates that Apple Sign In authentication failed.
 var (
-	ErrAppleAuth        = errors.New("apple authentication failed")
-	ErrEmptyBlockDecode = errors.New("empty block after decoding")
+	ErrAppleAuth                  = errors.New("apple authentication failed")
+	ErrEmptyBlockDecode           = errors.New("empty block after decoding")
+	ErrAdminKeyNotECDSA           = errors.New("admin public key is not ECDSA")
+	ErrAdminVerificationKeyAbsent = errors.New("admin verification key not loaded")
 )
 
 type ctxKey string
@@ -41,10 +47,29 @@ var signingMethod = jwt.SigningMethodES256
 var errUnexpectedSigningMethod = errors.New("unexpected signing method")
 
 const (
-	bearerPrefix   = "Bearer "
-	invalidJWTMsg  = "Invalid jwt"
-	getSecretWrapF = "get secret: %w"
+	bearerPrefix             = "Bearer "
+	invalidJWTMsg            = "Invalid jwt"
+	getSecretWrapF           = "get secret: %w"
+	unexpectedSigningMethodF = "%w: %v"
 )
+
+// Admin auth constants
+const (
+	AdminClaimKey    = "admin"
+	AdminIssuer      = "TeaElephantEditor"
+	AdminAudience    = "tea-elephant-api"
+	ClockSkewSeconds = 300
+)
+
+// AdminPrincipal represents an authenticated admin session
+type AdminPrincipal struct {
+	JTI       string
+	IssuedAt  time.Time
+	ExpiresAt time.Time
+}
+
+// context key for admin principal
+const adminCtxKey ctxKey = "adminPrincipal"
 
 // Auth defines the authentication operations for issuing and validating JWTs
 // and providing GraphQL middleware support.
@@ -64,6 +89,10 @@ type auth struct {
 	appleClient *apple.Client
 	cfg         *Configuration
 	secret      string
+
+	// cached admin public keys by kid (empty kid = default)
+	adminKeys      map[string]*ecdsa.PublicKey
+	adminKeysMutex sync.RWMutex
 
 	storage
 	log *logrus.Entry
@@ -98,7 +127,7 @@ func (a *auth) Validate(_ context.Context, jwtToken string) (*common.User, error
 // verificationKey validates the signing method and returns the appropriate key for verification
 func (a *auth) verificationKey(token *jwt.Token) (interface{}, error) {
 	if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
-		return nil, fmt.Errorf("%w: %v", errUnexpectedSigningMethod, token.Header["alg"])
+		return nil, fmt.Errorf(unexpectedSigningMethodF, errUnexpectedSigningMethod, token.Header["alg"])
 	}
 
 	key, err := a.getSecret()
@@ -149,6 +178,11 @@ func (a *auth) Start() (err error) {
 	a.secret, err = apple.GenerateClientSecret(a.cfg.Secret, a.cfg.TeamID, a.cfg.ClientID, a.cfg.KeyID)
 	if err != nil {
 		return fmt.Errorf("generate apple client secret: %w", err)
+	}
+
+	// preload admin public key(s)
+	if err := a.loadAdminKeys(); err != nil {
+		return fmt.Errorf("load admin keys: %w", err)
 	}
 
 	return nil
@@ -259,14 +293,20 @@ func (a *auth) WsInitFunc(ctx context.Context, payload transport.InitPayload) (c
 
 	token := strings.Replace(authHeader, bearerPrefix, "", 1)
 
-	user, err := a.Validate(ctx, token)
-	if err != nil {
-		a.log.WithError(err).Warn(invalidJWTMsg)
-
-		return ctx, nil, common.ErrJwtIncorrect
+	// Try user token first
+	if user, err := a.Validate(ctx, token); err == nil {
+		ctx = context.WithValue(ctx, userCtxKey, user)
+	} else {
+		// Try admin token
+		if principal, aerr := a.ValidateAdmin(ctx, token); aerr == nil {
+			ctx = context.WithValue(ctx, adminCtxKey, principal)
+		} else {
+			a.log.WithError(err).WithField("admin_err", aerr).Warn(invalidJWTMsg)
+			return ctx, nil, common.ErrJwtIncorrect
+		}
 	}
 
-	return context.WithValue(ctx, userCtxKey, user), nil, nil
+	return ctx, nil, nil
 }
 
 // InterceptResponse intercepts GraphQL responses to ensure the user is authenticated.
@@ -284,23 +324,24 @@ func (a *Middleware) InterceptResponse(ctx context.Context, next graphql.Respons
 
 	token := strings.Replace(header, bearerPrefix, "", 1)
 
-	user, err := a.auth.Validate(ctx, token)
-	if err != nil {
-		a.log.WithError(err).Warn(invalidJWTMsg)
-		// FIXME
-		graphql.AddError(ctx, &gqlerror.Error{
-			Message: common.ErrJwtIncorrect.Error(),
-			Path:    graphql.GetPath(ctx),
-			Extensions: map[string]interface{}{
-				"code": "-1",
-			},
-		})
-
-		return next(ctx)
+	// Try as user token
+	if user, err := a.auth.Validate(ctx, token); err == nil {
+		return next(context.WithValue(ctx, userCtxKey, user))
+	}
+	// Try as admin token
+	if principal, err := a.ValidateAdmin(ctx, token); err == nil {
+		return next(context.WithValue(ctx, adminCtxKey, principal))
 	}
 
-	// and call the next with our new context
-	return next(context.WithValue(ctx, userCtxKey, user))
+	// Neither user nor admin -> add GraphQL error with stable code
+	graphql.AddError(ctx, &gqlerror.Error{
+		Message: common.ErrJwtIncorrect.Error(),
+		Path:    graphql.GetPath(ctx),
+		Extensions: map[string]interface{}{
+			"code": "UNAUTHENTICATED",
+		},
+	})
+	return next(ctx)
 }
 
 // ExtensionName returns the name of the GraphQL extension.
@@ -321,4 +362,117 @@ func GetUser(ctx context.Context) (*common.User, error) {
 	}
 
 	return nil, common.ErrUserNotFound
+}
+
+// AdminPrincipalFrom extracts the admin principal from context.
+func AdminPrincipalFrom(ctx context.Context) (*AdminPrincipal, bool) {
+	v := ctx.Value(adminCtxKey)
+	p, ok := v.(*AdminPrincipal)
+	return p, ok
+}
+
+// RequireAdmin ensures an admin principal is present in context.
+func RequireAdmin(ctx context.Context) error {
+	if _, ok := AdminPrincipalFrom(ctx); !ok {
+		return common.ErrUnauthorized
+	}
+	return nil
+}
+
+// loadPublicKeyFromFile reads an ECDSA public key from a PEM file.
+func (a *auth) loadPublicKeyFromFile(path string) (*ecdsa.PublicKey, error) {
+	// #nosec G304 -- path comes from trusted configuration (mounted secret)
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read admin public key: %w", err)
+	}
+	block, _ := pem.Decode(b)
+	if block == nil {
+		return nil, ErrEmptyBlockDecode
+	}
+	pk, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("parse admin public key: %w", err)
+	}
+	ecdsaKey, ok := pk.(*ecdsa.PublicKey)
+	if !ok {
+		return nil, ErrAdminKeyNotECDSA
+	}
+	return ecdsaKey, nil
+}
+
+// loadAdminKeys preloads the default admin public key into cache.
+func (a *auth) loadAdminKeys() error {
+	a.adminKeysMutex.Lock()
+	defer a.adminKeysMutex.Unlock()
+	if a.adminKeys == nil {
+		a.adminKeys = make(map[string]*ecdsa.PublicKey)
+	}
+	key, err := a.loadPublicKeyFromFile(a.cfg.AdminPublicKeyPath)
+	if err != nil {
+		return err
+	}
+	// empty kid denotes default key
+	a.adminKeys[""] = key
+	return nil
+}
+
+// adminVerificationKey selects the correct admin public key from cache.
+func (a *auth) adminVerificationKey(token *jwt.Token) (interface{}, error) {
+	// Enforce ES256 algorithm
+	if token.Method.Alg() != signingMethod.Alg() {
+		return nil, fmt.Errorf(unexpectedSigningMethodF, errUnexpectedSigningMethod, token.Header["alg"])
+	}
+	kid, _ := token.Header["kid"].(string)
+	a.adminKeysMutex.RLock()
+	key, ok := a.adminKeys[kid]
+	if !ok {
+		// fall back to default if no kid provided
+		key, ok = a.adminKeys[""]
+	}
+	a.adminKeysMutex.RUnlock()
+	if !ok || key == nil {
+		return nil, ErrAdminVerificationKeyAbsent
+	}
+	return key, nil
+}
+
+// ValidateAdmin parses and validates an admin JWT and returns a principal.
+func (a *auth) ValidateAdmin(_ context.Context, jwtToken string) (*AdminPrincipal, error) {
+	parsed, err := jwt.Parse(jwtToken, a.adminVerificationKey,
+		jwt.WithValidMethods([]string{signingMethod.Alg()}),
+		jwt.WithIssuer(AdminIssuer),
+		jwt.WithAudience(AdminAudience),
+		jwt.WithLeeway(ClockSkewSeconds*time.Second),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("parse admin jwt: %w", err)
+	}
+	claims, ok := parsed.Claims.(jwt.MapClaims)
+	if !ok || !parsed.Valid {
+		return nil, common.ErrInvalidToken
+	}
+	// Check custom admin claim
+	isAdmin, _ := claims[AdminClaimKey].(bool)
+	if !isAdmin {
+		return nil, common.ErrNotAdmin
+	}
+	// Build principal
+	var jti string
+	if v, ok := claims["jti"].(string); ok {
+		jti = v
+	}
+	issuedAt, err := claims.GetIssuedAt()
+	if err != nil {
+		return nil, fmt.Errorf("missing iat: %w", err)
+	}
+	exp, err := claims.GetExpirationTime()
+	if err != nil {
+		return nil, fmt.Errorf("missing exp: %w", err)
+	}
+	return &AdminPrincipal{
+		JTI:       jti,
+		IssuedAt:  issuedAt.Time,
+		ExpiresAt: exp.Time,
+	}, nil
 }

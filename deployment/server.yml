@@ -33,7 +33,7 @@ spec:
     spec:
       containers:
         - name: server
-          image: ghcr.io/teaelephant/teaelephantmemory:v1.3.3
+          image: ghcr.io/teaelephant/teaelephantmemory:v1.4.9
           imagePullPolicy: Always
           livenessProbe:
             httpGet:
@@ -56,8 +56,11 @@ spec:
           env:
             - name: LOG_LEVEL
               value: debug
-            - name: DATABASEPATH
-              value: "/etc/fdb/fdb.cluster"
+            - name: PG_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-dsn-ovh
+                  key: dsn
             - name: OPEN_AI_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -82,18 +85,24 @@ spec:
                   name: apple-auth
             - name: APPLE_AUTH_SECRET_PATH
               value: "/keys/AuthKey_39D5B439QV.p8"
+            - name: ADMIN_PUBLIC_KEY_PATH
+              value: "/keys/admin/admin_public_key.pem"
           volumeMounts:
-            - name: db-cluster
-              mountPath: /etc/fdb/
             - name: keys
               mountPath: /keys/
+            - name: admin-key
+              mountPath: /keys/admin
+              readOnly: true
       volumes:
-        - name: db-cluster
-          configMap:
-            name: fdb.cluster
         - name: keys
           secret:
             secretName: apple-auth
+        - name: admin-key
+          secret:
+            secretName: admin-auth
+            items:
+              - key: admin_public_key.pem
+                path: admin_public_key.pem
       imagePullSecrets:
         - name: regcred
 ---
@@ -167,7 +176,6 @@ apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
   name: letsencrypt-prod
-  namespace: teaelephant
 spec:
   acme:
     # Email address used for ACME registration
@@ -180,4 +188,5 @@ spec:
     solvers:
       - http01:
           ingress:
+            serviceType: NodePort
             class: nginx

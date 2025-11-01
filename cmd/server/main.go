@@ -1,7 +1,10 @@
 package main
 
 import (
-	foundationDB "github.com/apple/foundationdb/bindings/go/src/fdb"
+	"context"
+	"database/sql"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/sashabaranov/go-openai"
 	"github.com/sideshow/apns2"
@@ -24,21 +27,20 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/internal/openweather"
 	"github.com/teaelephant/TeaElephantMemory/internal/server"
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/graphql"
-	"github.com/teaelephant/TeaElephantMemory/pkg/fdb"
-	"github.com/teaelephant/TeaElephantMemory/pkg/fdbclient"
+	pgadapter "github.com/teaelephant/TeaElephantMemory/pkg/pg"
 )
 
 const (
-	foundationDBVersion = 710
-	pkgKey              = "pkg"
+	pkgKey = "pkg"
 )
 
 type configuration struct {
-	LoggerLevel  logrus.Level `envconfig:"LOG_LEVEL" default:"info"`
-	DatabasePath string       `default:"/usr/local/etc/foundationdb/fdb.cluster"`
-	OpenAIToken  string       `envconfig:"OPEN_AI_TOKEN" require:"true"`
+	LoggerLevel logrus.Level `envconfig:"LOG_LEVEL" default:"info"`
+	OpenAIToken string       `envconfig:"OPEN_AI_TOKEN" require:"true"`
+	PGDSN       string       `envconfig:"PG_DSN" default:""`
 }
 
+//nolint:funlen // main wires dependencies; keep it in one place for clarity despite statement count
 func main() {
 	cfg := new(configuration)
 	if err := envconfig.Process("", cfg); err != nil {
@@ -47,14 +49,22 @@ func main() {
 
 	logrusLogger := logrus.New()
 	logrusLogger.SetLevel(cfg.LoggerLevel)
-	foundationDB.MustAPIVersion(foundationDBVersion)
 
-	db, err := foundationDB.OpenDatabase(cfg.DatabasePath)
+	// Postgres is required. Fail fast if PG_DSN is not provided.
+	if cfg.PGDSN == "" {
+		panic("PG_DSN is required")
+	}
+
+	psql, err := sql.Open("pgx", cfg.PGDSN)
 	if err != nil {
 		panic(err)
 	}
 
-	st := fdb.NewDB(db, logrusLogger.WithField(pkgKey, "fdb"))
+	if err := psql.PingContext(context.Background()); err != nil {
+		panic(err)
+	}
+
+	st := pgadapter.NewDB(psql, logrusLogger.WithField(pkgKey, "pg"))
 
 	teaManager := tea.NewManager(st)
 	qrManager := qr.NewManager(st)
@@ -100,7 +110,8 @@ func main() {
 		panic(err)
 	}
 
-	cons := consumption.NewFDBStore(fdbclient.NewDatabase(db), 0)
+	// Consumption history uses the same Postgres connection
+	cons := consumption.NewPGStore(psql, 0)
 
 	resolvers := graphql.NewResolver(
 		logrusLogger.WithField(pkgKey, "graphql"),

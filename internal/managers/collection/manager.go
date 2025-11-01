@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 
 	"github.com/teaelephant/TeaElephantMemory/common"
 	gqlCommon "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common"
@@ -70,19 +71,36 @@ func (m *manager) Create(ctx context.Context, userID uuid.UUID, name string) (*m
 }
 
 func (m *manager) AddRecords(ctx context.Context, userID, id uuid.UUID, teas []uuid.UUID) (*model.Collection, error) {
+	entry := logrus.WithFields(logrus.Fields{
+		"layer":         "manager",
+		"op":            "AddRecords",
+		"user_id":       userID,
+		"collection_id": id,
+		"count":         len(teas),
+	})
+	entry.Debug("starting AddRecords")
+
 	if _, err := m.Collection(ctx, id, userID); err != nil {
+		entry.WithError(err).Error("collection lookup failed")
 		return nil, err
 	}
 
+	entry.Debug("collection lookup succeeded")
+
 	if err := m.AddTeaToCollection(ctx, id, teas); err != nil {
+		entry.WithError(err).Error("AddTeaToCollection failed")
 		return nil, err
 	}
+
+	entry.Debug("AddTeaToCollection succeeded")
 
 	collection, err := m.Collection(ctx, id, userID)
 	if err != nil {
+		entry.WithError(err).Error("collection reload failed")
 		return nil, err
 	}
 
+	entry.WithField("collection_name", collection.Name).Info("AddRecords succeeded")
 	return &model.Collection{
 		ID:     gqlCommon.ID(id),
 		Name:   collection.Name,

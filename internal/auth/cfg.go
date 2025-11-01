@@ -14,12 +14,20 @@ type Configuration struct {
 	TeamID     string `envconfig:"TEAM_ID" required:"true"`
 	ClientID   string `envconfig:"CLIENT_ID" required:"true"`
 	KeyID      string `envconfig:"KEY_ID" required:"true"`
+
+	// Path to admin public key (mounted as a file)
+	AdminPublicKeyPath string `envconfig:"ADMIN_PUBLIC_KEY_PATH" default:"/keys/admin/admin_public_key.pem"`
 }
 
 // Config loads configuration from environment and reads the private key from SecretPath.
 func Config() *Configuration {
 	cfg := new(Configuration)
+	// Load Apple auth configuration from APPLE_AUTH_* variables
 	if err := envconfig.Process("APPLE_AUTH", cfg); err != nil {
+		panic(err)
+	}
+	// Load non-prefixed variables like ADMIN_PUBLIC_KEY_PATH
+	if err := envconfig.Process("", cfg); err != nil {
 		panic(err)
 	}
 

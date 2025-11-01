@@ -1,17 +1,8 @@
-ARG FDB_VERSION=7.3.27
-FROM foundationdb/foundationdb:${FDB_VERSION} as fdb
 FROM golang:1.25
-ARG FDB_VERSION
 
 WORKDIR /tmp
 
-RUN apt-get update
-# dnsutils is needed to have dig installed to create cluster file
-RUN apt-get install -y --no-install-recommends ca-certificates dnsutils
-
-RUN wget "https://github.com/apple/foundationdb/releases/download/${FDB_VERSION}/foundationdb-clients_${FDB_VERSION}-1_amd64.deb"
-RUN dpkg -i foundationdb-clients_${FDB_VERSION}-1_amd64.deb
-
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 
 ARG GOPROXY
 ENV \
