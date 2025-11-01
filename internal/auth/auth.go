@@ -51,6 +51,7 @@ const (
 	invalidJWTMsg            = "Invalid jwt"
 	getSecretWrapF           = "get secret: %w"
 	unexpectedSigningMethodF = "%w: %v"
+	tokenPrefixLogLen        = 20
 )
 
 // Admin auth constants
@@ -421,24 +422,34 @@ func (a *auth) loadAdminKeys() error {
 func (a *auth) adminVerificationKey(token *jwt.Token) (interface{}, error) {
 	// Enforce ES256 algorithm
 	if token.Method.Alg() != signingMethod.Alg() {
+		a.log.WithField("alg", token.Header["alg"]).Warn("Unexpected signing method for admin JWT")
 		return nil, fmt.Errorf(unexpectedSigningMethodF, errUnexpectedSigningMethod, token.Header["alg"])
 	}
+
 	kid, _ := token.Header["kid"].(string)
+	a.log.WithField("kid", kid).Debug("Looking up admin public key")
+
 	a.adminKeysMutex.RLock()
 	key, ok := a.adminKeys[kid]
 	if !ok {
 		// fall back to default if no kid provided
 		key, ok = a.adminKeys[""]
+		a.log.Debug("Using default admin key (no kid match)")
 	}
 	a.adminKeysMutex.RUnlock()
+
 	if !ok || key == nil {
+		a.log.Warn("Admin verification key not found in cache")
 		return nil, ErrAdminVerificationKeyAbsent
 	}
+
 	return key, nil
 }
 
 // ValidateAdmin parses and validates an admin JWT and returns a principal.
 func (a *auth) ValidateAdmin(_ context.Context, jwtToken string) (*AdminPrincipal, error) {
+	a.log.WithField("token_prefix", jwtToken[:min(tokenPrefixLogLen, len(jwtToken))]).Debug("ValidateAdmin called")
+
 	parsed, err := jwt.Parse(jwtToken, a.adminVerificationKey,
 		jwt.WithValidMethods([]string{signingMethod.Alg()}),
 		jwt.WithIssuer(AdminIssuer),
@@ -446,17 +457,27 @@ func (a *auth) ValidateAdmin(_ context.Context, jwtToken string) (*AdminPrincipa
 		jwt.WithLeeway(ClockSkewSeconds*time.Second),
 	)
 	if err != nil {
+		a.log.WithError(err).Warn("Admin JWT parse failed")
 		return nil, fmt.Errorf("parse admin jwt: %w", err)
 	}
 	claims, ok := parsed.Claims.(jwt.MapClaims)
 	if !ok || !parsed.Valid {
+		a.log.Warn("Admin JWT invalid or claims extraction failed")
 		return nil, common.ErrInvalidToken
 	}
+
 	// Check custom admin claim
 	isAdmin, _ := claims[AdminClaimKey].(bool)
 	if !isAdmin {
+		a.log.WithField("admin_claim", claims[AdminClaimKey]).Warn("Admin claim missing or false")
 		return nil, common.ErrNotAdmin
 	}
+
+	a.log.WithFields(map[string]interface{}{
+		"jti": claims["jti"],
+		"iss": claims["iss"],
+		"aud": claims["aud"],
+	}).Debug("Admin JWT validated successfully")
 	// Build principal
 	var jti string
 	if v, ok := claims["jti"].(string); ok {

@@ -28,6 +28,7 @@ func Config() *Configuration {
 		ClientID   string `envconfig:"CLIENT_ID" required:"true"`
 		KeyID      string `envconfig:"KEY_ID" required:"true"`
 	}
+
 	var ac appleCfg
 	if err := envconfig.Process("APPLE_AUTH", &ac); err != nil {
 		panic(err)
@@ -37,6 +38,7 @@ func Config() *Configuration {
 	type adminCfg struct {
 		AdminPublicKeyPath string `envconfig:"ADMIN_PUBLIC_KEY_PATH" default:"/keys/admin/admin_public_key.pem"`
 	}
+
 	var adc adminCfg
 	if err := envconfig.Process("", &adc); err != nil {
 		panic(err)
