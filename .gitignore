@@ -49,3 +49,6 @@ coverage.*
 
 # Server binary
 /server
+
+# Admin secrets
+/secrets/
