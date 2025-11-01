@@ -1,4 +1,6 @@
 // Package pg contains the Postgres-backed storage adapter used by managers.
+//
+//nolint:wsl_v5 // legacy file style; whitespace rules disabled to minimize churn
 package pg
 
 import (
@@ -461,7 +463,7 @@ func (d *db) Notifications(ctx context.Context, userID uuid.UUID) ([]common.Noti
 	return res, nil
 }
 
-func (d *db) MapUserIdToDeviceID(ctx context.Context, userID uuid.UUID) ([]string, error) {
+func (d *db) MapUserIDToDeviceID(ctx context.Context, userID uuid.UUID) ([]string, error) {
 	tokens, err := d.queries.ListDeviceTokens(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("list device tokens: %w", err)

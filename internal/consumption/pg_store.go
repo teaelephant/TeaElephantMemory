@@ -1,4 +1,6 @@
 // Package consumption contains storage backends for recent tea consumption events.
+//
+//nolint:wsl_v5 // allow compact whitespace style consistent with existing code
 package consumption
 
 import (
@@ -95,5 +97,8 @@ func (s *PGStore) Ping(ctx context.Context) error {
 	if s.queries == nil {
 		return ErrNilDB
 	}
-	return s.queries.DB().PingContext(ctx)
+	if err := s.queries.DB().PingContext(ctx); err != nil {
+		return fmt.Errorf("pg consumption.Ping: %w", err)
+	}
+	return nil
 }

@@ -22,4 +22,8 @@ var (
 	ErrJwtIncorrect = errors.New("invalid jwt")
 	// ErrDeviceNotFound indicates a device was not found for the given identifier.
 	ErrDeviceNotFound = errors.New("device not found")
+	// ErrUnauthorized indicates no valid authentication was provided.
+	ErrUnauthorized = errors.New("unauthenticated")
+	// ErrNotAdmin indicates the authenticated principal lacks admin privileges.
+	ErrNotAdmin = errors.New("forbidden: admin required")
 )

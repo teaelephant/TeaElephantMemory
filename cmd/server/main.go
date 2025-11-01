@@ -40,7 +40,7 @@ type configuration struct {
 	PGDSN       string       `envconfig:"PG_DSN" default:""`
 }
 
-// nolint:funlen // main wires dependencies; keep it in one place for clarity despite statement count
+//nolint:funlen // main wires dependencies; keep it in one place for clarity despite statement count
 func main() {
 	cfg := new(configuration)
 	if err := envconfig.Process("", cfg); err != nil {
@@ -59,6 +59,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
 	if err := psql.PingContext(context.Background()); err != nil {
 		panic(err)
 	}

@@ -20,7 +20,7 @@ type Sender interface {
 }
 
 type userIDMapper interface {
-	MapUserIdToDeviceID(ctx context.Context, userID uuid.UUID) ([]string, error)
+	MapUserIDToDeviceID(ctx context.Context, userID uuid.UUID) ([]string, error)
 }
 
 type sender struct {
@@ -32,7 +32,7 @@ type sender struct {
 }
 
 func (s *sender) Send(ctx context.Context, userID, itemID uuid.UUID, title, body string) error {
-	deviceTokens, err := s.MapUserIdToDeviceID(ctx, userID)
+	deviceTokens, err := s.MapUserIDToDeviceID(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("map user id to device id: %w", err)
 	}
