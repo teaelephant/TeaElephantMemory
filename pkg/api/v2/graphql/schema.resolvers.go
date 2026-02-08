@@ -116,9 +116,6 @@ func (r *mutationResolver) DeleteTea(ctx context.Context, id common.ID) (common.
 
 // WriteToQR is the resolver for the writeToQR field.
 func (r *mutationResolver) WriteToQR(ctx context.Context, id common.ID, data model.QRRecordData) (*model.QRRecord, error) {
-	if err := authPkg.RequireAdmin(ctx); err != nil {
-		return nil, castGQLError(ctx, err)
-	}
 	if err := r.Set(ctx, uuid.UUID(id), &data); err != nil {
 		return nil, castGQLError(ctx, err)
 	}

@@ -33,7 +33,7 @@ spec:
     spec:
       containers:
         - name: server
-          image: ghcr.io/teaelephant/teaelephantmemory:v1.4.10
+          image: ghcr.io/teaelephant/teaelephantmemory:v1.4.12
           imagePullPolicy: Always
           livenessProbe:
             httpGet:

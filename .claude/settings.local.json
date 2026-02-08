@@ -22,7 +22,8 @@
       "Bash(kubectl get job:*)",
       "Bash(kubectl logs:*)",
       "Bash(kubectl exec:*)",
-      "Bash(kubectl:*)"
+      "Bash(kubectl:*)",
+      "Read(///**)"
     ],
     "deny": [],
     "ask": []
