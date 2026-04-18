@@ -44,7 +44,7 @@ func (r *mutationResolver) AuthApple(ctx context.Context, appleCode string, devi
 
 // NewTea is the resolver for the newTea field.
 func (r *mutationResolver) NewTea(ctx context.Context, tea model.TeaData) (*model.Tea, error) {
-	if err := authPkg.RequireAdmin(ctx); err != nil {
+	if err := authPkg.RequireUserOrAdmin(ctx); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
 	res, err := r.teaData.Create(ctx, tea.ToCommonTeaData())
@@ -57,7 +57,7 @@ func (r *mutationResolver) NewTea(ctx context.Context, tea model.TeaData) (*mode
 
 // UpdateTea is the resolver for the updateTea field.
 func (r *mutationResolver) UpdateTea(ctx context.Context, id common.ID, tea model.TeaData) (*model.Tea, error) {
-	if err := authPkg.RequireAdmin(ctx); err != nil {
+	if err := authPkg.RequireUserOrAdmin(ctx); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
 	res, err := r.teaData.Update(ctx, uuid.UUID(id), tea.ToCommonTeaData())
@@ -70,7 +70,7 @@ func (r *mutationResolver) UpdateTea(ctx context.Context, id common.ID, tea mode
 
 // AddTagToTea is the resolver for the addTagToTea field.
 func (r *mutationResolver) AddTagToTea(ctx context.Context, teaID common.ID, tagID common.ID) (*model.Tea, error) {
-	if err := authPkg.RequireAdmin(ctx); err != nil {
+	if err := authPkg.RequireUserOrAdmin(ctx); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
 	if err := r.tagManager.AddTagToTea(ctx, uuid.UUID(teaID), uuid.UUID(tagID)); err != nil {
@@ -87,7 +87,7 @@ func (r *mutationResolver) AddTagToTea(ctx context.Context, teaID common.ID, tag
 
 // DeleteTagFromTea is the resolver for the deleteTagFromTea field.
 func (r *mutationResolver) DeleteTagFromTea(ctx context.Context, teaID common.ID, tagID common.ID) (*model.Tea, error) {
-	if err := authPkg.RequireAdmin(ctx); err != nil {
+	if err := authPkg.RequireUserOrAdmin(ctx); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
 	if err := r.tagManager.DeleteTagFromTea(ctx, uuid.UUID(teaID), uuid.UUID(tagID)); err != nil {

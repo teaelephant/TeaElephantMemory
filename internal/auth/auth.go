@@ -380,6 +380,17 @@ func RequireAdmin(ctx context.Context) error {
 	return nil
 }
 
+// RequireUserOrAdmin ensures either a mobile user session or an admin principal is present.
+func RequireUserOrAdmin(ctx context.Context) error {
+	if _, err := GetUser(ctx); err == nil {
+		return nil
+	}
+	if _, ok := AdminPrincipalFrom(ctx); ok {
+		return nil
+	}
+	return common.ErrUnauthorized
+}
+
 // loadPublicKeyFromFile reads an ECDSA public key from a PEM file.
 func (a *auth) loadPublicKeyFromFile(path string) (*ecdsa.PublicKey, error) {
 	// #nosec G304 -- path comes from trusted configuration (mounted secret)

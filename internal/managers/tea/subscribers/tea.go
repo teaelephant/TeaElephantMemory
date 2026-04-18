@@ -51,7 +51,11 @@ func (t *teaSubscribers) SendAll(message *model.Tea) {
 	defer t.mu.RUnlock()
 
 	for _, el := range t.subs {
-		el.ch <- message
+		select {
+		case <-el.done:
+		case el.ch <- message:
+		default:
+		}
 	}
 }
 
