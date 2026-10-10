@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-TeaElephant Memory is a Go-based backend service for managing tea collections with AI-powered recommendations. The project uses GraphQL API, FoundationDB for storage, and includes features like tea recommendations, consumption tracking, and expiration monitoring.
+TeaElephant Memory is a Go-based backend service for managing tea collections with AI-powered recommendations. The project uses a GraphQL API and PostgreSQL for storage, and includes tea recommendations, consumption tracking, and expiration monitoring.
 
 ## Development Commands
 
@@ -72,7 +72,7 @@ Check README for specific test commands. Ensure all tests pass before committing
 
 ## Notes
 
-- The project uses FoundationDB as the primary database
+- PostgreSQL is the only storage backend. See docs/POSTGRES_STORAGE.md and README.md for schema, configuration, and local setup.
 - Authentication is handled via Apple Sign-In
 - Weather data integration for contextual recommendations
 - The `internal/adviser/tea_of_the_day.gotpl` template is deprecated (see TEA_OF_THE_DAY_FEATURE.md)

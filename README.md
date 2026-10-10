@@ -1,72 +1,128 @@
 # TeaElephantMemory
 
-A Go service powering Tea Elephant Memory: store tea collections, tags, and notifications, generate printable QR codes, and expose a GraphQL API. Includes integrations for Apple Push Notifications and OpenWeather.
+Go backend for TeaElephant's iOS application and macOS catalogue editor.
 
 ## Features
-- GraphQL API (gqlgen) for collections, teas, tags, and notifications
-- FoundationDB-backed storage (via lightweight client in pkg/fdbclient)
-- QR code generation utilities (printqr)
-- APNs notification sender
-- OpenWeather integration for weather-aware features
-- Docker and docker-compose support
 
-## Prerequisites
-- Go 1.22+
-- Docker and Docker Compose (optional but recommended)
-- FoundationDB (local dev cluster) or access to a running FDB
+- GraphQL HTTP and WebSocket API for teas, tags, QR records, and user collections
+- PostgreSQL persistence and consumption history
+- AI-generated descriptions and tea recommendations, including Tea of the Day
+- Apple Sign In, admin JWT authentication, and APNs expiration notifications
+- OpenWeather context and printable QR code generation
 
-## Quick Start (Docker Compose)
-1. Copy or verify FDB cluster config in `config/fdb.cluster`.
-2. Start services:
-   - docker compose up -d
-3. Server listens on default port (see flags/env below). GraphQL schema is under `pkg/api/v2/graphql`.
+## Requirements
 
-To stop:
-- docker compose down
+- Go 1.25.1 or newer, as specified in `go.mod`
+- PostgreSQL; the local Compose setup uses PostgreSQL 17
+- Apple authentication/APNs credentials and an admin verification public key
+- OpenAI and OpenWeather API credentials for the corresponding features
+- Docker Compose for the container-based setup
 
-## Build From Source
-1. Ensure Go toolchain is installed (1.22+).
-2. Download modules and build:
-   - go mod download
-   - go build ./...
+## Local setup with Docker Compose
 
-### Run the server
-- go run ./cmd/server
+1. Copy the configuration template:
 
-Common flags/env (examples):
-- FDB_CLUSTER_FILE: path to FoundationDB cluster file (default: config/fdb.cluster)
-- PORT: server port (default may be 8080)
+   ```sh
+   cp .env.example .env
+   ```
 
-### Generate QR codes (CLI)
-- go run ./cmd/qr_gen
-Outputs printable QR codes using logic from `printqr` package.
+2. Fill in the API credentials and Apple identifiers in `.env`. Set
+   `APPLE_AUTH_SECRET_FILE` to your existing Apple private key and
+   `ADMIN_PUBLIC_KEY_FILE` to the admin public key. The default paths are
+   `secrets/AuthKey.p8` and `secrets/admin_public_key.pem`.
+   See [admin key setup](docs/ADMIN_KEYS_SETUP.md) for generating the admin keypair.
+3. Build and start the services:
 
-## Tests
-- Run unit tests:
-  - go test ./...
+   ```sh
+   docker compose up -d --build
+   ```
 
-Some packages have dedicated tests, e.g.:
-- internal/openweather
-- internal/adviser
-- common packages
+Compose builds the current server sources, waits for PostgreSQL to become
+healthy, and mounts the two key files read-only. The default endpoints are:
 
-## Linting
-A local golangci-lint binary exists under `bin/golangci-lint`. If desired:
-- bin/golangci-lint run
+- GraphQL HTTP: `http://localhost:8080/v2/query`
+- GraphQL WebSocket: `ws://localhost:8080/v2/query`
+- GraphQL playground: `http://localhost:8080/v2/`
+- HTTP health: `http://localhost:8080/health`
+- Prometheus metrics: `http://localhost:8080/metrics`
+- PostgreSQL: `localhost:5432`
 
-## Project Layout Highlights
-- cmd/server: HTTP server entrypoint
-- cmd/qr_gen: CLI QR generator
-- pkg/api/v2/graphql: GraphQL schema and generated code
-- pkg/fdb, pkg/fdbclient: FoundationDB access layers
-- internal/*: domain services and managers (adviser, descrgen, openweather, managers for tags/tea/collection)
-- printqr: QR image creation
-- static/: static assets, including apple-app-site-association
+The PostgreSQL service stores data in the named `postgres-data` volume.
+The [official image](https://hub.docker.com/_/postgres) applies `db/schema.sql`
+during initialization of an empty data directory. Existing databases need
+schema changes applied explicitly.
 
-## Configuration Notes
-- FoundationDB cluster file: `config/fdb.cluster` (ensure it matches your environment)
-- APNs requires credentials (e.g., AuthKey_*.p8). Place and configure securely for production.
-- Environment variables and flags may be introduced/used by individual components; check respective packages for details.
+`docker compose down` stops the services while retaining the database volume.
 
-## License
-This project is licensed under the MIT License. See the LICENSE file for details.
+## Run the server from source
+
+Start only the local database:
+
+```sh
+docker compose up -d postgres
+```
+
+After configuring `.env`, load it into the shell and set the runtime key paths:
+
+```sh
+set -a
+. ./.env
+set +a
+export APPLE_AUTH_SECRET_PATH="$APPLE_AUTH_SECRET_FILE"
+export ADMIN_PUBLIC_KEY_PATH="$ADMIN_PUBLIC_KEY_FILE"
+export PG_DSN="postgres://teaelephant:teaelephant@localhost:5432/teaelephant?sslmode=disable"
+go run ./cmd/server
+```
+
+Adjust `PG_DSN` if you change the local database credentials or port.
+
+## Runtime configuration
+
+| Variable | Purpose |
+|---|---|
+| `PG_DSN` | Required PostgreSQL connection string; startup checks connectivity |
+| `LOG_LEVEL` | Logging level, default `info` |
+| `OPEN_AI_TOKEN` | OpenAI API token for descriptions and recommendations |
+| `OPENWEATHER_APIKEY` | OpenWeather API key |
+| `APPLE_AUTH_CLIENT_ID` | Apple client ID and APNs topic |
+| `APPLE_AUTH_TEAM_ID` | Apple developer team ID |
+| `APPLE_AUTH_KEY_ID` | Apple signing key ID |
+| `APPLE_AUTH_SECRET_PATH` | Apple private key file used by auth and APNs |
+| `ADMIN_PUBLIC_KEY_PATH` | Admin public key file; default `/keys/admin/admin_public_key.pem` |
+
+The server listens on port 8080. `SERVER_PORT` and `POSTGRES_PORT` in
+`.env.example` configure Compose host ports; `APPLE_AUTH_SECRET_FILE` and
+`ADMIN_PUBLIC_KEY_FILE` configure its host file mounts.
+
+## Build and checks
+
+```sh
+go build ./...
+go test ./...
+./bin/golangci-lint run
+```
+
+The OpenWeather integration test runs only when `KEY` is set. Other current
+tests use local data and do not need application credentials.
+
+Regenerate GraphQL code after API schema changes:
+
+```sh
+(cd pkg/api/v2 && go run github.com/99designs/gqlgen generate)
+```
+
+Generate printable QR codes with `go run ./cmd/qr_gen`.
+
+## Project layout
+
+- `cmd/server`: application entrypoint and dependency wiring
+- `cmd/qr_gen`, `printqr`: printable QR generation
+- `pkg/api/v2`: GraphQL schema, resolvers, and models
+- `pkg/pg`, `pkg/pgstore`: runtime PostgreSQL adapter and query helpers
+- `db/schema.sql`, `db/queries`: relational schema and SQL definitions
+- `internal`: managers, auth, recommendations, weather, consumption, and APNs
+- `deployment/server.yml`: Kubernetes server deployment
+- `static`: landing page and Apple app-site association
+
+See [PostgreSQL storage](docs/POSTGRES_STORAGE.md) for data relationships and
+schema maintenance. License: [LICENSE](LICENSE).

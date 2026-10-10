@@ -14,6 +14,7 @@ Thumbs.db
 # Environment & secrets
 .env
 .env.*
+!.env.example
 AuthKey_*.p8
 
 # Go workspace files
@@ -43,8 +44,6 @@ coverage.*
 /deployment/secret.yaml
 /deployment/secret_ovh.yaml
 
-# FDB backfill temporary files
-*.pg-only.bak
 .gocache/
 
 # Server binary

@@ -1,0 +1,13 @@
+.git
+.env
+.env.*
+secrets/
+deployment/secret.yaml
+deployment/secret_ovh.yaml
+**/*.p8
+**/*.pem
+bin/
+build/
+dist/
+coverage/
+.gocache/

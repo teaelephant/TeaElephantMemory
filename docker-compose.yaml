@@ -1,29 +1,52 @@
-version: '3.7'
 services:
   server:
-    image: lueurxax/teaelephant:1.1.2
+    build: .
     ports:
-      - 8009:8080
+      - "127.0.0.1:${SERVER_PORT:-8080}:8080"
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      PG_DSN: "postgres://${POSTGRES_USER:-teaelephant}:${POSTGRES_PASSWORD:-teaelephant}@postgres:5432/${POSTGRES_DB:-teaelephant}?sslmode=disable"
+      OPEN_AI_TOKEN: ${OPEN_AI_TOKEN:-}
+      OPENWEATHER_APIKEY: ${OPENWEATHER_APIKEY:-}
+      APPLE_AUTH_CLIENT_ID: ${APPLE_AUTH_CLIENT_ID:-}
+      APPLE_AUTH_TEAM_ID: ${APPLE_AUTH_TEAM_ID:-}
+      APPLE_AUTH_KEY_ID: ${APPLE_AUTH_KEY_ID:-}
+      APPLE_AUTH_SECRET_PATH: /keys/apple.p8
+      ADMIN_PUBLIC_KEY_PATH: /keys/admin/admin_public_key.pem
     volumes:
-      - ~/database:/app/database
-      - /Users/xax/go/src/github.com/lueurxax/teaelephantmemory/config:/etc/foundationdb
-    networks:
-      tea:
-        ipv4_address: 10.5.0.5
-
+      - type: bind
+        source: ${APPLE_AUTH_SECRET_FILE:-./secrets/AuthKey.p8}
+        target: /keys/apple.p8
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${ADMIN_PUBLIC_KEY_FILE:-./secrets/admin_public_key.pem}
+        target: /keys/admin/admin_public_key.pem
+        read_only: true
+        bind:
+          create_host_path: false
     depends_on:
-      - fdb
-  fdb:
-    image: foundationdb/foundationdb
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
     ports:
-      - 4500:4500
-    networks:
-      tea:
-        ipv4_address: 10.5.0.6
-networks:
-  tea:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 10.5.0.0/16
-          gateway: 10.5.0.1
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-teaelephant}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-teaelephant}
+      POSTGRES_DB: ${POSTGRES_DB:-teaelephant}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres-data:

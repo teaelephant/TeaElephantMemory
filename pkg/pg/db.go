@@ -471,17 +471,7 @@ func (d *db) MapUserIDToDeviceID(ctx context.Context, userID uuid.UUID) ([]strin
 	return tokens, nil
 }
 
-// ===== Version =====
-
-func (d *db) GetVersion(_ context.Context) (uint32, error) {
-	return 0, nil
-}
-
-func (d *db) WriteVersion(_ context.Context, _ uint32) error {
-	return nil
-}
-
-// ===== Consumption Store =====
+// ===== Helpers =====
 
 func nullableString(src sql.NullString) string {
 	if src.Valid {

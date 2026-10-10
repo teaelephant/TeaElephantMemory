@@ -7,9 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 ARG GOPROXY
 ENV \
   GO111MODULE=on \
-  CGO_ENABLED=1 \
-  GOOS=linux \
-  GOARCH=amd64
+  CGO_ENABLED=1
 
 WORKDIR /go/src/github.com/lueurxax/teaelephantmemory/
 ADD go.mod go.sum /go/src/github.com/lueurxax/teaelephantmemory/

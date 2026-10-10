@@ -12,7 +12,7 @@ The backend is a robust and scalable server that is written in Go. It provides t
 
 ### 2.1. Architecture
 
-The backend has a clean and modular architecture. It uses a GraphQL API to expose its services to the iOS app. The database is FoundationDB, which is a distributed, transactional, key-value store.
+The backend uses a GraphQL API to expose its services to the iOS app. Data is stored in PostgreSQL through the storage adapter in pkg/pg.
 
 ### 2.2. API
 
@@ -21,7 +21,7 @@ The backend has a well-designed GraphQL API that is easy to use and to understan
 ### 2.3. Key Features
 
 *   **Authentication:** The backend provides a secure authentication system that is based on Apple Sign-In.
-*   **Data Persistence:** The backend persists all the user's data in a FoundationDB database.
+*   **Data Persistence:** The backend persists user data in PostgreSQL. See POSTGRES_STORAGE.md for the current storage structure.
 *   **AI-Powered Recommendations:** The backend provides the AI-powered recommendations for the iOS app.
 
 ## 3. Key Contributions to the Backend

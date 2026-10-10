@@ -1,4 +1,4 @@
--- PostgreSQL schema aligned with docs/FDB_TO_POSTGRES_MIGRATION_PLAN.md
+-- PostgreSQL schema documented in docs/POSTGRES_STORAGE.md
 -- This file is used by sqlc for type generation and can also be used as a base migration.
 
 CREATE TABLE IF NOT EXISTS users (
