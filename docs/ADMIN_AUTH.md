@@ -20,7 +20,8 @@ This document describes the authentication mechanism for the TeaElephantEditor a
 ### Threat Model
 - TeaElephantEditor is a **private, developer-only application**
 - Not distributed via App Store or shared publicly
-- Admin operations (tea/tag CRUD) should only be accessible to authenticated admin
+- Tea deletion and tag/category CRUD require an authenticated admin.
+- Tea creation, metadata updates, tag assignments, and image gallery mutations accept authenticated mobile users or admins.
 - Mobile users (Apple Sign In) should NOT have admin privileges
 - **Private key security**: Stored in macOS Keychain, never hardcoded in source
 - **Key rotation**: Support multiple public keys with Key ID (kid) header for zero-downtime rotation

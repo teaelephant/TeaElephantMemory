@@ -27,6 +27,12 @@ type Mutation {
     addTagToTea(teaID: ID!, tagID: ID!): Tea!
     deleteTagFromTea(teaID: ID!, tagID: ID!): Tea!
     deleteTea(id: ID!): ID!
+    "Attach a JPEG or PNG to the shared tea catalogue entry; authorization required."
+    addTeaImage(teaID: ID!, imageBase64: String!): Tea!
+    "Remove an image from this tea; authorization required."
+    deleteTeaImage(teaID: ID!, imageID: ID!): Tea!
+    "Choose the catalogue cover image; authorization required."
+    setTeaCoverImage(teaID: ID!, imageID: ID!): Tea!
     writeToQR(id: ID!, data: QRRecordData!): QRRecord!
     createTagCategory(name: String!): TagCategory!
     updateTagCategory(id: ID!, name: String!): TagCategory!
@@ -110,6 +116,18 @@ type Tea {
     type: Type!
     description: String!
     tags: [Tag!]!
+    images: [TeaImage!]!
+}
+
+type TeaImage {
+    id: ID!
+    "Path relative to the API origin."
+    url: String!
+    contentType: String!
+    width: Int!
+    height: Int!
+    createdAt: Date!
+    isCover: Boolean!
 }
 
 input TeaData {

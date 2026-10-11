@@ -23,6 +23,7 @@ before replacing runtime query helpers with newly generated code.
 |---|---|
 | `users` | UUID identities with unique Apple IDs |
 | `teas` | Shared beverage catalogue: name, type, description |
+| `tea_images` | Validated JPEG/PNG bytes and metadata linked to a Tea ID, with one selected cover |
 | `tag_categories`, `tags`, `tea_tags` | Categorized tags and catalogue assignments |
 | `qr_records` | Individual packages linked to a tea, with boiling temperature and expiration |
 | `collections`, `collection_qr_items` | User-owned collections of QR records |
@@ -55,3 +56,20 @@ Keep the SQL definitions and runtime query helpers aligned.
 
 The current setup and environment variables are documented in [README](../README.md).
 Retired migration tooling remains recoverable from Git history.
+
+## Tea image storage
+
+`db/migrations/20261011_tea_images.sql` creates the image table and indexes
+idempotently for existing databases. `db/schema.sql` includes the same
+objects for fresh databases. Apply the migration explicitly before rollout;
+server startup does not apply it.
+
+`pkg/pg/tea_images.go` owns the new runtime SQL through `database/sql` directly,
+keeping the existing sqlc adapter mismatch unchanged. Metadata reads omit
+`bytea` data; the HTTP image route loads bytes separately. Image IDs identify
+immutable content. The Tea foreign key cascades image deletion.
+
+All image writes lock the parent Tea row in one transaction. This serializes
+the ten-image limit, first-image cover assignment, cover switches and cover
+promotion. The partial unique index also prevents more than one cover per
+Tea. Image removal and cover selection constrain both Tea ID and image ID.

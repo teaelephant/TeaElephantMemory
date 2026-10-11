@@ -114,6 +114,60 @@ func (r *mutationResolver) DeleteTea(ctx context.Context, id common.ID) (common.
 	return id, nil
 }
 
+// AddTeaImage is the resolver for the addTeaImage field.
+func (r *mutationResolver) AddTeaImage(ctx context.Context, teaID common.ID, imageBase64 string) (*model.Tea, error) {
+	if err := authPkg.RequireUserOrAdmin(ctx); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
+
+	if err := r.images.Add(ctx, uuid.UUID(teaID), imageBase64); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
+
+	record, err := r.NotifyUpdate(ctx, uuid.UUID(teaID))
+	if err != nil {
+		return nil, castGQLError(ctx, err)
+	}
+
+	return model.FromCommonTea(record), nil
+}
+
+// DeleteTeaImage is the resolver for the deleteTeaImage field.
+func (r *mutationResolver) DeleteTeaImage(ctx context.Context, teaID common.ID, imageID common.ID) (*model.Tea, error) {
+	if err := authPkg.RequireUserOrAdmin(ctx); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
+
+	if err := r.images.DeleteTeaImage(ctx, uuid.UUID(teaID), uuid.UUID(imageID)); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
+
+	record, err := r.NotifyUpdate(ctx, uuid.UUID(teaID))
+	if err != nil {
+		return nil, castGQLError(ctx, err)
+	}
+
+	return model.FromCommonTea(record), nil
+}
+
+// SetTeaCoverImage is the resolver for the setTeaCoverImage field.
+func (r *mutationResolver) SetTeaCoverImage(ctx context.Context, teaID common.ID, imageID common.ID) (*model.Tea, error) {
+	if err := authPkg.RequireUserOrAdmin(ctx); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
+
+	if err := r.images.SetTeaCoverImage(ctx, uuid.UUID(teaID), uuid.UUID(imageID)); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
+
+	record, err := r.NotifyUpdate(ctx, uuid.UUID(teaID))
+	if err != nil {
+		return nil, castGQLError(ctx, err)
+	}
+
+	return model.FromCommonTea(record), nil
+}
+
 // WriteToQR is the resolver for the writeToQR field.
 func (r *mutationResolver) WriteToQR(ctx context.Context, id common.ID, data model.QRRecordData) (*model.QRRecord, error) {
 	if err := r.Set(ctx, uuid.UUID(id), &data); err != nil {
@@ -875,6 +929,33 @@ func (r *teaResolver) Tags(ctx context.Context, obj *model.Tea) ([]*model.Tag, e
 			Color:    t.Color,
 			Category: &model.TagCategory{ID: common.ID(t.CategoryID)},
 		}
+	}
+
+	return result, nil
+}
+
+// Images is the resolver for the images field.
+func (r *teaResolver) Images(ctx context.Context, obj *model.Tea) ([]*model.TeaImage, error) {
+	result := make([]*model.TeaImage, 0)
+	if r.images == nil {
+		return result, nil
+	}
+
+	images, err := r.images.ListTeaImages(ctx, uuid.UUID(obj.ID))
+	if err != nil {
+		return nil, castGQLError(ctx, err)
+	}
+
+	for _, item := range images {
+		result = append(result, &model.TeaImage{
+			ID:          common.ID(item.ID),
+			URL:         "/v2/tea-images/" + item.ID.String(),
+			ContentType: item.ContentType,
+			Width:       item.Width,
+			Height:      item.Height,
+			CreatedAt:   item.CreatedAt,
+			IsCover:     item.IsCover,
+		})
 	}
 
 	return result, nil

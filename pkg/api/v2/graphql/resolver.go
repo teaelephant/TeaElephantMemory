@@ -36,6 +36,7 @@ type logger interface {
 }
 
 type teaData interface {
+	NotifyUpdate(ctx context.Context, id uuid.UUID) (*common.Tea, error)
 	Create(ctx context.Context, data *common.TeaData) (tea *common.Tea, err error)
 	Update(ctx context.Context, id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -114,6 +115,13 @@ type weather interface {
 	CurrentCyprus(ctx context.Context) (common.Weather, error)
 }
 
+type teaImages interface {
+	Add(ctx context.Context, teaID uuid.UUID, encoded string) error
+	ListTeaImages(ctx context.Context, teaID uuid.UUID) ([]common.TeaImage, error)
+	DeleteTeaImage(ctx context.Context, teaID, imageID uuid.UUID) error
+	SetTeaCoverImage(ctx context.Context, teaID, imageID uuid.UUID) error
+}
+
 // Resolver wires together data sources and services for GraphQL resolvers.
 type Resolver struct {
 	teaData
@@ -126,6 +134,7 @@ type Resolver struct {
 	debug
 	adviser
 	weather
+	images      teaImages
 	consumption consumption.Store
 
 	todCache *teaOfTheDayCache
@@ -146,8 +155,15 @@ func NewResolver(
 	adviser adviser,
 	weather weather,
 	cons consumption.Store,
+	images ...teaImages,
 ) *Resolver {
+	var imageService teaImages
+	if len(images) > 0 {
+		imageService = images[0]
+	}
+
 	return &Resolver{
+		images:               imageService,
 		teaData:              teaData,
 		qrManager:            qrManager,
 		tagManager:           tagManager,

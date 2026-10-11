@@ -64,17 +64,29 @@ type TagCategory struct {
 }
 
 type Tea struct {
-	ID          common.ID `json:"id"`
-	Name        string    `json:"name"`
-	Type        Type      `json:"type"`
-	Description string    `json:"description"`
-	Tags        []*Tag    `json:"tags"`
+	ID          common.ID   `json:"id"`
+	Name        string      `json:"name"`
+	Type        Type        `json:"type"`
+	Description string      `json:"description"`
+	Tags        []*Tag      `json:"tags"`
+	Images      []*TeaImage `json:"images"`
 }
 
 type TeaData struct {
 	Name        string `json:"name"`
 	Type        Type   `json:"type"`
 	Description string `json:"description"`
+}
+
+type TeaImage struct {
+	ID common.ID `json:"id"`
+	// Path relative to the API origin.
+	URL         string    `json:"url"`
+	ContentType string    `json:"contentType"`
+	Width       int       `json:"width"`
+	Height      int       `json:"height"`
+	CreatedAt   time.Time `json:"createdAt"`
+	IsCover     bool      `json:"isCover"`
 }
 
 type TeaOfTheDay struct {

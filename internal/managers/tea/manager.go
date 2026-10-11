@@ -2,6 +2,7 @@ package tea
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 
@@ -12,6 +13,7 @@ import (
 )
 
 type Manager interface {
+	NotifyUpdate(ctx context.Context, id uuid.UUID) (*common.Tea, error)
 	Create(ctx context.Context, data *common.TeaData) (tea *common.Tea, err error)
 	Update(ctx context.Context, id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -119,5 +121,20 @@ func NewManager(storage storage) Manager {
 		create:            make(chan *common.Tea, 100),
 		update:            make(chan *common.Tea, 100),
 		delete:            make(chan uuid.UUID, 100),
+	}
+}
+
+// NotifyUpdate publishes a catalog change without overwriting the tea metadata.
+func (m *manager) NotifyUpdate(ctx context.Context, id uuid.UUID) (*common.Tea, error) {
+	record, err := m.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	select {
+	case m.update <- record:
+		return record, nil
+	case <-ctx.Done():
+		return nil, fmt.Errorf("publish tea update: %w", ctx.Err())
 	}
 }

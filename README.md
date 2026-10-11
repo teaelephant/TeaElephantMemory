@@ -8,6 +8,7 @@ Go backend for TeaElephant's iOS application and macOS catalogue editor.
 
 - GraphQL HTTP and WebSocket API for teas, tags, QR records, and user collections
 - PostgreSQL persistence and consumption history
+- Shared tea image galleries with a selectable cover image
 - AI-generated descriptions and tea recommendations, including Tea of the Day
 - Apple Sign In, admin JWT authentication, and APNs expiration notifications
 - OpenWeather context and printable QR code generation
@@ -122,6 +123,54 @@ The local tests validate HTTP request parameters, completion parsing, JSON
 scores, and SSE delivery against a test server. They do not contact OpenAI;
 model access and response quality with the deployment's API key need live
 verification separately.
+
+## Tea images
+
+Images belong to the shared catalogue Tea ID. Every QR package for that tea
+shows the same gallery. Signed-in mobile users and Editor admins can add,
+delete, and select a cover image. Catalogue reads and image downloads are
+public, matching the existing tea catalogue permissions.
+
+The GraphQL API exposes `Tea.images` with metadata and a path relative to the
+API origin. Resolve `url` against the configured GraphQL endpoint's origin.
+Mutations return the updated Tea:
+
+- `addTeaImage(teaID: ID!, imageBase64: String!): Tea!`
+- `deleteTeaImage(teaID: ID!, imageID: ID!): Tea!`
+- `setTeaCoverImage(teaID: ID!, imageID: ID!): Tea!`
+
+Send standard base64-encoded JPEG or PNG bytes, without a data-URL prefix.
+The server validates the full image stream: at most 5 MiB, 16 million pixels,
+and 8192 pixels on either edge. A tea has at most 10 images. The first image
+becomes the cover; deleting the cover promotes the oldest remaining image.
+Image mutations publish the existing tea update subscription. Ordinary
+`updateTea` saves preserve the gallery.
+
+Bytes are stored in PostgreSQL, with no additional storage service or volume.
+`GET` and `HEAD /v2/tea-images/<image-id>` support HTTP caching and return
+`404` for invalid or missing IDs. Immutable image URLs can remain cached for
+up to one day after deletion; subsequent catalogue reads remove deleted
+images from the gallery. GraphQL POST bodies are limited to 8 MiB and
+return HTTP `413` before parsing or mutation execution when too large.
+The NGINX Ingress in `deployment/server.yml` sets
+`nginx.ingress.kubernetes.io/proxy-body-size: "8m"` to match this request cap
+and accommodate base64 overhead. Include that manifest change when deploying
+the backend; check equivalent body limits if using another proxy. See the
+[Ingress annotation documentation](https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/#custom-max-body-size).
+
+Fresh databases receive the table from `db/schema.sql`. For an existing
+database, back it up and apply this idempotent migration explicitly before
+running the updated clients:
+
+```sh
+psql "$PG_DSN" -v ON_ERROR_STOP=1 -f db/migrations/20261011_tea_images.sql
+```
+
+The application does not run migrations at startup. To include the real
+PostgreSQL integration tests, set `TEA_IMAGES_TEST_PG_DSN` to a disposable
+local PostgreSQL database and run `go test ./...`. Tests create and drop only
+randomly named test schemas in that database; without this variable these
+integration tests report a skip. No application credentials are required.
 
 ## Build and checks
 

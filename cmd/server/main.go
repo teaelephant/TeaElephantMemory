@@ -26,6 +26,7 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/internal/managers/tea"
 	"github.com/teaelephant/TeaElephantMemory/internal/openweather"
 	"github.com/teaelephant/TeaElephantMemory/internal/server"
+	"github.com/teaelephant/TeaElephantMemory/internal/teaimages"
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/graphql"
 	pgadapter "github.com/teaelephant/TeaElephantMemory/pkg/pg"
 )
@@ -67,6 +68,7 @@ func main() {
 	st := pgadapter.NewDB(psql, logrusLogger.WithField(pkgKey, "pg"))
 
 	teaManager := tea.NewManager(st)
+	imageService := teaimages.NewService(st)
 	qrManager := qr.NewManager(st)
 	tagManager := tag.NewManager(st, teaManager, logrusLogger)
 	collectionManager := collection.NewManager(st)
@@ -116,10 +118,10 @@ func main() {
 	resolvers := graphql.NewResolver(
 		logrusLogger.WithField(pkgKey, "graphql"),
 		teaManager, qrManager, tagManager, collectionManager, authM, ai, notificationManager, expirationAlerter,
-		adv, weather, cons,
+		adv, weather, cons, imageService,
 	)
 
-	s := server.NewServer(resolvers, []gql.HandlerExtension{authM.Middleware()}, authM.WsInitFunc)
+	s := server.NewServer(resolvers, []gql.HandlerExtension{authM.Middleware()}, authM.WsInitFunc, imageService)
 	s.InitV2Api()
 	teaManager.Start()
 	tagManager.Start()

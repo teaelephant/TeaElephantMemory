@@ -71,6 +71,17 @@ type Tea struct {
 	CreatedAt   time.Time   `json:"created_at"`
 }
 
+type TeaImage struct {
+	ID          uuid.UUID `json:"id"`
+	TeaID       uuid.UUID `json:"tea_id"`
+	ContentType string    `json:"content_type"`
+	Width       int32     `json:"width"`
+	Height      int32     `json:"height"`
+	Data        []byte    `json:"data"`
+	CreatedAt   time.Time `json:"created_at"`
+	IsCover     bool      `json:"is_cover"`
+}
+
 type TeaTag struct {
 	TeaID uuid.UUID `json:"tea_id"`
 	TagID uuid.UUID `json:"tag_id"`
