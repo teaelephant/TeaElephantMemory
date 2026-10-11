@@ -1,5 +1,7 @@
 # TeaElephantMemory
 
+![TeaElephant Memory architecture — iOS and macOS clients, Go GraphQL API, PostgreSQL and AI integration](docs/images/teaelephant-backend-social-preview.jpg)
+
 Go backend for TeaElephant's iOS application and macOS catalogue editor.
 
 ## Features
