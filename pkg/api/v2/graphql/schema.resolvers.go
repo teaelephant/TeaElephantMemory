@@ -134,7 +134,11 @@ func (r *mutationResolver) AddTeaImage(ctx context.Context, teaID common.ID, ima
 
 // DeleteTeaImage is the resolver for the deleteTeaImage field.
 func (r *mutationResolver) DeleteTeaImage(ctx context.Context, teaID common.ID, imageID common.ID) (*model.Tea, error) {
-	if err := authPkg.RequireUserOrAdmin(ctx); err != nil {
+	if err := authPkg.RequireAdmin(ctx); err != nil {
+		if user, userErr := authPkg.GetUser(ctx); userErr == nil && user != nil {
+			return nil, castGQLError(ctx, rootCommon.ErrNotAdmin)
+		}
+
 		return nil, castGQLError(ctx, err)
 	}
 

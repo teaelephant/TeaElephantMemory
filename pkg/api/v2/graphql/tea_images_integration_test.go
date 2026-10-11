@@ -214,7 +214,7 @@ func TestTeaImagesGraphQLSharedCatalogueLifecycle(t *testing.T) {
 	server := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 	server.Use(auth.Middleware())
 
-	record, err := store.WriteRecord(t.Context(), &common.TeaData{Name: "Shared tea", Type: common.TeaBeverageType, Description: "Original metadata"})
+	record, err := store.WriteRecord(t.Context(), &common.TeaData{Name: testSharedTeaName, Type: common.TeaBeverageType, Description: "Original metadata"})
 	require.NoError(t, err)
 	otherTea, err := store.WriteRecord(t.Context(), &common.TeaData{Name: "Another tea", Type: common.TeaBeverageType})
 	require.NoError(t, err)
@@ -252,7 +252,7 @@ func TestTeaImagesGraphQLSharedCatalogueLifecycle(t *testing.T) {
 
 	wrong := map[string]any{testTeaVariable: otherTea.ID.String(), testImageVariable: first.Images[0].ID}
 	for _, query := range []string{imageQuery, deleteQuery} {
-		reply := imageGraphQLCall(t, server, userToken, query, wrong)
+		reply := imageGraphQLCall(t, server, adminToken, query, wrong)
 		require.Len(t, reply.Errors, 1)
 		require.Equal(t, "NOT_FOUND", reply.Errors[0].Extensions["code"])
 	}
@@ -261,7 +261,22 @@ func TestTeaImagesGraphQLSharedCatalogueLifecycle(t *testing.T) {
 	changed := decodeTeaImageReply(t, imageGraphQLCall(t, server, userToken, imageQuery, coverVars), "setTeaCoverImage")
 	require.False(t, changed.Images[0].IsCover)
 	require.True(t, changed.Images[1].IsCover)
-	remaining := decodeTeaImageReply(t, imageGraphQLCall(t, server, adminToken, deleteQuery, coverVars), "deleteTeaImage")
+
+	for _, token := range []string{"", userToken} {
+		denialCode := testImageForbiddenCode
+		if token == "" {
+			denialCode = testImageUnauthorizedCode
+		}
+
+		denied := imageGraphQLCall(t, server, token, deleteQuery, coverVars)
+		require.Len(t, denied.Errors, 1)
+		require.Equal(t, denialCode, denied.Errors[0].Extensions["code"])
+		require.Empty(t, denied.Data)
+		persisted := decodeTeaImageReply(t, imageGraphQLCall(t, server, "", `query($tea:ID!) { tea(id:$tea) { `+imageSelection+` } }`, map[string]any{testTeaVariable: record.ID.String()}), testTeaVariable)
+		require.Equal(t, changed.Images, persisted.Images, "denied deletion must preserve the gallery and cover")
+	}
+
+	remaining := decodeTeaImageReply(t, imageGraphQLCall(t, server, adminToken, deleteQuery, coverVars), testDeleteImageField)
 	require.Len(t, remaining.Images, 1)
 	require.Equal(t, first.Images[0].ID, remaining.Images[0].ID)
 	require.True(t, remaining.Images[0].IsCover)

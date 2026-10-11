@@ -1057,7 +1057,7 @@ type Mutation {
     deleteTea(id: ID!): ID!
     "Attach a JPEG or PNG to the shared tea catalogue entry; authorization required."
     addTeaImage(teaID: ID!, imageBase64: String!): Tea!
-    "Remove an image from this tea; authorization required."
+    "Remove an image from the shared tea catalogue; administrator authorization required."
     deleteTeaImage(teaID: ID!, imageID: ID!): Tea!
     "Choose the catalogue cover image; authorization required."
     setTeaCoverImage(teaID: ID!, imageID: ID!): Tea!
@@ -1205,7 +1205,8 @@ enum NotificationType {
     unknown
     teaExpiration
     teaRecommendation
-}`, BuiltIn: false},
+}
+`, BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
 

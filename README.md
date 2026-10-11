@@ -127,9 +127,15 @@ verification separately.
 ## Tea images
 
 Images belong to the shared catalogue Tea ID. Every QR package for that tea
-shows the same gallery. Signed-in mobile users and Editor admins can add,
-delete, and select a cover image. Catalogue reads and image downloads are
-public, matching the existing tea catalogue permissions.
+shows the same gallery. Signed-in mobile users and Editor admins can add
+images and select a cover image. Only administrators can delete images from
+the shared catalogue; mobile user sessions and anonymous requests cannot
+delete them. Catalogue reads and image downloads are public, matching the
+existing tea catalogue permissions.
+
+Denied image deletion returns `FORBIDDEN` for a valid mobile user session
+and `UNAUTHENTICATED` for an anonymous request. Permission denial does not
+invalidate the user's session or modify the gallery.
 
 The GraphQL API exposes `Tea.images` with metadata and a path relative to the
 API origin. Resolve `url` against the configured GraphQL endpoint's origin.
