@@ -28,6 +28,23 @@ This document describes the authentication mechanism for the TeaElephantEditor a
 - **Key rotation**: Support multiple public keys with Key ID (kid) header for zero-downtime rotation
 - **Token lifetime**: 24-hour expiration with automatic refresh, not 1-year tokens
 
+### Shared tea image permissions
+
+The catalogue and image galleries are shared across all users and QR records for the same Tea. Uploading an image does not grant its uploader permission to delete it.
+
+| Image operation | Anonymous | Authenticated mobile user | Verified admin |
+| --- | --- | --- | --- |
+| Read gallery metadata and download images | Allowed | Allowed | Allowed |
+| Add an image | Denied | Allowed | Allowed |
+| Select the cover image | Denied | Allowed | Allowed |
+| Delete an image, including the cover | Denied | Denied | Allowed |
+
+Apple Sign In, owning a device or opening Editor does not grant admin rights. Editor uses separate administrative credentials; the server must validate the admin identity before image deletion, storage changes and update notifications. The current iOS user interface hides shared-image deletion, but client-side hiding is not the authorization boundary.
+
+Denied deletion returns `FORBIDDEN` for a valid mobile user, preserving the session, or `UNAUTHENTICATED` when no authenticated principal is present. Both outcomes preserve the gallery and cover.
+
+The iOS DEBUG **AR Demo** may delete photographs stored only on its device. It uses fictional entries and does not access shared catalogue images; it is not an exception to server authorization and is unavailable in Release.
+
 ### Authentication Flow
 ```
 1. TeaElephantEditor starts up
