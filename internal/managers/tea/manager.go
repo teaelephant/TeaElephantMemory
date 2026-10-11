@@ -15,6 +15,7 @@ import (
 type Manager interface {
 	NotifyUpdate(ctx context.Context, id uuid.UUID) (*common.Tea, error)
 	Create(ctx context.Context, data *common.TeaData) (tea *common.Tea, err error)
+	CreateWithTags(ctx context.Context, data *common.TeaData, tagIDs []uuid.UUID) (*common.Tea, error)
 	Update(ctx context.Context, id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	Get(ctx context.Context, id uuid.UUID) (record *common.Tea, err error)
@@ -27,6 +28,7 @@ type Manager interface {
 
 type storage interface {
 	WriteRecord(ctx context.Context, rec *common.TeaData) (record *common.Tea, err error)
+	WriteRecordWithTags(ctx context.Context, rec *common.TeaData, tagIDs []uuid.UUID) (*common.Tea, error)
 	ReadRecord(ctx context.Context, id uuid.UUID) (record *common.Tea, err error)
 	ReadAllRecords(ctx context.Context, search string) ([]common.Tea, error)
 	Update(ctx context.Context, id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
@@ -78,6 +80,18 @@ func (m *manager) List(ctx context.Context, search *string) ([]common.Tea, error
 
 func (m *manager) Create(ctx context.Context, data *common.TeaData) (*common.Tea, error) {
 	res, err := m.WriteRecord(ctx, data)
+	if err != nil {
+		return nil, err
+	}
+
+	m.create <- res
+
+	return res, nil
+}
+
+// CreateWithTags publishes a new Tea only after its initial tag links are committed.
+func (m *manager) CreateWithTags(ctx context.Context, data *common.TeaData, tagIDs []uuid.UUID) (*common.Tea, error) {
+	res, err := m.WriteRecordWithTags(ctx, data, tagIDs)
 	if err != nil {
 		return nil, err
 	}

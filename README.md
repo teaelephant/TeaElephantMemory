@@ -10,7 +10,9 @@ TeaElephant on iOS is the everyday user client for NFC/QR labels, AR, jar inform
 
 Shared Tea data, jar-specific QR attributes and user-owned collection membership are distinct. A user deleting their own collection does not delete a catalogue Tea, QR record or shared image. Destructive shared catalogue operations require a verified administrator; Apple Sign In does not grant that role.
 
-The current API still permits selected catalogue writes by users and has missing explicit QR/device guards. The verified rights, interface responsibilities and follow-ups are recorded in [product boundaries](docs/PRODUCT_BOUNDARIES.md); do not infer authorization from the client application's purpose alone. Authentication details are in [ADMIN_AUTH.md](docs/ADMIN_AUTH.md).
+Signed-in users may create a new shared Tea with initial existing tags using `newTea(tea: TeaData!, tagIDs: [ID!]! = [])`. Creation commits the fresh Tea and its deduplicated initial tag links together, and never overwrites an existing entry, including one with the same name. Unknown tags or a failed transaction leave no partial Tea or links and publish no creation event. Adding or removing tags after creation and editing existing shared Tea metadata require a verified admin, including for a Tea the user just created. Tag/category definitions remain admin-managed. Users retain jar QR writes, owned collection management, and photo upload/cover selection. Notification-token updates require the device already bound to that same user. QR IDs remain globally shared; authentication does not assign exclusive ownership to legacy household labels.
+
+The verified rights, compatibility constraints and rollout boundary are recorded in [product boundaries](docs/PRODUCT_BOUNDARIES.md). Valid users refused catalogue administration receive `FORBIDDEN` without losing their sessions. Authentication details are in [ADMIN_AUTH.md](docs/ADMIN_AUTH.md).
 
 ## Features
 

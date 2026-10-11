@@ -3,10 +3,10 @@ INSERT INTO devices (id, user_id, token)
 VALUES ($1, $2, $3)
 ON CONFLICT (id) DO NOTHING;
 
--- name: UpdateDeviceToken :exec
+-- name: UpdateDeviceToken :execrows
 UPDATE devices
 SET token = $2
-WHERE id = $1;
+WHERE id = $1 AND user_id = $3;
 
 -- name: ListDeviceTokens :many
 SELECT token

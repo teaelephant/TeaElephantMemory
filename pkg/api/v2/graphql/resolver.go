@@ -38,6 +38,7 @@ type logger interface {
 type teaData interface {
 	NotifyUpdate(ctx context.Context, id uuid.UUID) (*common.Tea, error)
 	Create(ctx context.Context, data *common.TeaData) (tea *common.Tea, err error)
+	CreateWithTags(ctx context.Context, data *common.TeaData, tagIDs []uuid.UUID) (*common.Tea, error)
 	Update(ctx context.Context, id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	Get(ctx context.Context, id uuid.UUID) (record *common.Tea, err error)
@@ -97,7 +98,7 @@ type ai interface {
 
 type notificationsManager interface {
 	BindDevice(ctx context.Context, userID uuid.UUID, deviceID uuid.UUID) error
-	RegisterDeviceToken(ctx context.Context, deviceID uuid.UUID, deviceToken string) error
+	RegisterDeviceToken(ctx context.Context, userID, deviceID uuid.UUID, deviceToken string) error
 	Notifications(ctx context.Context, userID uuid.UUID) ([]common.Notification, error)
 }
 

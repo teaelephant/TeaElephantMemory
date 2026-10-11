@@ -43,11 +43,17 @@ func (r *mutationResolver) AuthApple(ctx context.Context, appleCode string, devi
 }
 
 // NewTea is the resolver for the newTea field.
-func (r *mutationResolver) NewTea(ctx context.Context, tea model.TeaData) (*model.Tea, error) {
+func (r *mutationResolver) NewTea(ctx context.Context, tea model.TeaData, tagIDs []common.ID) (*model.Tea, error) {
 	if err := authPkg.RequireUserOrAdmin(ctx); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
-	res, err := r.teaData.Create(ctx, tea.ToCommonTeaData())
+
+	tags := make([]uuid.UUID, len(tagIDs))
+	for i, id := range tagIDs {
+		tags[i] = uuid.UUID(id)
+	}
+
+	res, err := r.CreateWithTags(ctx, tea.ToCommonTeaData(), tags)
 	if err != nil {
 		return nil, castGQLError(ctx, err)
 	}
@@ -57,9 +63,10 @@ func (r *mutationResolver) NewTea(ctx context.Context, tea model.TeaData) (*mode
 
 // UpdateTea is the resolver for the updateTea field.
 func (r *mutationResolver) UpdateTea(ctx context.Context, id common.ID, tea model.TeaData) (*model.Tea, error) {
-	if err := authPkg.RequireUserOrAdmin(ctx); err != nil {
+	if err := authPkg.RequireAdmin(ctx); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
+
 	res, err := r.teaData.Update(ctx, uuid.UUID(id), tea.ToCommonTeaData())
 	if err != nil {
 		return nil, castGQLError(ctx, err)
@@ -70,9 +77,10 @@ func (r *mutationResolver) UpdateTea(ctx context.Context, id common.ID, tea mode
 
 // AddTagToTea is the resolver for the addTagToTea field.
 func (r *mutationResolver) AddTagToTea(ctx context.Context, teaID common.ID, tagID common.ID) (*model.Tea, error) {
-	if err := authPkg.RequireUserOrAdmin(ctx); err != nil {
+	if err := authPkg.RequireAdmin(ctx); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
+
 	if err := r.tagManager.AddTagToTea(ctx, uuid.UUID(teaID), uuid.UUID(tagID)); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
@@ -87,9 +95,10 @@ func (r *mutationResolver) AddTagToTea(ctx context.Context, teaID common.ID, tag
 
 // DeleteTagFromTea is the resolver for the deleteTagFromTea field.
 func (r *mutationResolver) DeleteTagFromTea(ctx context.Context, teaID common.ID, tagID common.ID) (*model.Tea, error) {
-	if err := authPkg.RequireUserOrAdmin(ctx); err != nil {
+	if err := authPkg.RequireAdmin(ctx); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
+
 	if err := r.tagManager.DeleteTagFromTea(ctx, uuid.UUID(teaID), uuid.UUID(tagID)); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
@@ -135,10 +144,6 @@ func (r *mutationResolver) AddTeaImage(ctx context.Context, teaID common.ID, ima
 // DeleteTeaImage is the resolver for the deleteTeaImage field.
 func (r *mutationResolver) DeleteTeaImage(ctx context.Context, teaID common.ID, imageID common.ID) (*model.Tea, error) {
 	if err := authPkg.RequireAdmin(ctx); err != nil {
-		if user, userErr := authPkg.GetUser(ctx); userErr == nil && user != nil {
-			return nil, castGQLError(ctx, rootCommon.ErrNotAdmin)
-		}
-
 		return nil, castGQLError(ctx, err)
 	}
 
@@ -174,6 +179,10 @@ func (r *mutationResolver) SetTeaCoverImage(ctx context.Context, teaID common.ID
 
 // WriteToQR is the resolver for the writeToQR field.
 func (r *mutationResolver) WriteToQR(ctx context.Context, id common.ID, data model.QRRecordData) (*model.QRRecord, error) {
+	if err := authPkg.RequireUserOrAdmin(ctx); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
+
 	if err := r.Set(ctx, uuid.UUID(id), &data); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
@@ -382,7 +391,12 @@ func (r *mutationResolver) DeleteCollection(ctx context.Context, id common.ID) (
 
 // RegisterDeviceToken is the resolver for the registerDeviceToken field.
 func (r *mutationResolver) RegisterDeviceToken(ctx context.Context, deviceID common.ID, deviceToken string) (bool, error) {
-	if err := r.notificationsManager.RegisterDeviceToken(ctx, uuid.UUID(deviceID), deviceToken); err != nil {
+	user, err := authPkg.GetUser(ctx)
+	if err != nil {
+		return false, castGQLError(ctx, err)
+	}
+
+	if err := r.notificationsManager.RegisterDeviceToken(ctx, user.ID, uuid.UUID(deviceID), deviceToken); err != nil {
 		return false, castGQLError(ctx, err)
 	}
 

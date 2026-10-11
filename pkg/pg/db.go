@@ -440,13 +440,17 @@ func (d *db) AddDeviceForUser(ctx context.Context, userID uuid.UUID, deviceID uu
 	return nil
 }
 
-func (d *db) CreateOrUpdateDeviceToken(ctx context.Context, deviceID uuid.UUID, deviceToken string) error {
-	affected, err := d.queries.UpdateDeviceToken(ctx, deviceID, deviceToken)
+func (d *db) CreateOrUpdateDeviceToken(ctx context.Context, userID, deviceID uuid.UUID, deviceToken string) error {
+	result, err := d.pg.ExecContext(ctx, `UPDATE devices SET token = $2 WHERE id = $1 AND user_id = $3`, deviceID, deviceToken, userID)
 	if err != nil {
 		return fmt.Errorf("update device token: %w", err)
 	}
-	if affected == 0 {
-		d.log.WithField("device_id", deviceID).Warn("device token update skipped: no matching device row")
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("count updated device tokens: %w", err)
+	}
+	if rows == 0 {
+		return common.ErrDeviceNotFound
 	}
 	return nil
 }

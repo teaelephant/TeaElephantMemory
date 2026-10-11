@@ -43,7 +43,7 @@ func castGQLError(ctx context.Context, err error) error {
 		extensions["code"] = "FORBIDDEN"
 	} else if errors.Is(err, common.ErrInvalidTeaImage) || errors.Is(err, common.ErrTeaImageLimit) {
 		extensions["code"] = "BAD_USER_INPUT"
-	} else if errors.Is(err, common.ErrTeaImageNotFound) || errors.Is(err, common.ErrTeaNotFound) {
+	} else if errors.Is(err, common.ErrTeaImageNotFound) || errors.Is(err, common.ErrTeaNotFound) || errors.Is(err, common.ErrTagNotFound) {
 		extensions["code"] = "NOT_FOUND"
 	} else if code, ok := errorsMap[err]; ok {
 		extensions["code"] = code

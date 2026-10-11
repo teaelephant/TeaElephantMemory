@@ -17,6 +17,10 @@ The current `db/sqlc.yaml` generates into `db/pkg/pgstore`, while the running
 application imports `pkg/pgstore`. Reconcile these paths and adapter interfaces
 before replacing runtime query helpers with newly generated code.
 
+Device-token registration follows the scoped direct-SQL runtime pattern: `pkg/pg/db.go` updates only a row matching both device ID and the authenticated user ID, then requires an affected row. `db/queries/devices.sql` records the same owner predicate and `:execrows` result; configured generated helpers in `db/pkg/pgstore` are kept synchronized. The legacy unscoped helper in `pkg/pgstore` is not called for token registration. Device binding remains unchanged and never transfers ownership on an ID conflict. This role-alignment change needs no schema migration.
+
+`pkg/pg/tea_creation.go` follows the same direct-SQL pattern for `WriteRecordWithTags`. A transaction validates and locks existing initial tags, inserts a Tea with a fresh UUID, inserts deduplicated tag links, and commits them together. Unknown tags or any insertion/commit failure roll back every write. Existing entries, tag definitions and galleries are never updated. The manager queues the creation event only after successful commit. The optional GraphQL `newTea` argument `tagIDs: [ID!]! = []` keeps older calls compatible; selecting initial tags grants no right to change a saved Tea. Existing `tea_tags` constraints suffice, so no new migration is needed.
+
 ## Data model
 
 | Tables | Responsibility |

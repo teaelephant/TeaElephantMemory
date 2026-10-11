@@ -55,18 +55,22 @@ func (q *Queries) ListDeviceTokens(ctx context.Context, userID uuid.UUID) ([]str
 	return items, nil
 }
 
-const updateDeviceToken = `-- name: UpdateDeviceToken :exec
+const updateDeviceToken = `-- name: UpdateDeviceToken :execrows
 UPDATE devices
 SET token = $2
-WHERE id = $1
+WHERE id = $1 AND user_id = $3
 `
 
 type UpdateDeviceTokenParams struct {
-	ID    uuid.UUID `json:"id"`
-	Token string    `json:"token"`
+	ID     uuid.UUID `json:"id"`
+	Token  string    `json:"token"`
+	UserID uuid.UUID `json:"user_id"`
 }
 
-func (q *Queries) UpdateDeviceToken(ctx context.Context, arg UpdateDeviceTokenParams) error {
-	_, err := q.db.Exec(ctx, updateDeviceToken, arg.ID, arg.Token)
-	return err
+func (q *Queries) UpdateDeviceToken(ctx context.Context, arg UpdateDeviceTokenParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateDeviceToken, arg.ID, arg.Token, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

@@ -67,7 +67,7 @@ type ComplexityRoot struct {
 		DeleteTagFromTea            func(childComplexity int, teaID common.ID, tagID common.ID) int
 		DeleteTea                   func(childComplexity int, id common.ID) int
 		DeleteTeaImage              func(childComplexity int, teaID common.ID, imageID common.ID) int
-		NewTea                      func(childComplexity int, tea model.TeaData) int
+		NewTea                      func(childComplexity int, tea model.TeaData, tagIDs []common.ID) int
 		RegisterDeviceToken         func(childComplexity int, deviceID common.ID, deviceToken string) int
 		Send                        func(childComplexity int) int
 		SetTeaCoverImage            func(childComplexity int, teaID common.ID, imageID common.ID) int
@@ -175,7 +175,7 @@ type CollectionResolver interface {
 }
 type MutationResolver interface {
 	AuthApple(ctx context.Context, appleCode string, deviceID common.ID) (*model.Session, error)
-	NewTea(ctx context.Context, tea model.TeaData) (*model.Tea, error)
+	NewTea(ctx context.Context, tea model.TeaData, tagIDs []common.ID) (*model.Tea, error)
 	UpdateTea(ctx context.Context, id common.ID, tea model.TeaData) (*model.Tea, error)
 	AddTagToTea(ctx context.Context, teaID common.ID, tagID common.ID) (*model.Tea, error)
 	DeleteTagFromTea(ctx context.Context, teaID common.ID, tagID common.ID) (*model.Tea, error)
@@ -458,7 +458,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.NewTea(childComplexity, args["tea"].(model.TeaData)), true
+		return e.ComplexityRoot.Mutation.NewTea(childComplexity, args["tea"].(model.TeaData), args["tagIDs"].([]common.ID)), true
 	case "Mutation.registerDeviceToken":
 		if e.ComplexityRoot.Mutation.RegisterDeviceToken == nil {
 			break
@@ -1050,10 +1050,15 @@ type Query {
 
 type Mutation {
     authApple(appleCode:String!, deviceID: ID!): Session!
-    newTea(tea: TeaData!): Tea!
+    "Create a new shared catalogue entry and its initial existing tags atomically with a fresh ID; user or administrator authorization required. Existing entries are not overwritten. Omitted tagIDs defaults to no tags."
+    newTea(tea: TeaData!, tagIDs: [ID!]! = []): Tea!
+    "Update shared catalogue metadata; administrator authorization required."
     updateTea(id: ID!, tea: TeaData!): Tea!
+    "Assign a shared catalogue tag; administrator authorization required."
     addTagToTea(teaID: ID!, tagID: ID!): Tea!
+    "Remove a shared catalogue tag assignment; administrator authorization required."
     deleteTagFromTea(teaID: ID!, tagID: ID!): Tea!
+    "Delete a shared catalogue entry; administrator authorization required."
     deleteTea(id: ID!): ID!
     "Attach a JPEG or PNG to the shared tea catalogue entry; authorization required."
     addTeaImage(teaID: ID!, imageBase64: String!): Tea!
@@ -1061,13 +1066,21 @@ type Mutation {
     deleteTeaImage(teaID: ID!, imageID: ID!): Tea!
     "Choose the catalogue cover image; authorization required."
     setTeaCoverImage(teaID: ID!, imageID: ID!): Tea!
+    "Create or update jar metadata; user or administrator authorization required. QR IDs remain shared, without exclusive ownership."
     writeToQR(id: ID!, data: QRRecordData!): QRRecord!
+    "Create a shared tag category; administrator authorization required."
     createTagCategory(name: String!): TagCategory!
+    "Update a shared tag category; administrator authorization required."
     updateTagCategory(id: ID!, name: String!): TagCategory!
+    "Delete a shared tag category; administrator authorization required."
     deleteTagCategory(id:ID!): ID!
+    "Create a shared tag; administrator authorization required."
     createTag(name: String!, color: String!, category: ID!): Tag!
+    "Update a shared tag; administrator authorization required."
     updateTag(id: ID!, name: String!, color: String!): Tag!
+    "Change a shared tag category; administrator authorization required."
     changeTagCategory(id: ID!, category: ID!): Tag!
+    "Delete a shared tag; administrator authorization required."
     deleteTag(id: ID!): ID!
     "authorization required"
     createCollection(name: String!): Collection!
@@ -1077,9 +1090,8 @@ type Mutation {
     deleteRecordsFromCollection(id: ID!, records: [ID!]!): Collection!
     "authorization required"
     deleteCollection(id: ID!): ID!
-    "register mobile device token for notifications"
+    "Register a notification token for a device already bound to the authenticated user; administrator credentials do not replace that user session."
     registerDeviceToken(deviceID: ID!, deviceToken: String!): Boolean!
-    @deprecated
     send: Boolean!
     "get tea recommendation"
     teaRecommendation(collectionID: ID!, feelings: String!): String!
@@ -1763,6 +1775,14 @@ func (ec *executionContext) field_Mutation_newTea_args(ctx context.Context, rawA
 		return nil, err
 	}
 	args["tea"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "tagIDs",
+		func(ctx context.Context, v any) ([]common.ID, error) {
+			return ec.unmarshalNID2ᚕgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐIDᚄ(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["tagIDs"] = arg1
 	return args, nil
 }
 
@@ -2291,7 +2311,7 @@ func (ec *executionContext) _Mutation_newTea(ctx context.Context, field graphql.
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().NewTea(ctx, fc.Args["tea"].(model.TeaData))
+			return ec.Resolvers.Mutation().NewTea(ctx, fc.Args["tea"].(model.TeaData), fc.Args["tagIDs"].([]common.ID))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Tea) graphql.Marshaler {

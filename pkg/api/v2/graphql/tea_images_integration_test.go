@@ -107,6 +107,18 @@ func imageTestAuth(t *testing.T, store interface {
 }) (authPkg.Auth, string, string) {
 	t.Helper()
 
+	userID, err := store.GetOrCreateUser(t.Context(), "test-user")
+	require.NoError(t, err)
+	auth, tokens, adminToken := imageTestAuthUsers(t, store, userID)
+
+	return auth, tokens[0], adminToken
+}
+
+func imageTestAuthUsers(t *testing.T, store interface {
+	GetOrCreateUser(ctx context.Context, appleID string) (uuid.UUID, error)
+}, userIDs ...uuid.UUID) (authPkg.Auth, []string, string) {
+	t.Helper()
+
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	privateKey, err := x509.MarshalPKCS8PrivateKey(key)
@@ -122,19 +134,21 @@ func imageTestAuth(t *testing.T, store interface {
 	auth := authPkg.NewAuth(cfg, store, logrus.NewEntry(logrus.New()))
 	require.NoError(t, auth.Start())
 
-	userID, err := store.GetOrCreateUser(t.Context(), "test-user")
-	require.NoError(t, err)
-	userJWT, err := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.RegisteredClaims{
-		Issuer: userID.String(), ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
-	}).SignedString(key)
-	require.NoError(t, err)
+	userTokens := make([]string, len(userIDs))
+	for index, userID := range userIDs {
+		userTokens[index], err = jwt.NewWithClaims(jwt.SigningMethodES256, jwt.RegisteredClaims{
+			Issuer: userID.String(), ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+		}).SignedString(key)
+		require.NoError(t, err)
+	}
+
 	adminJWT, err := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
 		"iss": authPkg.AdminIssuer, "aud": authPkg.AdminAudience, "admin": true,
 		"iat": time.Now().Unix(), "exp": time.Now().Add(time.Hour).Unix(), "jti": uuid.NewString(),
 	}).SignedString(key)
 	require.NoError(t, err)
 
-	return auth, userJWT, adminJWT
+	return auth, userTokens, adminJWT
 }
 
 type imageGraphQLReply struct {
@@ -254,7 +268,7 @@ func TestTeaImagesGraphQLSharedCatalogueLifecycle(t *testing.T) {
 	for _, query := range []string{imageQuery, deleteQuery} {
 		reply := imageGraphQLCall(t, server, adminToken, query, wrong)
 		require.Len(t, reply.Errors, 1)
-		require.Equal(t, "NOT_FOUND", reply.Errors[0].Extensions["code"])
+		require.Equal(t, roleNotFoundCode, reply.Errors[0].Extensions["code"])
 	}
 
 	coverVars := map[string]any{testTeaVariable: record.ID.String(), testImageVariable: second.Images[1].ID}

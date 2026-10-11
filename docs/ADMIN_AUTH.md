@@ -12,7 +12,7 @@ The full [product boundary policy](PRODUCT_BOUNDARIES.md) applies across iOS, ma
 - macOS Editor is the administrator's workspace: maintenance of shared drinks, descriptions, classifications and galleries, and authorized destructive catalogue actions.
 - The backend owns common persistence and verifies credentials and collection ownership regardless of operating system or client.
 
-A shared Tea entry, a jar's QR record and a user's collection are separate resources. Deleting one's own collection/membership does not delete the shared Tea or QR. QR records currently have no user owner. Current user-or-admin catalogue writes and missing QR/device role guards are listed in the policy; they must not be described as already admin-only.
+A shared Tea entry, a jar's QR record and a user's collection are separate resources. Deleting one's own collection/membership does not delete the shared Tea or QR. QR records currently have no user owner. The current API permits user-or-admin creation of a new shared Tea with initial existing tags in one transaction, requires admin access to existing Tea metadata and subsequent tag assignments, allows authenticated global QR writes, and enforces mobile user/device ownership for notification tokens. New Tea creation, photo upload and cover selection remain explicit user contributions.
 
 ## Architecture
 
@@ -30,8 +30,11 @@ A shared Tea entry, a jar's QR record and a user's collection are separate resou
 ### Threat Model
 - TeaElephantEditor is a **private, developer-only application**
 - Not distributed via App Store or shared publicly
-- Tea deletion, tea image deletion, and tag/category CRUD require an authenticated admin.
-- Tea creation, metadata updates, tag assignments, image uploads, and cover selection accept authenticated mobile users or admins.
+- Updates/deletion of existing Tea entries, image deletion, tag assignments and tag/category CRUD require an authenticated admin.
+- New Tea creation, image uploads, cover selection and jar-specific QR writes accept authenticated mobile users or admins.
+- New Tea creation inserts a fresh ID; a same-name entry does not overwrite or reuse the pre-existing Tea, its tags or gallery.
+- Existing tags can be selected only as part of atomic `newTea` creation. Creation grants no ownership or temporary permission to add tags afterward; `addTagToTea` remains admin-only for every saved Tea. Creating tag/category definitions remains admin-only.
+- Personal collections and notification token registration require a mobile user session; token updates also require the already-bound device owner.
 - The tea catalogue and its galleries are shared by all users. Image deletion is checked in the resolver before storage writes or update notifications.
 - Mobile users (Apple Sign In) should NOT have admin privileges
 - **Private key security**: Stored in macOS Keychain, never hardcoded in source
@@ -403,14 +406,15 @@ func IsAdmin(ctx context.Context) bool {
     return GetAdminPrincipal(ctx) != nil
 }
 
-// RequireAdmin returns an error if the request is not admin authenticated
-// Also returns the admin principal for audit logging
-func RequireAdmin(ctx context.Context) (*AdminPrincipal, error) {
-    principal := GetAdminPrincipal(ctx)
-    if principal == nil {
-        return nil, common.ErrUnauthorized
+// RequireAdmin distinguishes a valid user from missing authentication.
+func RequireAdmin(ctx context.Context) error {
+    if _, ok := AdminPrincipalFrom(ctx); ok {
+        return nil
     }
-    return principal, nil
+    if _, err := GetUser(ctx); err == nil {
+        return common.ErrNotAdmin
+    }
+    return common.ErrUnauthorized
 }
 ```
 
@@ -427,8 +431,8 @@ var (
     ErrUserNotFound  = errors.New("user not found")
 
     // New admin errors
-    ErrNotAdmin      = errors.New("not an admin")
-    ErrUnauthorized  = errors.New("unauthorized")
+    ErrNotAdmin      = errors.New("forbidden: admin required")
+    ErrUnauthorized  = errors.New("unauthenticated")
 )
 ```
 
@@ -436,22 +440,17 @@ var (
 
 Update admin operations in `pkg/api/v2/graphql/schema.resolvers.go`:
 
-**Example: NewTea mutation**
+**Example: UpdateTea mutation**
 
 ```go
-// NewTea is the resolver for the newTea field.
-func (r *mutationResolver) NewTea(ctx context.Context, tea model.TeaData) (*model.Tea, error) {
+// UpdateTea is the resolver for the updateTea field.
+func (r *mutationResolver) UpdateTea(ctx context.Context, id common.ID, tea model.TeaData) (*model.Tea, error) {
     // Require admin authentication
     if err := authPkg.RequireAdmin(ctx); err != nil {
-        return nil, &gqlerror.Error{
-            Message: "Admin authentication required",
-            Extensions: map[string]interface{}{
-                "code": "UNAUTHORIZED",
-            },
-        }
+        return nil, castGQLError(ctx, err)
     }
 
-    res, err := r.teaData.Create(ctx, tea.ToCommonTeaData())
+    res, err := r.teaData.Update(ctx, uuid.UUID(id), tea.ToCommonTeaData())
     if err != nil {
         return nil, castGQLError(ctx, err)
     }
@@ -460,49 +459,30 @@ func (r *mutationResolver) NewTea(ctx context.Context, tea model.TeaData) (*mode
 }
 ```
 
-**Note on Error Handling:**
+**Current error handling:**
 
-The middleware validates JWTs and sets context but **does not reject requests with HTTP 401/403**. Instead:
+HTTP middleware validates the signed user/admin JWT and sets the corresponding context. Invalid JWTs add `UNAUTHENTICATED`. Resolver `RequireAdmin` returns `ErrNotAdmin` for a valid regular user, or `ErrUnauthorized` without an authenticated principal. `castGQLError` maps those to `FORBIDDEN` and `UNAUTHENTICATED`, respectively, as GraphQL errors in the HTTP response. A refused catalogue action runs before storage writes and must not clear a valid user's session.
 
-1. Middleware validates JWT and sets `AdminPrincipal` in context
-2. If JWT is invalid, middleware logs warning and continues without setting context
-3. Resolver calls `RequireAdmin()` which checks for admin principal
-4. If not authorized, resolver returns GraphQL error with `UNAUTHORIZED` code
-5. Client receives HTTP 200 with GraphQL error in response body
+A valid user attempting shared catalogue administration receives, for example:
 
-**Why HTTP 200 + GraphQL errors?**
-- Consistent with GraphQL spec (transport vs application errors)
-- Allows GraphQL batching to partially succeed
-- Better error details in GraphQL response format
-- Standard GraphQL client error handling
-
-**Example error response:**
 ```json
 {
-  "data": {
-    "newTea": null
-  },
-  "errors": [
-    {
-      "message": "Admin authentication required",
-      "path": ["newTea"],
-      "extensions": {
-        "code": "UNAUTHORIZED"
-      }
-    }
-  ]
+  "data": null,
+  "errors": [{
+    "message": "forbidden: admin required",
+    "path": ["updateTea"],
+    "extensions": {"code": "FORBIDDEN"}
+  }]
 }
 ```
 
-If you need HTTP-level status codes (401/403) for non-GraphQL clients, implement a transport-level interceptor that maps `UNAUTHORIZED` errors to HTTP 403.
-
 **Current mutations requiring admin:**
 
-- `DeleteTea`, `DeleteTeaImage`
+- `UpdateTea`, `AddTagToTea`, `DeleteTagFromTea`, `DeleteTea`, `DeleteTeaImage`
 - `CreateTagCategory`, `UpdateTagCategory`, `DeleteTagCategory`
 - `CreateTag`, `UpdateTag`, `ChangeTagCategory`, `DeleteTag`
 
-`NewTea`, `UpdateTea`, `AddTagToTea` and `DeleteTagFromTea` currently accept an authenticated user or admin. `WriteToQR` currently lacks an explicit role/ownership guard. The earlier implementation examples are not evidence that these operations already require admin; their alignment with the broader product policy remains a follow-up.
+`NewTea` accepts an authenticated user or admin and always creates a distinct record with a fresh ID, without changing existing same-name Tea entries or their galleries. Its optional `tagIDs` argument selects only existing tags during creation: the Tea and deduplicated tag links commit in one transaction, and a creation event is queued only after commit. Missing tags return `NOT_FOUND`; validation, insertion or commit failure leaves no partial Tea or links. Omitting `tagIDs` defaults to an empty list. `AddTagToTea` remains admin-only even when the same user just created that Tea. `WriteToQR` requires a user or admin but retains global household QR upsert semantics. `RegisterDeviceToken` requires a user session and passes the user ID to an atomic owner-constrained update; admin credentials alone do not authorize a personal device. Missing/foreign devices return existing numeric GraphQL code `5`, and no mobile user identity returns code `3`. `authApple` does not transfer an existing device binding to a different user.
 
 ### 3. TeaElephantEditor Changes
 
@@ -730,12 +710,12 @@ curl -X POST https://tea-elephant.com/graphql \
   -H "Content-Type: application/json" \
   -d '{"query": "mutation { newTea(tea: {name: \"Test Tea\", type: tea, description: \"Test\"}) { id name } }"}'
 
-# Without auth (should fail with 401/403)
+# Without auth (GraphQL UNAUTHENTICATED)
 curl -X POST https://tea-elephant.com/graphql \
   -H "Content-Type: application/json" \
   -d '{"query": "mutation { newTea(tea: {name: \"Test Tea\", type: tea, description: \"Test\"}) { id name } }"}'
 
-# With user JWT from Apple Sign In (should fail with 401/403)
+# With user JWT from Apple Sign In (newTea succeeds; it creates a new shared entry)
 curl -X POST https://tea-elephant.com/graphql \
   -H "Authorization: Bearer <user-jwt>" \
   -H "Content-Type: application/json" \
@@ -792,73 +772,50 @@ Since you're the sole admin and can coordinate server and client updates togethe
 
 **Note:** This is a breaking change - admin mutations will immediately require authentication. Ensure TeaElephantEditor is updated before deploying the server, or be prepared to update it immediately after deployment.
 
-### Rollback Plan
+### Rollback boundary
 
-If issues arise:
-1. Remove `RequireAdmin()` checks from resolvers
-2. Redeploy server
-3. Admin operations revert to unauthenticated state
-4. Debug and fix TeaElephantEditor
-5. Redeploy with auth enabled
+Coordinate client/server rollback using verified known revisions. Do not remove permission guards or make catalogue writes anonymous as a workaround. A rollback must account for the prior broader authenticated-user catalogue contract and the matching mobile workflow, while preserving the persisted data and device bindings.
 
 ## Appendix
 
 ### A. Current operations and permissions
 
-This list describes current source enforcement. It is separate from which operations the Editor UI exposes.
+This list describes prepared source enforcement, separately from UI coverage and deployment.
 
 **Verified admin:**
 
-- `deleteTea`, `deleteTeaImage`
+- `updateTea`, `addTagToTea`, `deleteTagFromTea`, `deleteTea`, `deleteTeaImage`
 - `createTagCategory`, `updateTagCategory`, `deleteTagCategory`
 - `createTag`, `updateTag`, `changeTagCategory`, `deleteTag`
 
-**Authenticated user or admin, modifying shared catalogue data:**
+**Authenticated user or admin:**
 
-- `newTea`, `updateTea`
-- `addTagToTea`, `deleteTagFromTea`
-- `addTeaImage`, `setTeaCoverImage`
+- `newTea`: create a new shared Tea and its initial existing tags atomically with a fresh ID, preserving existing same-name entries, tags and galleries; no permission to add tags afterward
+- `addTeaImage`, `setTeaCoverImage`: supported contributions to the shared catalogue
+- `writeToQR`: global jar metadata upsert, without exclusive ownership; two users can use the same household QR
 
-**User session, with ownership checks for collection access:**
+**Mobile user session:**
 
 - `me`, `collections`, `createCollection`
-- `addRecordsToCollection`, `deleteRecordsFromCollection`, `deleteCollection`
-- `teaRecommendation`, `recommendTea`, `teaOfTheDay`
+- `addRecordsToCollection`, `deleteRecordsFromCollection`, `deleteCollection`: the existing collection ownership checks apply
+- `teaRecommendation`, `recommendTea`, `teaOfTheDay`: recommendations use that user's collections/history
+- `registerDeviceToken`: update only the device already bound to the same user
 
-An admin JWT does not replace a user session for personal collection operations. `authApple` exchanges a validated Apple code for that user session; it is not a mutation requiring an already signed-in user.
+An admin JWT does not replace a user session for personal collections or device tokens. `authApple` exchanges a validated Apple code for that session and binds the device; it requires no existing user session. Device binding does not reassign an ID on conflict.
 
 **Public reads or AI text generation:**
 
 - `teas`, `tea`, `qrRecord`, `tag`, `tagsCategories`
 - Tea image HTTP GET/HEAD
-- `generateDescription` (query), `startGenerateDescription` (subscription); saving generated text is a separate catalogue mutation
+- `generateDescription`, `startGenerateDescription`; an initial description can be submitted with user-authorized `newTea`, while changing an existing Tea description requires admin `updateTea`
 
-**Missing explicit resolver checks, requiring follow-up:**
+The old user-or-admin editing/tag-assignment writes and unchecked QR/device endpoints are replaced by the guards above. User creation of a new Tea remains allowed, with optional initial existing tags inside that creation transaction. Older iOS clients need the corresponding workflow update. User photo contribution rights and personal collection deletion remain available. No exclusive QR owner or new database migration is added.
 
-- `writeToQR`: global upsert by QR ID, without a current user/admin or owner guard
-- `registerDeviceToken`: no current authentication/ownership check in the resolver
+See [product boundaries](PRODUCT_BOUNDARIES.md) for the exact data scopes, compatibility limits and rollout states.
 
-See [product boundaries](PRODUCT_BOUNDARIES.md) for data scopes, client roles and the agreed rule for destructive shared-library operations.
+### B. GraphQL schema permission descriptions
 
-### B. GraphQL Schema Updates (Optional)
-
-The `Admin only` annotations in the example below are a proposal, not current enforcement. In particular, `newTea` and `updateTea` still accept a user or admin as recorded in the current operations list above.
-
-Consider adding explicit admin markers in schema for documentation:
-
-```graphql
-type Mutation {
-    """Admin only: Create a new tea"""
-    newTea(tea: TeaData!): Tea!
-
-    """Admin only: Update tea details"""
-    updateTea(id: ID!, tea: TeaData!): Tea!
-
-    # ... etc
-}
-```
-
-**Note:** Schema directives like `@requireAdmin` could be implemented for schema-level enforcement, but would require additional directive resolver setup in gqlgen. The current resolver-level guards are simpler and more explicit.
+`pkg/api/v2/graphql/schema.graphql` describes the admin catalogue mutations, authenticated creation with initial existing tags, global QR writes and owner-bound device registration. These descriptions do not themselves enforce permissions; resolver guards, transaction boundaries and the atomic database predicate do. `newTea` adds the backward-compatible argument `tagIDs: [ID!]! = []`; clients that omit it continue creating a Tea without tags. Other field names, arguments and result types remain unchanged.
 
 ### C. Key Rotation Strategy
 
