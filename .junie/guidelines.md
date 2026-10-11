@@ -2,7 +2,7 @@
 
 ## Build and configuration
 
-- Use Go 1.25.1 or newer, matching `go.mod`.
+- Use Go 1.27.2 or newer, matching `go.mod`.
 - PostgreSQL is the only storage engine. Startup requires `PG_DSN` and verifies
   the database connection before serving requests.
 - Storage is implemented by `pkg/pg`, with query helpers in `pkg/pgstore`.
@@ -19,6 +19,9 @@ Application startup also needs the Apple identifiers and key file and an admin
 verification public key. API credentials configure OpenAI and OpenWeather.
 
 ## Testing
+
+Run `make tools` to install the linter and sqlc versions pinned in `Makefile`.
+GraphQL and mock generation tools are pinned in `go.mod` and invoked with `go tool`.
 
 Run `go test ./...` for unit tests. The OpenWeather integration test skips when
 `KEY` is unset. The adviser test renders templates without calling OpenAI.
@@ -55,7 +58,7 @@ directory and generated models under `pkg/api/v2/models`.
 After GraphQL schema changes, regenerate using:
 
 ```sh
-(cd pkg/api/v2 && go run github.com/99designs/gqlgen generate)
+(cd pkg/api/v2 && go tool gqlgen generate)
 ```
 
 Custom scalars and model mappings are configured in `pkg/api/v2/gqlgen.yml`.

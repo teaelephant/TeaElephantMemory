@@ -12,7 +12,7 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/common"
 )
 
-//go:generate mockgen -source=alerter.go -destination=mocks/alerter.go -package=mocks storage,alerter,sender
+//go:generate go tool mockgen -source=alerter.go -destination=mocks/alerter.go -package=mocks
 
 type Alerter interface {
 	Start() error

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/dgraph-io/ristretto"
+	"github.com/dgraph-io/ristretto/v2"
 	"github.com/eko/gocache/lib/v4/cache"
 	"github.com/eko/gocache/lib/v4/store"
 	ristrettoStore "github.com/eko/gocache/store/ristretto/v4"
@@ -18,7 +18,7 @@ const (
 	asyncGenerateTimeout       = 5 * time.Minute
 	requestTemplate            = "Опиши взвешенно и информативно без маркетинга напиток %s, чтобы помочь сделать выбор человеку на основании вкусовых качеств, пользы для организма, стимуляции к деятельности" //nolint:lll
 	descriptionGenerationError = "description generation error"
-	descriptionModel           = openai.GPT5
+	descriptionModel           = openai.GPT6Astra
 )
 
 type DescriptionGenerator interface {
@@ -106,7 +106,7 @@ func (g *generator) generateDescription(name string, result chan<- string) {
 }
 
 func NewGenerator(token string, log *logrus.Entry) DescriptionGenerator {
-	ristrettoCache, err := ristretto.NewCache(&ristretto.Config{
+	ristrettoCache, err := ristretto.NewCache(&ristretto.Config[string, string]{
 		NumCounters: 1000,
 		MaxCost:     100000000,
 		BufferItems: 64,
@@ -117,7 +117,7 @@ func NewGenerator(token string, log *logrus.Entry) DescriptionGenerator {
 
 	return &generator{
 		client:       openai.NewClient(token),
-		cacheManager: cache.New[string](ristrettoStore.NewRistretto(ristrettoCache)),
+		cacheManager: cache.New[string](ristrettoStore.NewRistretto[string, string](ristrettoCache)),
 		log:          log,
 	}
 }

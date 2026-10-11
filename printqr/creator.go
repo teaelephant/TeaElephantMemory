@@ -2,7 +2,7 @@ package printqr
 
 import (
 	"github.com/pkg/errors"
-	"github.com/unidoc/unipdf/v3/creator"
+	"github.com/unidoc/unipdf/v5/creator"
 )
 
 type Client struct {

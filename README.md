@@ -12,8 +12,8 @@ Go backend for TeaElephant's iOS application and macOS catalogue editor.
 
 ## Requirements
 
-- Go 1.25.1 or newer, as specified in `go.mod`
-- PostgreSQL; the local Compose setup uses PostgreSQL 17
+- Go 1.27.2 or newer, as specified in `go.mod`
+- PostgreSQL; the local Compose setup uses PostgreSQL 18.6
 - Apple authentication/APNs credentials and an admin verification public key
 - OpenAI and OpenWeather API credentials for the corresponding features
 - Docker Compose for the container-based setup
@@ -47,12 +47,24 @@ healthy, and mounts the two key files read-only. The default endpoints are:
 - Prometheus metrics: `http://localhost:8080/metrics`
 - PostgreSQL: `localhost:5432`
 
-The PostgreSQL service stores data in the named `postgres-data` volume.
+The PostgreSQL service stores data in the named `postgres-data-v18` volume,
+mounted at `/var/lib/postgresql`. PostgreSQL 18 uses the version-specific
+data directory `/var/lib/postgresql/18/docker`.
 The [official image](https://hub.docker.com/_/postgres) applies `db/schema.sql`
 during initialization of an empty data directory. Existing databases need
 schema changes applied explicitly.
 
 `docker compose down` stops the services while retaining the database volume.
+
+### Existing PostgreSQL 17 data
+
+The former `postgres-data` volume is preserved and is not mounted into
+PostgreSQL 18. A new volume prevents starting the new major against an
+incompatible old data directory. If you already have data, back it up using
+PostgreSQL 17 and perform a reviewed dump/restore or
+[`pg_upgrade`](https://www.postgresql.org/docs/18/upgrading.html) before
+switching to the new database. Starting Compose alone initializes an empty
+PostgreSQL 18 database; it does not migrate your existing data.
 
 ## Run the server from source
 
@@ -94,22 +106,51 @@ The server listens on port 8080. `SERVER_PORT` and `POSTGRES_PORT` in
 `.env.example` configure Compose host ports; `APPLE_AUTH_SECRET_FILE` and
 `ADMIN_PUBLIC_KEY_FILE` configure its host file mounts.
 
+### OpenAI models
+
+| Workload | Model | Reasoning effort |
+|---|---|---|
+| Descriptions, recommendations, and Tea of the Day context scores | `gpt-6-astra` | API default |
+| Streaming recommendations | `gpt-6-luna` | `none` |
+
+These defaults follow the current [GPT-6 model guidance](https://developers.openai.com/api/docs/guides/latest-model).
+Both models support the existing text-only Chat Completions integration.
+Streaming retains a separate fast model and sends `reasoning_effort: "none"`.
+The local tests validate HTTP request parameters, completion parsing, JSON
+scores, and SSE delivery against a test server. They do not contact OpenAI;
+model access and response quality with the deployment's API key need live
+verification separately.
+
 ## Build and checks
+
+Install the pinned linter and SQL generator into the ignored `bin` directory:
+
+```sh
+make tools
+```
+
+`Makefile` pins golangci-lint and sqlc. The Go module's `tool` directives pin
+gqlgen and mockgen alongside their dependencies. The generators run through
+`go tool`, using the module's versions rather than globally installed binaries.
 
 ```sh
 go build ./...
 go test ./...
+go vet ./...
 ./bin/golangci-lint run
 ```
 
 The OpenWeather integration test runs only when `KEY` is set. Other current
 tests use local data and do not need application credentials.
 
-Regenerate GraphQL code after API schema changes:
+Regenerate all configured GraphQL, mock, and SQL sources:
 
 ```sh
-(cd pkg/api/v2 && go run github.com/99designs/gqlgen generate)
+make generate
 ```
+
+For GraphQL alone, run `(cd pkg/api/v2 && go tool gqlgen generate)`.
+See the SQL generation-path note in [PostgreSQL storage](docs/POSTGRES_STORAGE.md).
 
 Generate printable QR codes with `go run ./cmd/qr_gen`.
 

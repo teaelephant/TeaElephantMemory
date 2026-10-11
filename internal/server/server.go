@@ -13,9 +13,9 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler/lru"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
+	"github.com/coder/websocket"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"github.com/vektah/gqlparser/v2/ast"
@@ -63,13 +63,11 @@ func (s *Server) InitV2Api() {
 	srv.AddTransport(&transport.Websocket{
 		InitFunc:              s.wsInitFunc,
 		KeepAlivePingInterval: 10 * time.Second,
-		Upgrader: websocket.Upgrader{
-			CheckOrigin: func(_ *http.Request) bool {
-				// Check against your desired domains here
-				return true
+		Implementation: transport.CoderWebsocketImplementation{
+			AcceptOptions: websocket.AcceptOptions{
+				// Preserve the existing cross-origin subscription clients.
+				InsecureSkipVerify: true,
 			},
-			ReadBufferSize:  1024,
-			WriteBufferSize: 1024,
 		},
 	})
 	srv.AddTransport(transport.Options{})

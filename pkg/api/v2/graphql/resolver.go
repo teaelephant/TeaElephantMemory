@@ -14,7 +14,7 @@ import (
 	model "github.com/teaelephant/TeaElephantMemory/pkg/api/v2/models"
 )
 
-//go:generate go run github.com/99designs/gqlgen --config gqlgen.yml generate
+//go:generate go -C .. tool gqlgen generate
 
 var (
 	// ErrNoTeas indicates the user has no teas in their collections to select from.

@@ -31,7 +31,7 @@ services:
         condition: service_healthy
 
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18.6-alpine
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     environment:
@@ -39,7 +39,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-teaelephant}
       POSTGRES_DB: ${POSTGRES_DB:-teaelephant}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data-v18:/var/lib/postgresql
       - ./db/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
@@ -49,4 +49,4 @@ services:
       start_period: 10s
 
 volumes:
-  postgres-data:
+  postgres-data-v18:

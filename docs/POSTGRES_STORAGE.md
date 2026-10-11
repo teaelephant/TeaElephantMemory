@@ -40,7 +40,14 @@ are specified in `db/schema.sql`.
 
 The local Compose PostgreSQL service initializes a new database using
 `db/schema.sql`. Initialization scripts run only for an empty data directory.
-The named database volume persists across ordinary `docker compose down` calls.
+The named `postgres-data-v18` volume persists across ordinary
+`docker compose down` calls. It is mounted at `/var/lib/postgresql`, with
+PostgreSQL 18 data under `/var/lib/postgresql/18/docker`.
+
+The older PostgreSQL 17 `postgres-data` volume is preserved separately.
+Compose does not migrate it or attach it to PostgreSQL 18. Back up any existing
+database and explicitly migrate it with dump/restore or `pg_upgrade` before
+using the new database for existing data.
 
 The server does not apply schema migrations at startup. Apply reviewed schema
 changes explicitly to existing databases, after taking a PostgreSQL backup.

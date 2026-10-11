@@ -9,6 +9,7 @@ TeaElephant Memory is a Go-based backend service for managing tea collections wi
 ### Linting
 Always run the linter before committing changes:
 ```bash
+make tools
 ./bin/golangci-lint run
 ```
 

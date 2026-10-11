@@ -2,8 +2,8 @@ package printqr
 
 import (
 	"github.com/pkg/errors"
-	"github.com/unidoc/unipdf/v3/common/license"
-	"github.com/unidoc/unipdf/v3/creator"
+	"github.com/unidoc/unipdf/v5/common/license"
+	"github.com/unidoc/unipdf/v5/creator"
 )
 
 const (
