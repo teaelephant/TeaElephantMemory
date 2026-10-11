@@ -4,11 +4,21 @@
 
 This document describes the authentication mechanism for the TeaElephantEditor admin application. The admin API uses asymmetric key authentication with JWT tokens, separate from the Apple Sign In authentication used by mobile users.
 
+## Product roles and data scopes
+
+The full [product boundary policy](PRODUCT_BOUNDARIES.md) applies across iOS, macOS Editor and backend; image permissions are only one part of it.
+
+- iOS is the regular user's everyday interface: NFC/QR, AR, jar data, personal collections, recommendations and notifications.
+- macOS Editor is the administrator's workspace: maintenance of shared drinks, descriptions, classifications and galleries, and authorized destructive catalogue actions.
+- The backend owns common persistence and verifies credentials and collection ownership regardless of operating system or client.
+
+A shared Tea entry, a jar's QR record and a user's collection are separate resources. Deleting one's own collection/membership does not delete the shared Tea or QR. QR records currently have no user owner. Current user-or-admin catalogue writes and missing QR/device role guards are listed in the policy; they must not be described as already admin-only.
+
 ## Architecture
 
 ### Key Separation
 - **Mobile Users**: Apple Sign In → JWT signed with Apple auth key
-- **Admin Users**: Static JWT signed with dedicated admin private key → Verified with admin public key
+- **Admin Users**: Short-lived JWT signed with dedicated admin private key → Verified with admin public key
 
 ### Components
 1. **Admin Private Key**: ECDSA P-256 key stored securely in macOS Keychain
@@ -58,6 +68,8 @@ The iOS DEBUG **AR Demo** may delete photographs stored only on its device. It u
 ```
 
 ## Implementation Details
+
+The sections below contain historical implementation sketches, not an inventory of current resolver permissions. The [verified product/API matrix](PRODUCT_BOUNDARIES.md#current-implementation-and-compatibility) and [current operations list](#a-current-operations-and-permissions) take precedence when interpreting their examples.
 
 ### 1. Key Generation
 
@@ -484,20 +496,13 @@ The middleware validates JWTs and sets context but **does not reject requests wi
 
 If you need HTTP-level status codes (401/403) for non-GraphQL clients, implement a transport-level interceptor that maps `UNAUTHORIZED` errors to HTTP 403.
 
-**Apply to all admin mutations:**
-- `NewTea`
-- `UpdateTea`
-- `DeleteTea`
-- `AddTagToTea`
-- `DeleteTagFromTea`
-- `WriteToQR`
-- `CreateTagCategory`
-- `UpdateTagCategory`
-- `DeleteTagCategory`
-- `CreateTag`
-- `UpdateTag`
-- `ChangeTagCategory`
-- `DeleteTag`
+**Current mutations requiring admin:**
+
+- `DeleteTea`, `DeleteTeaImage`
+- `CreateTagCategory`, `UpdateTagCategory`, `DeleteTagCategory`
+- `CreateTag`, `UpdateTag`, `ChangeTagCategory`, `DeleteTag`
+
+`NewTea`, `UpdateTea`, `AddTagToTea` and `DeleteTagFromTea` currently accept an authenticated user or admin. `WriteToQR` currently lacks an explicit role/ownership guard. The earlier implementation examples are not evidence that these operations already require admin; their alignment with the broader product policy remains a follow-up.
 
 ### 3. TeaElephantEditor Changes
 
@@ -798,48 +803,46 @@ If issues arise:
 
 ## Appendix
 
-### A. Admin Operations List
+### A. Current operations and permissions
 
-**Tea Management:**
-- `newTea`
-- `updateTea`
-- `deleteTea`
-- `addTagToTea`
-- `deleteTagFromTea`
+This list describes current source enforcement. It is separate from which operations the Editor UI exposes.
 
-**Tag Management:**
-- `createTagCategory`
-- `updateTagCategory`
-- `deleteTagCategory`
-- `createTag`
-- `updateTag`
-- `changeTagCategory`
-- `deleteTag`
+**Verified admin:**
 
-**QR Management:**
-- `writeToQR`
+- `deleteTea`, `deleteTeaImage`
+- `createTagCategory`, `updateTagCategory`, `deleteTagCategory`
+- `createTag`, `updateTag`, `changeTagCategory`, `deleteTag`
 
-**Public Operations (no auth required):**
-- `teas` (query)
-- `tea` (query)
-- `qrRecord` (query)
-- `tag` (query)
-- `tagsCategories` (query)
-- `generateDescription` (mutation/subscription - AI powered)
+**Authenticated user or admin, modifying shared catalogue data:**
 
-**User Operations (require Apple Sign In):**
-- `authApple`
-- `me`
-- `collections`
-- `createCollection`
-- `addRecordsToCollection`
-- `deleteRecordsFromCollection`
-- `deleteCollection`
-- `registerDeviceToken`
-- `teaRecommendation`
-- `teaOfTheDay`
+- `newTea`, `updateTea`
+- `addTagToTea`, `deleteTagFromTea`
+- `addTeaImage`, `setTeaCoverImage`
+
+**User session, with ownership checks for collection access:**
+
+- `me`, `collections`, `createCollection`
+- `addRecordsToCollection`, `deleteRecordsFromCollection`, `deleteCollection`
+- `teaRecommendation`, `recommendTea`, `teaOfTheDay`
+
+An admin JWT does not replace a user session for personal collection operations. `authApple` exchanges a validated Apple code for that user session; it is not a mutation requiring an already signed-in user.
+
+**Public reads or AI text generation:**
+
+- `teas`, `tea`, `qrRecord`, `tag`, `tagsCategories`
+- Tea image HTTP GET/HEAD
+- `generateDescription` (query), `startGenerateDescription` (subscription); saving generated text is a separate catalogue mutation
+
+**Missing explicit resolver checks, requiring follow-up:**
+
+- `writeToQR`: global upsert by QR ID, without a current user/admin or owner guard
+- `registerDeviceToken`: no current authentication/ownership check in the resolver
+
+See [product boundaries](PRODUCT_BOUNDARIES.md) for data scopes, client roles and the agreed rule for destructive shared-library operations.
 
 ### B. GraphQL Schema Updates (Optional)
+
+The `Admin only` annotations in the example below are a proposal, not current enforcement. In particular, `newTea` and `updateTea` still accept a user or admin as recorded in the current operations list above.
 
 Consider adding explicit admin markers in schema for documentation:
 

@@ -4,6 +4,14 @@
 
 Go backend for TeaElephant's iOS application and macOS catalogue editor.
 
+## Product roles and data scopes
+
+TeaElephant on iOS is the everyday user client for NFC/QR labels, AR, jar information, personal collections, recommendations and notifications. TeaElephantEditor on macOS is the administrator's workspace for maintaining the shared drink catalogue, its descriptions, classification and galleries. This backend stores their common data and validates user/admin identity independently of the device.
+
+Shared Tea data, jar-specific QR attributes and user-owned collection membership are distinct. A user deleting their own collection does not delete a catalogue Tea, QR record or shared image. Destructive shared catalogue operations require a verified administrator; Apple Sign In does not grant that role.
+
+The current API still permits selected catalogue writes by users and has missing explicit QR/device guards. The verified rights, interface responsibilities and follow-ups are recorded in [product boundaries](docs/PRODUCT_BOUNDARIES.md); do not infer authorization from the client application's purpose alone. Authentication details are in [ADMIN_AUTH.md](docs/ADMIN_AUTH.md).
+
 ## Features
 
 - GraphQL HTTP and WebSocket API for teas, tags, QR records, and user collections
