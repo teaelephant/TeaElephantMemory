@@ -100,3 +100,21 @@ creation/upload commits a resource receipt and payload hash with the data.
 Receipts have no resource foreign key so they survive deliberate deletion without
 allowing a retry to resurrect the resource. See [Editor agent API](EDITOR_AGENT_API.md)
 for the optional GraphQL arguments, strict capability checks and current limits.
+
+## Duplicate Tea merge
+
+`db/migrations/20261012_tea_merge.sql` expands the receipt operation constraint and
+adds `tea_merge_receipt_details`, with immutable input revisions/token, original
+metadata and historical transfer counts. It follows the image and catalogue
+operation migrations and requires an explicit backup/application. It is repeatable
+and does not migrate or delete existing Tea/QR/image/collection/history rows.
+
+`pkg/pg/tea_merge.go` and `tea_merge_preview.go` implement the single transaction
+and snapshot hash. They take the catalogue advisory lock, dependent table locks,
+then Tea row locks; this orders legacy QR/membership/history writers without FK
+lock cycles. Source QR/photo IDs are preserved; tags are unioned and consumption
+collisions/image overflow refuse the entire merge. Historical receipts have no
+Tea FK and stay untouched. `internal/consumption/qr_selection.go` uses the same
+lock only during fresh Tea-of-the-Day QR selection/history recording, after remote
+scoring; cache hits record nothing. See [Tea merge](TEA_MERGE.md) for API policies,
+receipt recovery and the explicit scalability/rollout boundaries.

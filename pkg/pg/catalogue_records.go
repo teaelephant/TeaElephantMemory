@@ -58,7 +58,7 @@ func (d *db) Update(ctx context.Context, id uuid.UUID, data *common.TeaData) (*c
 }
 func (d *db) Delete(ctx context.Context, id uuid.UUID) error {
 	return d.withCatalogueMutation(ctx, catalogTeaTable, id, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `DELETE FROM teas WHERE id=$1`, id)
+		_, err := tx.ExecContext(ctx, catalogDeleteTeaSQL, id)
 		return wrapCatalogStorageError(err)
 	})
 }

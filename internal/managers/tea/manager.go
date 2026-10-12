@@ -156,3 +156,19 @@ func (m *manager) NotifyUpdate(ctx context.Context, id uuid.UUID) (*common.Tea, 
 		return nil, fmt.Errorf("publish tea update: %w", ctx.Err())
 	}
 }
+
+// NotifyMerge publishes the committed target update and source removal without deleting storage twice.
+func (m *manager) NotifyMerge(ctx context.Context, source uuid.UUID, target *common.Tea) error {
+	select {
+	case m.update <- target:
+	case <-ctx.Done():
+		return fmt.Errorf("publish merged Tea update: %w", ctx.Err())
+	}
+
+	select {
+	case m.delete <- source:
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("publish merged Tea removal: %w", ctx.Err())
+	}
+}

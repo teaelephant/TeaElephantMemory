@@ -20,6 +20,9 @@ var (
 
 type catalogueOperationKey struct{}
 
+// CatalogueWriteLock orders household catalog changes and selected-QR history writes.
+const CatalogueWriteLock int64 = 724383810271
+
 // CatalogueOperation carries validated mutation preconditions to the storage boundary.
 type CatalogueOperation struct {
 	ExpectedRevision    string

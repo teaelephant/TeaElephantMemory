@@ -136,6 +136,7 @@ type Resolver struct {
 	adviser
 	weather
 	catalog     catalogueStore
+	merges      teaMergeStore
 	images      teaImages
 	consumption consumption.Store
 

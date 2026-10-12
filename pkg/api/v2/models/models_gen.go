@@ -32,6 +32,7 @@ type EditorCapabilities struct {
 	ProtocolVersion     string `json:"protocolVersion"`
 	SupportsRevisions   bool   `json:"supportsRevisions"`
 	SupportsIdempotency bool   `json:"supportsIdempotency"`
+	SupportsTeaMerge    bool   `json:"supportsTeaMerge"`
 }
 
 type Mutation struct {
@@ -108,6 +109,37 @@ type TeaImage struct {
 	Height      int       `json:"height"`
 	CreatedAt   time.Time `json:"createdAt"`
 	IsCover     bool      `json:"isCover"`
+}
+
+type TeaMergePreview struct {
+	SourceTea                 *Tea     `json:"sourceTea"`
+	TargetTea                 *Tea     `json:"targetTea"`
+	PreviewToken              string   `json:"previewToken"`
+	QRCount                   int      `json:"qrCount"`
+	CollectionMembershipCount int      `json:"collectionMembershipCount"`
+	TagsToAdd                 int      `json:"tagsToAdd"`
+	ImagesToMove              int      `json:"imagesToMove"`
+	ConsumptionCount          int      `json:"consumptionCount"`
+	ResultingImageCount       int      `json:"resultingImageCount"`
+	Blockers                  []string `json:"blockers"`
+	MetadataPolicy            string   `json:"metadataPolicy"`
+	CoverPolicy               string   `json:"coverPolicy"`
+	// Resulting cover UUID; target cover, otherwise source cover, otherwise the oldest surviving image. Null for an empty gallery.
+	ResultingCoverImageID *common.ID `json:"resultingCoverImageID,omitempty"`
+}
+
+type TeaMergeResult struct {
+	Receipt *CatalogueOperationReceipt `json:"receipt"`
+	// Current target, or null if later deleted. The receipt always describes the original committed operation.
+	TargetTea                 *Tea      `json:"targetTea,omitempty"`
+	Replayed                  bool      `json:"replayed"`
+	SourceTeaID               common.ID `json:"sourceTeaID"`
+	TargetTeaID               common.ID `json:"targetTeaID"`
+	QRCount                   int       `json:"qrCount"`
+	CollectionMembershipCount int       `json:"collectionMembershipCount"`
+	TagsAdded                 int       `json:"tagsAdded"`
+	ImagesMoved               int       `json:"imagesMoved"`
+	ConsumptionsMoved         int       `json:"consumptionsMoved"`
 }
 
 type TeaOfTheDay struct {

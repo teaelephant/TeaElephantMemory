@@ -14,7 +14,7 @@ import (
 
 // Small household catalogs serialize writes before locking individual entities.
 // This also orders taxonomy cascades against parent Tea/image/tag writes.
-const catalogueWriteLock int64 = 724383810271
+const catalogueWriteLock = common.CatalogueWriteLock
 const catalogTeaTable = "teas"
 const catalogTagTable = "tags"
 const catalogCategoryTable = "tag_categories"

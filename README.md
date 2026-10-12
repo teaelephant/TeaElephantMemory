@@ -241,6 +241,7 @@ The prepared versioned catalogue API supports atomic revision checks and durable
 Tea/photo creation receipts for the Editor agent bridge. Existing mobile QR and
 collection roles remain unchanged. Apply the additive catalogue migration after
 the tea-image migration before enabling bridge writes. See
-[Editor agent API](docs/EDITOR_AGENT_API.md) and
+[Editor agent API](docs/EDITOR_AGENT_API.md),
+[administrative duplicate Tea merge](docs/TEA_MERGE.md) and
 [PostgreSQL storage](docs/POSTGRES_STORAGE.md). Local implementation and tests do
 not imply a live rollout.

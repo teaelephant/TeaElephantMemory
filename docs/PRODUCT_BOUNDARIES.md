@@ -47,6 +47,7 @@ The following describes the prepared source implementation and its verified API 
 | Update an existing Tea or add/remove its tags (`updateTea`, `addTagToTea`, `deleteTagFromTea`) | Verified admin; users cannot change tags after creation, including for a Tea they created |
 | Upload a Tea image or choose its cover | Authenticated user or admin; supported shared contributions |
 | Delete a shared Tea or Tea image | Verified admin |
+| Merge one reviewed duplicate Tea into another | Verified admin; preview and atomic version/receipt guarded transfer preserve QR membership and history |
 | Create/update/delete shared tags/categories; change a tag's category | Verified admin; not every schema mutation has an Editor UI |
 | Read/create/delete personal collections or change their QR membership | User session and collection ownership; removing membership does not delete catalogue data |
 | Collection recommendations and Tea of the Day | User session, with the user's collections/history |
@@ -73,6 +74,15 @@ The shared schema descriptions document the role checks; the backend resolvers a
 Backend regression tests cover valid user/admin JWTs over HTTP and direct resolver calls, refused catalogue changes, shared QR updates by two users, personal collection isolation/removal, and owner-only token updates. Configured generators are rerun, including SQL helpers; the legacy SQL generation/runtime adapter split remains documented in the backend storage guide (`docs/POSTGRES_STORAGE.md`).
 
 Prepared code, local verification, installation on a device and server rollout are distinct states. The stricter catalogue/QR/device API and the matching mobile flow must be delivered together. The existing tea-image feature still requires its separate image-table migration before live image use. Permission alignment itself needs no new database migration.
+
+## Duplicate catalogue entries
+
+The separately gated [Tea merge](TEA_MERGE.md) workflow preserves labels, jar fields,
+collection owners/membership, photograph IDs/bytes and consumption history while
+removing one reviewed duplicate catalogue Tea. It requires an administrator and
+an exact preview; users retain their existing jar/collection and contribution
+permissions. Similar names alone never authorize automatic merge. This prepared
+source feature requires its explicit receipt-detail migration and server delivery.
 
 ## Local demo boundary
 

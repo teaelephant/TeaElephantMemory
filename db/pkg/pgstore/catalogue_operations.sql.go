@@ -32,6 +32,30 @@ func (q *Queries) GetCatalogueOperationReceipt(ctx context.Context, operationKey
 	return i, err
 }
 
+const getTeaMergeReceiptDetails = `-- name: GetTeaMergeReceiptDetails :one
+SELECT operation_key,source_revision,target_revision,preview_token,qr_count,collection_membership_count,tags_added,images_moved,consumptions_moved,source_metadata,target_metadata
+FROM tea_merge_receipt_details WHERE operation_key=$1
+`
+
+func (q *Queries) GetTeaMergeReceiptDetails(ctx context.Context, operationKey uuid.UUID) (TeaMergeReceiptDetail, error) {
+	row := q.db.QueryRow(ctx, getTeaMergeReceiptDetails, operationKey)
+	var i TeaMergeReceiptDetail
+	err := row.Scan(
+		&i.OperationKey,
+		&i.SourceRevision,
+		&i.TargetRevision,
+		&i.PreviewToken,
+		&i.QrCount,
+		&i.CollectionMembershipCount,
+		&i.TagsAdded,
+		&i.ImagesMoved,
+		&i.ConsumptionsMoved,
+		&i.SourceMetadata,
+		&i.TargetMetadata,
+	)
+	return i, err
+}
+
 const insertCatalogueOperationReceipt = `-- name: InsertCatalogueOperationReceipt :exec
 INSERT INTO catalog_operation_receipts(operation_key,actor,operation,request_hash,tea_id,resource_id,result_revision)
 VALUES($1,$2,$3,$4,$5,$6,$7)

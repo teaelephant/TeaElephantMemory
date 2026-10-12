@@ -110,7 +110,7 @@ ALTER TABLE tag_categories ADD COLUMN IF NOT EXISTS revision bigint NOT NULL DEF
 CREATE TABLE IF NOT EXISTS catalog_operation_receipts (
     operation_key uuid PRIMARY KEY,
     actor text NOT NULL,
-    operation text NOT NULL CHECK (operation IN ('newTea','addTeaImage')),
+    operation text NOT NULL CHECK (operation IN ('newTea','addTeaImage','mergeTeas')),
     request_hash text NOT NULL,
     tea_id uuid NOT NULL,
     resource_id uuid NOT NULL,
@@ -152,3 +152,17 @@ DROP TRIGGER IF EXISTS catalog_tea_tags_revision ON tea_tags;
 CREATE TRIGGER catalog_tea_tags_revision AFTER INSERT OR UPDATE OR DELETE ON tea_tags FOR EACH ROW EXECUTE FUNCTION catalog_bump_parent_tea_revision();
 DROP TRIGGER IF EXISTS catalog_tea_images_revision ON tea_images;
 CREATE TRIGGER catalog_tea_images_revision AFTER INSERT OR UPDATE OR DELETE ON tea_images FOR EACH ROW EXECUTE FUNCTION catalog_bump_parent_tea_revision();
+
+CREATE TABLE IF NOT EXISTS tea_merge_receipt_details (
+    operation_key uuid PRIMARY KEY REFERENCES catalog_operation_receipts(operation_key) ON DELETE RESTRICT,
+    source_revision text NOT NULL,
+    target_revision text NOT NULL,
+    preview_token text NOT NULL,
+    qr_count int NOT NULL CHECK (qr_count >= 0),
+    collection_membership_count int NOT NULL CHECK (collection_membership_count >= 0),
+    tags_added int NOT NULL CHECK (tags_added >= 0),
+    images_moved int NOT NULL CHECK (images_moved >= 0),
+    consumptions_moved int NOT NULL CHECK (consumptions_moved >= 0),
+    source_metadata jsonb NOT NULL,
+    target_metadata jsonb NOT NULL
+);

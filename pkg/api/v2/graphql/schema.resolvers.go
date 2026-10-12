@@ -159,6 +159,11 @@ func (r *mutationResolver) DeleteTea(ctx context.Context, id common.ID, expected
 	return id, nil
 }
 
+// MergeTeas is the resolver for the mergeTeas field.
+func (r *mutationResolver) MergeTeas(ctx context.Context, sourceTeaID common.ID, targetTeaID common.ID, expectedSourceRevision string, expectedTargetRevision string, previewToken string, idempotencyKey string) (*model.TeaMergeResult, error) {
+	return r.mergeTeas(ctx, sourceTeaID, targetTeaID, expectedSourceRevision, expectedTargetRevision, previewToken, idempotencyKey)
+}
+
 // AddTeaImage is the resolver for the addTeaImage field.
 func (r *mutationResolver) AddTeaImage(ctx context.Context, teaID common.ID, imageBase64 string, expectedRevision *string, idempotencyKey *string) (*model.Tea, error) {
 	if err := authPkg.RequireUserOrAdmin(ctx); err != nil {
@@ -578,6 +583,16 @@ func (r *queryResolver) EditorOperationReceipt(ctx context.Context, idempotencyK
 	return r.editorOperationReceipt(ctx, idempotencyKey)
 }
 
+// PreviewTeaMerge is the resolver for the previewTeaMerge field.
+func (r *queryResolver) PreviewTeaMerge(ctx context.Context, sourceTeaID common.ID, targetTeaID common.ID) (*model.TeaMergePreview, error) {
+	return r.previewTeaMerge(ctx, sourceTeaID, targetTeaID)
+}
+
+// EditorTeaMergeReceipt is the resolver for the editorTeaMergeReceipt field.
+func (r *queryResolver) EditorTeaMergeReceipt(ctx context.Context, sourceTeaID common.ID, targetTeaID common.ID, expectedSourceRevision string, expectedTargetRevision string, previewToken string, idempotencyKey string) (*model.TeaMergeResult, error) {
+	return r.editorTeaMergeReceipt(ctx, sourceTeaID, targetTeaID, expectedSourceRevision, expectedTargetRevision, previewToken, idempotencyKey)
+}
+
 // Teas is the resolver for the teas field.
 func (r *queryResolver) Teas(ctx context.Context, prefix *string) ([]*model.Tea, error) {
 	res, err := r.teaData.List(ctx, prefix)
@@ -695,6 +710,14 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 	now := time.Now()
 	// Try cache first: cache is per-user and expires at next local midnight.
 	if cached, ok := r.todCache.Get(user.ID, now); ok {
+		// The selected QR is stable across a merge; reload its current Tea without
+		// recomputing the recommendation or recording another consumption event.
+		refreshed, refreshErr := r.refreshTeaOfDaySelection(ctx, cached)
+		if refreshErr != nil {
+			return nil, castGQLError(ctx, refreshErr)
+		}
+
+		cached = refreshed
 		if r.log != nil {
 			r.log.
 				WithField(logKeyUser, user.ID.String()).
@@ -825,17 +848,16 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 		return nil, ErrNoTeaCandidates
 	}
 
-	if err := r.consumption.Record(ctx, user.ID, bestID, now); err != nil && r.log != nil {
-		r.log.WithField(logKeyUser, user.ID.String()).WithField(logKeyErr, err).Debug("tea_of_day record consumption failed")
-	}
-
 	// Build QRRecord for the selected tea using the earliest record we observed
 	qrr := earliestRec[common.ID(bestID)]
 	if qrr == nil {
 		return nil, ErrNoTeaCandidates
 	}
 
-	res := &model.TeaOfTheDay{Tea: qrr, Date: now}
+	res, finalErr := r.finalizeTeaOfDaySelection(ctx, user.ID, &model.TeaOfTheDay{Tea: qrr, Date: now})
+	if finalErr != nil {
+		return nil, castGQLError(ctx, finalErr)
+	}
 	r.todCache.Set(user.ID, res, now)
 	return res, nil
 }
@@ -1055,6 +1077,9 @@ func (r *tagCategoryResolver) Tags(ctx context.Context, obj *model.TagCategory, 
 
 // Tags is the resolver for the tags field.
 func (r *teaResolver) Tags(ctx context.Context, obj *model.Tea) ([]*model.Tag, error) {
+	if obj.Tags != nil {
+		return obj.Tags, nil
+	}
 	tags, err := r.ListByTea(ctx, uuid.UUID(obj.ID))
 	if err != nil {
 		return nil, castGQLError(ctx, err)
@@ -1076,6 +1101,9 @@ func (r *teaResolver) Tags(ctx context.Context, obj *model.Tea) ([]*model.Tag, e
 
 // Images is the resolver for the images field.
 func (r *teaResolver) Images(ctx context.Context, obj *model.Tea) ([]*model.TeaImage, error) {
+	if obj.Images != nil {
+		return obj.Images, nil
+	}
 	result := make([]*model.TeaImage, 0)
 	if r.images == nil {
 		return result, nil

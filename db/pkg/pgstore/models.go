@@ -96,6 +96,20 @@ type TeaImage struct {
 	IsCover     bool      `json:"is_cover"`
 }
 
+type TeaMergeReceiptDetail struct {
+	OperationKey              uuid.UUID `json:"operation_key"`
+	SourceRevision            string    `json:"source_revision"`
+	TargetRevision            string    `json:"target_revision"`
+	PreviewToken              string    `json:"preview_token"`
+	QrCount                   int32     `json:"qr_count"`
+	CollectionMembershipCount int32     `json:"collection_membership_count"`
+	TagsAdded                 int32     `json:"tags_added"`
+	ImagesMoved               int32     `json:"images_moved"`
+	ConsumptionsMoved         int32     `json:"consumptions_moved"`
+	SourceMetadata            []byte    `json:"source_metadata"`
+	TargetMetadata            []byte    `json:"target_metadata"`
+}
+
 type TeaTag struct {
 	TeaID uuid.UUID `json:"tea_id"`
 	TagID uuid.UUID `json:"tag_id"`

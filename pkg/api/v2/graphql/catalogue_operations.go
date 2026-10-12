@@ -19,7 +19,10 @@ type catalogueStore interface {
 }
 
 // SetCatalogueStore wires the versioned catalog prerequisite without changing old resolver clients.
-func (r *Resolver) SetCatalogueStore(store catalogueStore) { r.catalog = store }
+func (r *Resolver) SetCatalogueStore(store catalogueStore) {
+	r.catalog = store
+	r.merges, _ = store.(teaMergeStore)
+}
 
 func catalogueMutationContext(ctx context.Context, revision, key *string) (context.Context, error) {
 	actor := "admin"
@@ -51,7 +54,18 @@ func (r *Resolver) editorCapabilities(ctx context.Context) (*model.EditorCapabil
 		}
 	}
 
-	return &model.EditorCapabilities{ProtocolVersion: "1", SupportsRevisions: ready, SupportsIdempotency: ready}, nil
+	mergeReady := false
+
+	if ready && r.merges != nil {
+		var err error
+
+		mergeReady, err = r.merges.TeaMergeCapabilities(ctx)
+		if err != nil {
+			return nil, castGQLError(ctx, err)
+		}
+	}
+
+	return &model.EditorCapabilities{ProtocolVersion: "1", SupportsRevisions: ready, SupportsIdempotency: ready, SupportsTeaMerge: mergeReady}, nil
 }
 
 //nolint:nilnil // A missing optional receipt is GraphQL null, not a failed lookup.

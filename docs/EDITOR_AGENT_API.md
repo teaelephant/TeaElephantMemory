@@ -21,12 +21,14 @@ query {
     protocolVersion
     supportsRevisions
     supportsIdempotency
+    supportsTeaMerge
   }
 }
 ```
 
-Protocol version is `"1"`. Both support flags are true only when the required
-migration objects are present and revision triggers are enabled. Missing fields,
+Protocol version is `"1"`. Revision/idempotency flags are true only when the required
+migration objects are present and revision triggers are enabled. The additional
+`supportsTeaMerge` flag also requires the explicit merge migration. Missing fields,
 a failed capability request, a different protocol version or false flags must
 keep bridge writes disabled. A supported API does not mean the bridge is enabled:
 local Editor authorization and its tool allowlist are independent requirements.
@@ -62,8 +64,8 @@ extensions, without
 side effects. The small household catalogue serializes catalogue transactions
 with a transaction advisory lock before individual row locks, so taxonomy
 cascades and Tea/image operations acquire locks in a consistent order. Category
-removal and its tag removals commit or roll back together. The initial MCP tool
-set does not expose Tea/tag/category deletion, duplicate merging or bulk cleanup;
+removal and its tag removals commit or roll back together. The first MCP tool set does not expose Tea/tag/category deletion or bulk cleanup.
+The separately gated duplicate-merge extension is described in [Tea merge](TEA_MERGE.md);
 existing administrative deletion semantics remain separate.
 
 Malformed revisions/keys produce `BAD_USER_INPUT`. An absent expected revision
@@ -106,18 +108,18 @@ query Receipt($key: String!) {
 }
 ```
 
-`operation` is `newTea` or `addTeaImage`; `resourceID` is respectively the created
-Tea ID or image ID. Unknown keys return null. A receipt proves that creation
+`operation` is `newTea`, `addTeaImage` or `mergeTeas`; `resourceID` is respectively
+the created Tea ID, image ID or removed duplicate Tea ID. Unknown keys return null. A receipt proves that creation
 committed, not that its resource is still unchanged. Editor reads the current Tea
 after recovery. Receipts survive resource deletion; retrying an old operation
 never recreates a deliberately removed resource. Receipts are retained without
 automatic expiry in this version.
 
 The local Editor journal and readback provide visible history. They do not
-constitute a guaranteed rollback system. Duplicate merge and bulk cleanup need a
-separate domain transaction that preserves QR IDs, collection references,
-photos and classifications; current cascading deletion must not substitute for
-that transaction.
+constitute a guaranteed rollback system. [Duplicate merge](TEA_MERGE.md) now has a separate guarded domain transaction
+that preserves QR IDs, collection references, photos, classifications and history.
+Bulk cleanup and automatic rollback remain outside this slice. Cascading deletion
+must not substitute for a merge.
 
 ## Migration and local verification
 
