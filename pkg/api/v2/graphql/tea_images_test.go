@@ -121,7 +121,7 @@ func TestDeleteTeaImageRequiresAdmin(t *testing.T) {
 					ctx, _, err := auth.WsInitFunc(t.Context(), payload)
 					require.NoError(t, err)
 
-					result, err := resolver.Mutation().DeleteTeaImage(ctx, gqlCommon.ID(store.teaID), gqlCommon.ID(store.imageID))
+					result, err := resolver.Mutation().DeleteTeaImage(ctx, gqlCommon.ID(store.teaID), gqlCommon.ID(store.imageID), nil)
 					if allowed {
 						require.NoError(t, err)
 						require.Equal(t, gqlCommon.ID(store.teaID), result.ID)

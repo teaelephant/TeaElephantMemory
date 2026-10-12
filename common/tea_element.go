@@ -62,7 +62,9 @@ type TeaData struct {
 
 // Tea represents a beverage entity with its metadata.
 type Tea struct {
-	ID uuid.UUID
+	ID               uuid.UUID
+	Revision         string
+	CreationReplayed bool
 	*TeaData
 }
 

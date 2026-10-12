@@ -121,6 +121,8 @@ func main() {
 		adv, weather, cons, imageService,
 	)
 
+	resolvers.SetCatalogueStore(st)
+
 	s := server.NewServer(resolvers, []gql.HandlerExtension{authM.Middleware()}, authM.WsInitFunc, imageService)
 	s.InitV2Api()
 	teaManager.Start()

@@ -58,54 +58,60 @@ func (d *db) ReadTeaImage(ctx context.Context, imageID uuid.UUID) (*common.TeaIm
 
 // withLockedTea serializes every image write for one catalog entry.
 func (d *db) withLockedTea(ctx context.Context, teaID uuid.UUID, update func(*sql.Tx) error) error {
-	tx, err := d.pg.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("begin tea image transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	var found uuid.UUID
-
-	err = tx.QueryRowContext(ctx, `SELECT id FROM teas WHERE id = $1 FOR UPDATE`, teaID).Scan(&found)
-	if errors.Is(err, sql.ErrNoRows) {
-		return common.ErrTeaNotFound
-	}
-
-	if err != nil {
-		return fmt.Errorf("lock tea images: %w", err)
-	}
-
-	if err := update(tx); err != nil {
-		return err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit tea images: %w", err)
-	}
-
-	return nil
+	return d.withCatalogueMutation(ctx, catalogTeaTable, teaID, update)
 }
 
 // InsertTeaImage enforces the image count and first-image cover under the tea lock.
 func (d *db) InsertTeaImage(ctx context.Context, content *common.TeaImageContent) error {
-	return d.withLockedTea(ctx, content.TeaID, func(tx *sql.Tx) error {
-		var count int
-		if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM tea_images WHERE tea_id = $1`, content.TeaID).Scan(&count); err != nil {
-			return fmt.Errorf("count tea images: %w", err)
-		}
+	tx, err := beginCatalogueWrite(ctx, d.pg)
+	if err != nil {
+		return wrapCatalogStorageError(err)
+	}
+	defer tx.Rollback()
 
-		if count >= common.MaxTeaImages {
-			return common.ErrTeaImageLimit
-		}
+	options := common.CatalogueOperationFrom(ctx)
 
-		_, err := tx.ExecContext(ctx, `INSERT INTO tea_images (id, tea_id, content_type, width, height, data, is_cover)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)`, content.ID, content.TeaID, content.ContentType, content.Width, content.Height, content.Data, count == 0)
-		if err != nil {
-			return fmt.Errorf("insert tea image: %w", err)
-		}
+	hash, err := operationHash(struct {
+		TeaID            uuid.UUID
+		Data             []byte
+		ExpectedRevision string
+		HasExpected      bool
+	}{content.TeaID, content.Data, options.ExpectedRevision, options.HasExpectedRevision})
+	if err != nil {
+		return wrapCatalogStorageError(err)
+	}
 
-		return nil
-	})
+	receipt, err := replayReceipt(ctx, tx, catalogAddImageOperation, hash)
+	if err != nil {
+		return wrapCatalogStorageError(err)
+	}
+
+	if receipt != nil {
+		return wrapCatalogStorageError(tx.Commit())
+	}
+
+	if err := checkCatalogueRevision(ctx, tx, catalogTeaTable, content.TeaID); err != nil {
+		return wrapCatalogStorageError(err)
+	}
+
+	var count int
+	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM tea_images WHERE tea_id=$1`, content.TeaID).Scan(&count); err != nil {
+		return wrapCatalogStorageError(err)
+	}
+
+	if count >= common.MaxTeaImages {
+		return common.ErrTeaImageLimit
+	}
+
+	if _, err := tx.ExecContext(ctx, `INSERT INTO tea_images(id,tea_id,content_type,width,height,data,is_cover) VALUES($1,$2,$3,$4,$5,$6,$7)`, content.ID, content.TeaID, content.ContentType, content.Width, content.Height, content.Data, count == 0); err != nil {
+		return wrapCatalogStorageError(err)
+	}
+
+	if err := saveReceipt(ctx, tx, catalogAddImageOperation, hash, content.TeaID, content.ID); err != nil {
+		return wrapCatalogStorageError(err)
+	}
+
+	return wrapCatalogStorageError(tx.Commit())
 }
 
 // DeleteTeaImage cannot delete another tea's image and promotes the oldest survivor.

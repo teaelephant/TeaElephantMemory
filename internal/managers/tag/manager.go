@@ -205,9 +205,9 @@ func (m *manager) UpdateCategory(ctx context.Context, id uuid.UUID, name string)
 		return nil, err
 	}
 
-	res := &common.TagCategory{
-		ID:   id,
-		Name: name,
+	res, err := m.GetTagCategory(ctx, id)
+	if err != nil {
+		return nil, err
 	}
 	m.updateCategory <- res
 

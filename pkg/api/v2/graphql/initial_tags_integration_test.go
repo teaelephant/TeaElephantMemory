@@ -87,7 +87,7 @@ func createTeaWithInitialTags(t *testing.T, f roleFixture, direct bool, token st
 			ids[i] = gqlCommon.ID(id)
 		}
 
-		created, err := f.resolver.Mutation().NewTea(roleContext(t, f.auth, token), data, ids)
+		created, err := f.resolver.Mutation().NewTea(roleContext(t, f.auth, token), data, ids, nil)
 		if err != nil {
 			return uuid.Nil, fmt.Errorf("create tea with tags: %w", err)
 		}
@@ -187,7 +187,7 @@ func assertUserCannotAddTagAfterCreation(t *testing.T, f roleFixture, direct boo
 
 	before := catalogState(t, f.db)
 	if direct {
-		_, err := f.resolver.Mutation().AddTagToTea(roleContext(t, f.auth, f.ownerToken), gqlCommon.ID(id), gqlCommon.ID(f.tagID))
+		_, err := f.resolver.Mutation().AddTagToTea(roleContext(t, f.auth, f.ownerToken), gqlCommon.ID(id), gqlCommon.ID(f.tagID), nil)
 
 		var gqlErr *gqlerror.Error
 		require.ErrorAs(t, err, &gqlErr)

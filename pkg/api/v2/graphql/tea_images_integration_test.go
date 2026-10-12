@@ -99,6 +99,13 @@ func imageTestDatabase(t *testing.T) *sql.DB {
 		require.NoError(t, err, "existing-database migration must be idempotent")
 	}
 
+	catalogueMigration, err := os.ReadFile(agentMigrationPath)
+	require.NoError(t, err)
+
+	for range 2 {
+		_, err = db.ExecContext(t.Context(), string(catalogueMigration))
+		require.NoError(t, err)
+	}
 	return db
 }
 

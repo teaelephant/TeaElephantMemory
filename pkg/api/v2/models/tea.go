@@ -12,6 +12,7 @@ import (
 func FromCommonTea(source *common.Tea) *Tea {
 	return &Tea{
 		ID:          gqlCommon.ID(source.ID),
+		Revision:    source.Revision,
 		Name:        source.Name,
 		Type:        FromBeverageType(source.Type),
 		Description: source.Description,
@@ -21,7 +22,8 @@ func FromCommonTea(source *common.Tea) *Tea {
 // ToCommonTea converts a GraphQL Tea into a common.Tea.
 func (t *Tea) ToCommonTea() common.Tea {
 	return common.Tea{
-		ID: uuid.UUID(t.ID),
+		ID:       uuid.UUID(t.ID),
+		Revision: t.Revision,
 		TeaData: &common.TeaData{
 			Name:        t.Name,
 			Type:        t.Type.ToBeverageType(),

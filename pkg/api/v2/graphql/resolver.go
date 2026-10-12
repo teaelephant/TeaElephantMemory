@@ -135,6 +135,7 @@ type Resolver struct {
 	debug
 	adviser
 	weather
+	catalog     catalogueStore
 	images      teaImages
 	consumption consumption.Store
 

@@ -11,6 +11,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type CatalogOperationReceipt struct {
+	OperationKey   uuid.UUID `json:"operation_key"`
+	Actor          string    `json:"actor"`
+	Operation      string    `json:"operation"`
+	RequestHash    string    `json:"request_hash"`
+	TeaID          uuid.UUID `json:"tea_id"`
+	ResourceID     uuid.UUID `json:"resource_id"`
+	ResultRevision string    `json:"result_revision"`
+	CompletedAt    time.Time `json:"completed_at"`
+}
+
 type Collection struct {
 	ID        uuid.UUID `json:"id"`
 	UserID    uuid.UUID `json:"user_id"`
@@ -56,11 +67,13 @@ type Tag struct {
 	Name       string    `json:"name"`
 	Color      string    `json:"color"`
 	CategoryID uuid.UUID `json:"category_id"`
+	Revision   int64     `json:"revision"`
 }
 
 type TagCategory struct {
-	ID   uuid.UUID `json:"id"`
-	Name string    `json:"name"`
+	ID       uuid.UUID `json:"id"`
+	Name     string    `json:"name"`
+	Revision int64     `json:"revision"`
 }
 
 type Tea struct {
@@ -69,6 +82,7 @@ type Tea struct {
 	Type        string      `json:"type"`
 	Description pgtype.Text `json:"description"`
 	CreatedAt   time.Time   `json:"created_at"`
+	Revision    int64       `json:"revision"`
 }
 
 type TeaImage struct {

@@ -12,11 +12,26 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common"
 )
 
+type CatalogueOperationReceipt struct {
+	IdempotencyKey string    `json:"idempotencyKey"`
+	Operation      string    `json:"operation"`
+	TeaID          common.ID `json:"teaID"`
+	ResourceID     common.ID `json:"resourceID"`
+	ResultRevision string    `json:"resultRevision"`
+	CompletedAt    time.Time `json:"completedAt"`
+}
+
 type Collection struct {
 	ID      common.ID   `json:"id"`
 	Name    string      `json:"name"`
 	UserID  common.ID   `json:"userID"`
 	Records []*QRRecord `json:"records"`
+}
+
+type EditorCapabilities struct {
+	ProtocolVersion     string `json:"protocolVersion"`
+	SupportsRevisions   bool   `json:"supportsRevisions"`
+	SupportsIdempotency bool   `json:"supportsIdempotency"`
 }
 
 type Mutation struct {
@@ -51,6 +66,8 @@ type Subscription struct {
 }
 
 type Tag struct {
+	// Opaque version of this catalogue entity. Echo as expectedRevision on edits.
+	Revision string       `json:"revision"`
 	ID       common.ID    `json:"id"`
 	Name     string       `json:"name"`
 	Color    string       `json:"color"`
@@ -58,12 +75,16 @@ type Tag struct {
 }
 
 type TagCategory struct {
-	ID   common.ID `json:"id"`
-	Name string    `json:"name"`
-	Tags []*Tag    `json:"tags"`
+	// Opaque version of this catalogue entity. Echo as expectedRevision on edits.
+	Revision string    `json:"revision"`
+	ID       common.ID `json:"id"`
+	Name     string    `json:"name"`
+	Tags     []*Tag    `json:"tags"`
 }
 
 type Tea struct {
+	// Opaque version of this catalogue entity. Echo as expectedRevision on edits.
+	Revision    string      `json:"revision"`
 	ID          common.ID   `json:"id"`
 	Name        string      `json:"name"`
 	Type        Type        `json:"type"`

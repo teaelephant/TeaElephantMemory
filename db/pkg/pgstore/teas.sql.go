@@ -22,7 +22,7 @@ func (q *Queries) DeleteTea(ctx context.Context, id uuid.UUID) error {
 }
 
 const getTea = `-- name: GetTea :one
-SELECT id, name, type, description, created_at
+SELECT id, name, type, description, created_at, revision
 FROM teas
 WHERE id = $1
 `
@@ -36,6 +36,7 @@ func (q *Queries) GetTea(ctx context.Context, id uuid.UUID) (Tea, error) {
 		&i.Type,
 		&i.Description,
 		&i.CreatedAt,
+		&i.Revision,
 	)
 	return i, err
 }
@@ -43,7 +44,7 @@ func (q *Queries) GetTea(ctx context.Context, id uuid.UUID) (Tea, error) {
 const insertTea = `-- name: InsertTea :one
 INSERT INTO teas (id, name, type, description)
 VALUES ($1, $2, $3, $4)
-RETURNING id, name, type, description, created_at
+RETURNING id, name, type, description, created_at, revision
 `
 
 type InsertTeaParams struct {
@@ -67,12 +68,13 @@ func (q *Queries) InsertTea(ctx context.Context, arg InsertTeaParams) (Tea, erro
 		&i.Type,
 		&i.Description,
 		&i.CreatedAt,
+		&i.Revision,
 	)
 	return i, err
 }
 
 const listTeas = `-- name: ListTeas :many
-SELECT id, name, type, description, created_at
+SELECT id, name, type, description, created_at, revision
 FROM teas
 ORDER BY created_at DESC
 `
@@ -92,6 +94,7 @@ func (q *Queries) ListTeas(ctx context.Context) ([]Tea, error) {
 			&i.Type,
 			&i.Description,
 			&i.CreatedAt,
+			&i.Revision,
 		); err != nil {
 			return nil, err
 		}
@@ -104,7 +107,7 @@ func (q *Queries) ListTeas(ctx context.Context) ([]Tea, error) {
 }
 
 const searchTeasByPrefix = `-- name: SearchTeasByPrefix :many
-SELECT id, name, type, description, created_at
+SELECT id, name, type, description, created_at, revision
 FROM teas
 WHERE lower(name) LIKE lower($1) || '%'
 ORDER BY name ASC
@@ -131,6 +134,7 @@ func (q *Queries) SearchTeasByPrefix(ctx context.Context, arg SearchTeasByPrefix
 			&i.Type,
 			&i.Description,
 			&i.CreatedAt,
+			&i.Revision,
 		); err != nil {
 			return nil, err
 		}
@@ -148,7 +152,7 @@ SET name = $2,
     type = $3,
     description = $4
 WHERE id = $1
-RETURNING id, name, type, description, created_at
+RETURNING id, name, type, description, created_at, revision
 `
 
 type UpdateTeaParams struct {
@@ -172,6 +176,7 @@ func (q *Queries) UpdateTea(ctx context.Context, arg UpdateTeaParams) (Tea, erro
 		&i.Type,
 		&i.Description,
 		&i.CreatedAt,
+		&i.Revision,
 	)
 	return i, err
 }

@@ -77,3 +77,26 @@ All image writes lock the parent Tea row in one transaction. This serializes
 the ten-image limit, first-image cover assignment, cover switches and cover
 promotion. The partial unique index also prevents more than one cover per
 Tea. Image removal and cover selection constrain both Tea ID and image ID.
+
+## Versioned catalogue operations
+
+The additive `db/migrations/20261012_catalog_agent_operations.sql` must be applied
+explicitly after the tea-image migration. It adds opaque entity revisions and a
+`catalog_operation_receipts` table. Matching definitions are in `db/schema.sql`.
+The migration is repeatable and preserves shared Teas, images, QR records and
+collection membership. Triggers increment catalogue revisions even for older
+clients omitting preconditions; Tea tag/photo triggers advance the parent Tea.
+
+`pkg/pg/catalogue_records.go`, `catalogue_operations.go`, `tea_creation.go` and
+`tea_images.go` implement runtime catalogue reads and atomic guarded writes with
+`database/sql`. They return row metadata and its revision together and do not
+modify the legacy generated `pkg/pgstore` file. Configured sqlc output in
+`db/pkg/pgstore` is regenerated from source queries, including receipt definitions.
+
+Catalogue transactions take one transaction advisory lock before entity locks,
+which orders small household catalogue writes and taxonomy cascades. A revision
+conflict and failed creation/upload roll back every write. Successful keyed
+creation/upload commits a resource receipt and payload hash with the data.
+Receipts have no resource foreign key so they survive deliberate deletion without
+allowing a retry to resurrect the resource. See [Editor agent API](EDITOR_AGENT_API.md)
+for the optional GraphQL arguments, strict capability checks and current limits.

@@ -84,7 +84,9 @@ func (m *manager) Create(ctx context.Context, data *common.TeaData) (*common.Tea
 		return nil, err
 	}
 
-	m.create <- res
+	if !res.CreationReplayed {
+		m.create <- res
+	}
 
 	return res, nil
 }
@@ -96,7 +98,9 @@ func (m *manager) CreateWithTags(ctx context.Context, data *common.TeaData, tagI
 		return nil, err
 	}
 
-	m.create <- res
+	if !res.CreationReplayed {
+		m.create <- res
+	}
 
 	return res, nil
 }

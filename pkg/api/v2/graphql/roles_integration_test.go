@@ -86,6 +86,7 @@ func newRoleFixture(t *testing.T) roleFixture {
 	teaManager := tea.NewManager(store)
 	resolver := NewResolver(log, teaManager, qr.NewManager(store), tag.NewManager(store, teaManager, log),
 		collection.NewManager(store), nil, nil, notification.NewManager(store), nil, nil, nil, nil)
+	resolver.SetCatalogueStore(store)
 	server := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 	server.Use(auth.Middleware())
 
@@ -206,13 +207,13 @@ func callCatalogueResolver(ctx context.Context, resolver *Resolver, operation st
 
 	switch operation {
 	case roleNewTea:
-		result, err = resolver.Mutation().NewTea(ctx, data, nil)
+		result, err = resolver.Mutation().NewTea(ctx, data, nil, nil)
 	case roleUpdateTea:
-		result, err = resolver.Mutation().UpdateTea(ctx, gqlCommon.ID(teaID), data)
+		result, err = resolver.Mutation().UpdateTea(ctx, gqlCommon.ID(teaID), data, nil)
 	case roleAddTag:
-		result, err = resolver.Mutation().AddTagToTea(ctx, gqlCommon.ID(teaID), gqlCommon.ID(tagID))
+		result, err = resolver.Mutation().AddTagToTea(ctx, gqlCommon.ID(teaID), gqlCommon.ID(tagID), nil)
 	default:
-		result, err = resolver.Mutation().DeleteTagFromTea(ctx, gqlCommon.ID(teaID), gqlCommon.ID(tagID))
+		result, err = resolver.Mutation().DeleteTagFromTea(ctx, gqlCommon.ID(teaID), gqlCommon.ID(tagID), nil)
 	}
 
 	if err != nil {
@@ -591,7 +592,7 @@ func createTeaAsUser(t *testing.T, f roleFixture, direct bool, data model.TeaDat
 	t.Helper()
 
 	if direct {
-		created, err := f.resolver.Mutation().NewTea(roleContext(t, f.auth, f.ownerToken), data, nil)
+		created, err := f.resolver.Mutation().NewTea(roleContext(t, f.auth, f.ownerToken), data, nil, nil)
 		require.NoError(t, err)
 
 		return uuid.UUID(created.ID)

@@ -19,9 +19,9 @@ func (m *manager) loop() {
 		case id := <-m.delete:
 			m.deleteSubscribers.SendAll(gqlCommon.ID(id))
 		case tag := <-m.createCategory:
-			m.createSubscribersCategory.SendAll(&model.TagCategory{ID: gqlCommon.ID(tag.ID), Name: tag.Name})
+			m.createSubscribersCategory.SendAll(&model.TagCategory{ID: gqlCommon.ID(tag.ID), Revision: tag.Revision, Name: tag.Name})
 		case tag := <-m.updateCategory:
-			m.updateSubscribersCategory.SendAll(&model.TagCategory{ID: gqlCommon.ID(tag.ID), Name: tag.Name})
+			m.updateSubscribersCategory.SendAll(&model.TagCategory{ID: gqlCommon.ID(tag.ID), Revision: tag.Revision, Name: tag.Name})
 		case id := <-m.deleteCategory:
 			m.deleteSubscribersCategory.SendAll(gqlCommon.ID(id))
 		case id := <-m.addTagToTea:
@@ -42,10 +42,10 @@ func (m *manager) handleCreateTag(tag *rootCommon.Tag) {
 	}
 
 	m.createSubscribers.SendAll(&model.Tag{
-		ID:       gqlCommon.ID(tag.ID),
+		ID: gqlCommon.ID(tag.ID), Revision: tag.Revision,
 		Name:     tag.Name,
 		Color:    tag.Color,
-		Category: &model.TagCategory{ID: gqlCommon.ID(cat.ID), Name: cat.Name},
+		Category: &model.TagCategory{ID: gqlCommon.ID(cat.ID), Revision: cat.Revision, Name: cat.Name},
 	})
 }
 
@@ -57,10 +57,10 @@ func (m *manager) handleUpdateTag(tag *rootCommon.Tag) {
 	}
 
 	m.updateSubscribers.SendAll(&model.Tag{
-		ID:       gqlCommon.ID(tag.ID),
+		ID: gqlCommon.ID(tag.ID), Revision: tag.Revision,
 		Name:     tag.Name,
 		Color:    tag.Color,
-		Category: &model.TagCategory{ID: gqlCommon.ID(cat.ID), Name: cat.Name},
+		Category: &model.TagCategory{ID: gqlCommon.ID(cat.ID), Revision: cat.Revision, Name: cat.Name},
 	})
 }
 
