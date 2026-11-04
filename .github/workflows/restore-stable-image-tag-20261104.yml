@@ -1,0 +1,70 @@
+name: Restore stable latest tag (one-off)
+
+on:
+  push:
+    branches:
+      - codex/restore-stable-image-tag-20261104
+    paths:
+      - .github/workflows/restore-stable-image-tag-20261104.yml
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: restore-stable-image-tag-20261104
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    if: github.repository == 'teaelephant/TeaElephantMemory' && github.ref == 'refs/heads/codex/restore-stable-image-tag-20261104'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      IMAGE: ghcr.io/teaelephant/teaelephantmemory
+      STABLE_DIGEST: sha256:5c45992d096fb6fce3f0165eae27471f45c3fc5e0f1c457aea6116270051fc14
+      RELEASE_DIGEST: sha256:e844272a65a466c60d6c0e561d2a8d40524cdd2f56ea564f5684f24c39f8bbc7
+      RELEASE_TAG: v1.4.14-ovh.20261104.1153c5e37d9d
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Log into GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify source and current tags
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(docker buildx imagetools inspect "$IMAGE:v1.4.14" --format '{{.Manifest.Digest}}')" = "$STABLE_DIGEST"
+          test "$(docker buildx imagetools inspect "$IMAGE:$RELEASE_TAG" --format '{{.Manifest.Digest}}')" = "$RELEASE_DIGEST"
+          current_latest=$(docker buildx imagetools inspect "$IMAGE:latest" --format '{{.Manifest.Digest}}')
+          if [[ "$current_latest" != "$RELEASE_DIGEST" && "$current_latest" != "$STABLE_DIGEST" ]]; then
+            printf 'Refusing to replace unexpected latest digest: %s\n' "$current_latest" >&2
+            exit 1
+          fi
+          docker buildx imagetools inspect "$IMAGE@$STABLE_DIGEST" --raw > "$RUNNER_TEMP/stable-index.json"
+          test "$(sha256sum "$RUNNER_TEMP/stable-index.json" | cut -d ' ' -f 1)" = "${STABLE_DIGEST#sha256:}"
+
+      - name: Restore only latest to the existing stable index
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker buildx imagetools create --tag "$IMAGE:latest" "$IMAGE@$STABLE_DIGEST"
+
+      - name: Verify exact index bytes and preserved release tags
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(docker buildx imagetools inspect "$IMAGE:latest" --format '{{.Manifest.Digest}}')" = "$STABLE_DIGEST"
+          docker buildx imagetools inspect "$IMAGE:latest" --raw > "$RUNNER_TEMP/latest-index.json"
+          cmp "$RUNNER_TEMP/stable-index.json" "$RUNNER_TEMP/latest-index.json"
+          test "$(sha256sum "$RUNNER_TEMP/latest-index.json" | cut -d ' ' -f 1)" = "${STABLE_DIGEST#sha256:}"
+          test "$(docker buildx imagetools inspect "$IMAGE:v1.4.14" --format '{{.Manifest.Digest}}')" = "$STABLE_DIGEST"
+          test "$(docker buildx imagetools inspect "$IMAGE:$RELEASE_TAG" --format '{{.Manifest.Digest}}')" = "$RELEASE_DIGEST"
+          test "$(docker buildx imagetools inspect "$IMAGE@$RELEASE_DIGEST" --format '{{.Manifest.Digest}}')" = "$RELEASE_DIGEST"
+          printf 'Restored latest: %s\nPreserved v1.4.14: %s\nPreserved deployment release: %s\n' "$STABLE_DIGEST" "$STABLE_DIGEST" "$RELEASE_DIGEST" | tee -a "$GITHUB_STEP_SUMMARY"
