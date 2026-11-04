@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +13,29 @@ import (
 	"github.com/coder/websocket/wsjson"
 	"github.com/stretchr/testify/require"
 )
+
+func TestAppleAppSiteAssociationServesJSON(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	const association = `{
+  "applinks": {"details": [{"appIDs": ["TEAM.example.app"], "components": [{"/": "/signin/*"}]}]},
+  "webcredentials": {"apps": ["TEAM.example.app"]},
+  "appclips": {"apps": ["TEAM.example.app.Clip"]}
+}`
+	require.NoError(t, os.Mkdir("static", 0o700))
+	require.NoError(t, os.WriteFile("static/apple-app-site-association", []byte(association), 0o600))
+
+	s := NewServer(nil, nil, nil)
+	s.InitV2Api()
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/.well-known/apple-app-site-association", nil)
+
+	s.router.ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusOK, response.Code)
+	require.Equal(t, "application/json", response.Header().Get("Content-Type"))
+	require.Equal(t, association, response.Body.String())
+}
 
 func TestGraphQLWebsocketProtocolsAcceptCrossOriginClients(t *testing.T) {
 	t.Parallel()

@@ -96,6 +96,7 @@ func (s *Server) InitV2Api() {
 	}))
 	s.router.Handle("/metrics", promhttp.Handler())
 	s.router.HandleFunc("/.well-known/apple-app-site-association", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		http.ServeFile(w, r, "./static/apple-app-site-association")
 	})
 	s.router.HandleFunc("/index.html", func(w http.ResponseWriter, r *http.Request) {
