@@ -63,3 +63,21 @@ The authoritative SDL is `pkg/api/v2/graphql/schema.graphql`; gqlgen outputs com
 from the repository-pinned generator. Client introspection may be generated
 locally from `generated.NewExecutableSchema` and the gqlgen introspection query
 through an in-memory handler; no production schema fetch is needed.
+
+## Coordinated delivery and rollback
+
+Deploy the ratings-aware backend and explicit migration before enabling the new
+client feature. Old clients may continue using that backend; new clients report
+ratings as unavailable against an older API while retaining baseline browsing.
+
+Once votes exist, a backend binary from before this feature is not a safe merge
+rollback target. Its merge deletes the source Tea without transferring votes, and
+the rating foreign key then cascades those votes. Retaining the additive schema
+does not make that old merge implementation safe. Use a ratings-aware rollback
+build or a forward fix; if an older binary must be used during maintenance, keep
+catalogue merges disabled and establish a verified data-recovery procedure first.
+This limitation does not apply to old clients using the new backend's merge code.
+
+The implementation change and local validation do not execute a production
+migration, deploy an image, replace installed clients, or validate physical AR
+appearance. Those are separate delivery steps.
