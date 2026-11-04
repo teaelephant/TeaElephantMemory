@@ -22,19 +22,21 @@ func TestAppleAppSiteAssociationServesJSON(t *testing.T) {
   "webcredentials": {"apps": ["TEAM.example.app"]},
   "appclips": {"apps": ["TEAM.example.app.Clip"]}
 }`
+
 	require.NoError(t, os.Mkdir("static", 0o700))
 	require.NoError(t, os.WriteFile("static/apple-app-site-association", []byte(association), 0o600))
 
 	s := NewServer(nil, nil, nil)
 	s.InitV2Api()
+
 	response := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/.well-known/apple-app-site-association", nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/.well-known/apple-app-site-association", nil)
 
 	s.router.ServeHTTP(response, request)
 
 	require.Equal(t, http.StatusOK, response.Code)
 	require.Equal(t, "application/json", response.Header().Get("Content-Type"))
-	require.Equal(t, association, response.Body.String())
+	require.JSONEq(t, association, response.Body.String())
 }
 
 func TestGraphQLWebsocketProtocolsAcceptCrossOriginClients(t *testing.T) {
