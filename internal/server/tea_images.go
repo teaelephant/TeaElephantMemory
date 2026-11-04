@@ -37,7 +37,7 @@ func (s *Server) serveTeaImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", content.ContentType)
+	w.Header().Set(responseContentTypeHeader, content.ContentType)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", "public, max-age=86400, immutable")
 	w.Header().Set("ETag", `"`+id.String()+`"`)

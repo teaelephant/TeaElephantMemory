@@ -24,8 +24,9 @@ import (
 )
 
 const (
-	v2QueryPath     = "/v2/query"
-	staticIndexPath = "./static/index.html"
+	v2QueryPath               = "/v2/query"
+	staticIndexPath           = "./static/index.html"
+	responseContentTypeHeader = "Content-Type"
 )
 
 // Server aggregates the GraphQL resolvers, router, middlewares and ws init logic.
@@ -98,7 +99,7 @@ func (s *Server) InitV2Api() {
 	}))
 	s.router.Handle("/metrics", promhttp.Handler())
 	s.router.HandleFunc("/.well-known/apple-app-site-association", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set(responseContentTypeHeader, "application/json")
 		http.ServeFile(w, r, "./static/apple-app-site-association")
 	})
 	s.router.HandleFunc("/index.html", func(w http.ResponseWriter, r *http.Request) {
