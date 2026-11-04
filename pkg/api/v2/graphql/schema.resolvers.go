@@ -25,6 +25,16 @@ func (r *collectionResolver) Records(ctx context.Context, obj *model.Collection)
 	return r.ListRecords(ctx, uuid.UUID(obj.ID), uuid.UUID(obj.UserID))
 }
 
+// SetTeaRating is the resolver for the setTeaRating field.
+func (r *mutationResolver) SetTeaRating(ctx context.Context, teaID common.ID, rating int) (*model.TeaRating, error) {
+	return r.changeRating(ctx, teaID, &rating)
+}
+
+// ClearTeaRating is the resolver for the clearTeaRating field.
+func (r *mutationResolver) ClearTeaRating(ctx context.Context, teaID common.ID) (*model.TeaRating, error) {
+	return r.changeRating(ctx, teaID, nil)
+}
+
 // AuthApple is the resolver for the authApple field.
 func (r *mutationResolver) AuthApple(ctx context.Context, appleCode string, deviceID common.ID) (*model.Session, error) {
 	session, err := r.Auth(ctx, appleCode)
@@ -1073,6 +1083,11 @@ func (r *tagCategoryResolver) Tags(ctx context.Context, obj *model.TagCategory, 
 	}
 
 	return result, nil
+}
+
+// Rating is the resolver for the rating field.
+func (r *teaResolver) Rating(ctx context.Context, obj *model.Tea) (*model.TeaRating, error) {
+	return r.readRating(ctx, obj.ID)
 }
 
 // Tags is the resolver for the tags field.

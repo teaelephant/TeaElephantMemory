@@ -7,5 +7,5 @@ INSERT INTO catalog_operation_receipts(operation_key,actor,operation,request_has
 VALUES($1,$2,$3,$4,$5,$6,$7);
 
 -- name: GetTeaMergeReceiptDetails :one
-SELECT operation_key,source_revision,target_revision,preview_token,qr_count,collection_membership_count,tags_added,images_moved,consumptions_moved,source_metadata,target_metadata
+SELECT operation_key,source_revision,target_revision,preview_token,qr_count,collection_membership_count,tags_added,images_moved,consumptions_moved,source_metadata,target_metadata,ratings_moved,rating_conflicts_resolved
 FROM tea_merge_receipt_details WHERE operation_key=$1;

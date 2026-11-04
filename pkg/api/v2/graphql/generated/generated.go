@@ -73,6 +73,7 @@ type ComplexityRoot struct {
 		AddTeaImage                 func(childComplexity int, teaID common.ID, imageBase64 string, expectedRevision *string, idempotencyKey *string) int
 		AuthApple                   func(childComplexity int, appleCode string, deviceID common.ID) int
 		ChangeTagCategory           func(childComplexity int, id common.ID, category common.ID, expectedRevision *string) int
+		ClearTeaRating              func(childComplexity int, teaID common.ID) int
 		CreateCollection            func(childComplexity int, name string) int
 		CreateTag                   func(childComplexity int, name string, color string, category common.ID) int
 		CreateTagCategory           func(childComplexity int, name string) int
@@ -88,6 +89,7 @@ type ComplexityRoot struct {
 		RegisterDeviceToken         func(childComplexity int, deviceID common.ID, deviceToken string) int
 		Send                        func(childComplexity int) int
 		SetTeaCoverImage            func(childComplexity int, teaID common.ID, imageID common.ID, expectedRevision *string) int
+		SetTeaRating                func(childComplexity int, teaID common.ID, rating int) int
 		TeaRecommendation           func(childComplexity int, collectionID common.ID, feelings string) int
 		UpdateTag                   func(childComplexity int, id common.ID, name string, color string, expectedRevision *string) int
 		UpdateTagCategory           func(childComplexity int, id common.ID, name string, expectedRevision *string) int
@@ -163,6 +165,7 @@ type ComplexityRoot struct {
 		ID          func(childComplexity int) int
 		Images      func(childComplexity int) int
 		Name        func(childComplexity int) int
+		Rating      func(childComplexity int) int
 		Revision    func(childComplexity int) int
 		Tags        func(childComplexity int) int
 		Type        func(childComplexity int) int
@@ -187,6 +190,8 @@ type ComplexityRoot struct {
 		MetadataPolicy            func(childComplexity int) int
 		PreviewToken              func(childComplexity int) int
 		QRCount                   func(childComplexity int) int
+		RatingConflictsResolved   func(childComplexity int) int
+		RatingsMoved              func(childComplexity int) int
 		ResultingCoverImageID     func(childComplexity int) int
 		ResultingImageCount       func(childComplexity int) int
 		SourceTea                 func(childComplexity int) int
@@ -199,6 +204,8 @@ type ComplexityRoot struct {
 		ConsumptionsMoved         func(childComplexity int) int
 		ImagesMoved               func(childComplexity int) int
 		QRCount                   func(childComplexity int) int
+		RatingConflictsResolved   func(childComplexity int) int
+		RatingsMoved              func(childComplexity int) int
 		Receipt                   func(childComplexity int) int
 		Replayed                  func(childComplexity int) int
 		SourceTeaID               func(childComplexity int) int
@@ -210,6 +217,14 @@ type ComplexityRoot struct {
 	TeaOfTheDay struct {
 		Date func(childComplexity int) int
 		Tea  func(childComplexity int) int
+	}
+
+	TeaRating struct {
+		Average  func(childComplexity int) int
+		CanRate  func(childComplexity int) int
+		Count    func(childComplexity int) int
+		MyRating func(childComplexity int) int
+		TeaID    func(childComplexity int) int
 	}
 
 	User struct {
@@ -227,6 +242,8 @@ type CollectionResolver interface {
 	Records(ctx context.Context, obj *model.Collection) ([]*model.QRRecord, error)
 }
 type MutationResolver interface {
+	SetTeaRating(ctx context.Context, teaID common.ID, rating int) (*model.TeaRating, error)
+	ClearTeaRating(ctx context.Context, teaID common.ID) (*model.TeaRating, error)
 	AuthApple(ctx context.Context, appleCode string, deviceID common.ID) (*model.Session, error)
 	NewTea(ctx context.Context, tea model.TeaData, tagIDs []common.ID, idempotencyKey *string) (*model.Tea, error)
 	UpdateTea(ctx context.Context, id common.ID, tea model.TeaData, expectedRevision *string) (*model.Tea, error)
@@ -290,6 +307,8 @@ type TagCategoryResolver interface {
 	Tags(ctx context.Context, obj *model.TagCategory, name *string) ([]*model.Tag, error)
 }
 type TeaResolver interface {
+	Rating(ctx context.Context, obj *model.Tea) (*model.TeaRating, error)
+
 	Tags(ctx context.Context, obj *model.Tea) ([]*model.Tag, error)
 	Images(ctx context.Context, obj *model.Tea) ([]*model.TeaImage, error)
 }
@@ -458,6 +477,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ChangeTagCategory(childComplexity, args["id"].(common.ID), args["category"].(common.ID), args["expectedRevision"].(*string)), true
+	case "Mutation.clearTeaRating":
+		if e.ComplexityRoot.Mutation.ClearTeaRating == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_clearTeaRating_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ClearTeaRating(childComplexity, args["teaID"].(common.ID)), true
 	case "Mutation.createCollection":
 		if e.ComplexityRoot.Mutation.CreateCollection == nil {
 			break
@@ -618,6 +648,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetTeaCoverImage(childComplexity, args["teaID"].(common.ID), args["imageID"].(common.ID), args["expectedRevision"].(*string)), true
+	case "Mutation.setTeaRating":
+		if e.ComplexityRoot.Mutation.SetTeaRating == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setTeaRating_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetTeaRating(childComplexity, args["teaID"].(common.ID), args["rating"].(int)), true
 	case "Mutation.teaRecommendation":
 		if e.ComplexityRoot.Mutation.TeaRecommendation == nil {
 			break
@@ -1018,6 +1059,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Tea.Name(childComplexity), true
+	case "Tea.rating":
+		if e.ComplexityRoot.Tea.Rating == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Tea.Rating(childComplexity), true
 	case "Tea.revision":
 		if e.ComplexityRoot.Tea.Revision == nil {
 			break
@@ -1128,6 +1175,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.TeaMergePreview.QRCount(childComplexity), true
+	case "TeaMergePreview.ratingConflictsResolved":
+		if e.ComplexityRoot.TeaMergePreview.RatingConflictsResolved == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergePreview.RatingConflictsResolved(childComplexity), true
+	case "TeaMergePreview.ratingsMoved":
+		if e.ComplexityRoot.TeaMergePreview.RatingsMoved == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergePreview.RatingsMoved(childComplexity), true
 	case "TeaMergePreview.resultingCoverImageID":
 		if e.ComplexityRoot.TeaMergePreview.ResultingCoverImageID == nil {
 			break
@@ -1183,6 +1242,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.TeaMergeResult.QRCount(childComplexity), true
+	case "TeaMergeResult.ratingConflictsResolved":
+		if e.ComplexityRoot.TeaMergeResult.RatingConflictsResolved == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergeResult.RatingConflictsResolved(childComplexity), true
+	case "TeaMergeResult.ratingsMoved":
+		if e.ComplexityRoot.TeaMergeResult.RatingsMoved == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergeResult.RatingsMoved(childComplexity), true
 	case "TeaMergeResult.receipt":
 		if e.ComplexityRoot.TeaMergeResult.Receipt == nil {
 			break
@@ -1232,6 +1303,37 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.TeaOfTheDay.Tea(childComplexity), true
+
+	case "TeaRating.average":
+		if e.ComplexityRoot.TeaRating.Average == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaRating.Average(childComplexity), true
+	case "TeaRating.canRate":
+		if e.ComplexityRoot.TeaRating.CanRate == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaRating.CanRate(childComplexity), true
+	case "TeaRating.count":
+		if e.ComplexityRoot.TeaRating.Count == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaRating.Count(childComplexity), true
+	case "TeaRating.myRating":
+		if e.ComplexityRoot.TeaRating.MyRating == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaRating.MyRating(childComplexity), true
+	case "TeaRating.teaID":
+		if e.ComplexityRoot.TeaRating.TeaID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaRating.TeaID(childComplexity), true
 
 	case "User.collections":
 		if e.ComplexityRoot.User.Collections == nil {
@@ -1385,6 +1487,10 @@ type Query {
 }
 
 type Mutation {
+    "Set your 1-5 vote; requires a QR for this Tea in a collection you own."
+    setTeaRating(teaID: ID!, rating: Int!): TeaRating!
+    "Clear your own vote even after removing the Tea from your collections."
+    clearTeaRating(teaID: ID!): TeaRating!
     authApple(appleCode:String!, deviceID: ID!): Session!
     "Create a new shared catalogue entry and its initial existing tags atomically with a fresh ID; user or administrator authorization required. Existing entries are not overwritten. Omitted tagIDs defaults to no tags."
     newTea(tea: TeaData!, tagIDs: [ID!]! = [], idempotencyKey: String): Tea!
@@ -1490,7 +1596,16 @@ input QRRecordData {
     expirationDate: Date!
 }
 
+type TeaRating {
+    teaID: ID!
+    average: Float
+    count: Int!
+    myRating: Int
+    canRate: Boolean!
+}
+
 type Tea {
+    rating: TeaRating!
     "Opaque version of this catalogue entity. Echo as expectedRevision on edits."
     revision: String!
     id: ID!
@@ -1580,6 +1695,8 @@ type TeaMergePreview {
     tagsToAdd: Int!
     imagesToMove: Int!
     consumptionCount: Int!
+    ratingsMoved: Int!
+    ratingConflictsResolved: Int!
     resultingImageCount: Int!
     blockers: [String!]!
     metadataPolicy: String!
@@ -1600,6 +1717,8 @@ type TeaMergeResult {
     tagsAdded: Int!
     imagesMoved: Int!
     consumptionsMoved: Int!
+    ratingsMoved: Int!
+    ratingConflictsResolved: Int!
 }
 
 type CatalogueOperationReceipt {
@@ -1728,6 +1847,8 @@ func (ec *executionContext) childFields_TagCategory(ctx context.Context, field g
 
 func (ec *executionContext) childFields_Tea(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
+	case "rating":
+		return ec.fieldContext_Tea_rating(ctx, field)
 	case "revision":
 		return ec.fieldContext_Tea_revision(ctx, field)
 	case "id":
@@ -1784,6 +1905,10 @@ func (ec *executionContext) childFields_TeaMergePreview(ctx context.Context, fie
 		return ec.fieldContext_TeaMergePreview_imagesToMove(ctx, field)
 	case "consumptionCount":
 		return ec.fieldContext_TeaMergePreview_consumptionCount(ctx, field)
+	case "ratingsMoved":
+		return ec.fieldContext_TeaMergePreview_ratingsMoved(ctx, field)
+	case "ratingConflictsResolved":
+		return ec.fieldContext_TeaMergePreview_ratingConflictsResolved(ctx, field)
 	case "resultingImageCount":
 		return ec.fieldContext_TeaMergePreview_resultingImageCount(ctx, field)
 	case "blockers":
@@ -1820,6 +1945,10 @@ func (ec *executionContext) childFields_TeaMergeResult(ctx context.Context, fiel
 		return ec.fieldContext_TeaMergeResult_imagesMoved(ctx, field)
 	case "consumptionsMoved":
 		return ec.fieldContext_TeaMergeResult_consumptionsMoved(ctx, field)
+	case "ratingsMoved":
+		return ec.fieldContext_TeaMergeResult_ratingsMoved(ctx, field)
+	case "ratingConflictsResolved":
+		return ec.fieldContext_TeaMergeResult_ratingConflictsResolved(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type TeaMergeResult", field.Name)
 }
@@ -1832,6 +1961,22 @@ func (ec *executionContext) childFields_TeaOfTheDay(ctx context.Context, field g
 		return ec.fieldContext_TeaOfTheDay_date(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type TeaOfTheDay", field.Name)
+}
+
+func (ec *executionContext) childFields_TeaRating(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "teaID":
+		return ec.fieldContext_TeaRating_teaID(ctx, field)
+	case "average":
+		return ec.fieldContext_TeaRating_average(ctx, field)
+	case "count":
+		return ec.fieldContext_TeaRating_count(ctx, field)
+	case "myRating":
+		return ec.fieldContext_TeaRating_myRating(ctx, field)
+	case "canRate":
+		return ec.fieldContext_TeaRating_canRate(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type TeaRating", field.Name)
 }
 
 func (ec *executionContext) childFields_User(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -2101,6 +2246,20 @@ func (ec *executionContext) field_Mutation_changeTagCategory_args(ctx context.Co
 		return nil, err
 	}
 	args["expectedRevision"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_clearTeaRating_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "teaID",
+		func(ctx context.Context, v any) (common.ID, error) {
+			return ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["teaID"] = arg0
 	return args, nil
 }
 
@@ -2457,6 +2616,28 @@ func (ec *executionContext) field_Mutation_setTeaCoverImage_args(ctx context.Con
 		return nil, err
 	}
 	args["expectedRevision"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setTeaRating_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "teaID",
+		func(ctx context.Context, v any) (common.ID, error) {
+			return ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["teaID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "rating",
+		func(ctx context.Context, v any) (int, error) {
+			return ec.unmarshalNInt2int(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["rating"] = arg1
 	return args, nil
 }
 
@@ -3229,6 +3410,94 @@ func (ec *executionContext) _EditorCapabilities_supportsTeaMerge(ctx context.Con
 }
 func (ec *executionContext) fieldContext_EditorCapabilities_supportsTeaMerge(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("EditorCapabilities", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _Mutation_setTeaRating(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setTeaRating(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetTeaRating(ctx, fc.Args["teaID"].(common.ID), fc.Args["rating"].(int))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.TeaRating) graphql.Marshaler {
+			return ec.marshalNTeaRating2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTeaRating(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setTeaRating(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_TeaRating(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setTeaRating_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_clearTeaRating(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_clearTeaRating(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().ClearTeaRating(ctx, fc.Args["teaID"].(common.ID))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.TeaRating) graphql.Marshaler {
+			return ec.marshalNTeaRating2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTeaRating(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_clearTeaRating(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_TeaRating(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_clearTeaRating_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _Mutation_authApple(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -5730,6 +5999,38 @@ func (ec *executionContext) fieldContext_TagCategory_tags(ctx context.Context, f
 	return fc, nil
 }
 
+func (ec *executionContext) _Tea_rating(ctx context.Context, field graphql.CollectedField, obj *model.Tea) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Tea_rating(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Tea().Rating(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.TeaRating) graphql.Marshaler {
+			return ec.marshalNTeaRating2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTeaRating(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Tea_rating(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Tea",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_TeaRating(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Tea_revision(ctx context.Context, field graphql.CollectedField, obj *model.Tea) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6272,6 +6573,52 @@ func (ec *executionContext) fieldContext_TeaMergePreview_consumptionCount(_ cont
 	return graphql.NewScalarFieldContext("TeaMergePreview", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
+func (ec *executionContext) _TeaMergePreview_ratingsMoved(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergePreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergePreview_ratingsMoved(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RatingsMoved, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergePreview_ratingsMoved(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergePreview", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _TeaMergePreview_ratingConflictsResolved(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergePreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergePreview_ratingConflictsResolved(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RatingConflictsResolved, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergePreview_ratingConflictsResolved(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergePreview", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
 func (ec *executionContext) _TeaMergePreview_resultingImageCount(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergePreview) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6635,6 +6982,52 @@ func (ec *executionContext) fieldContext_TeaMergeResult_consumptionsMoved(_ cont
 	return graphql.NewScalarFieldContext("TeaMergeResult", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
+func (ec *executionContext) _TeaMergeResult_ratingsMoved(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergeResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergeResult_ratingsMoved(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RatingsMoved, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergeResult_ratingsMoved(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergeResult", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _TeaMergeResult_ratingConflictsResolved(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergeResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergeResult_ratingConflictsResolved(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RatingConflictsResolved, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergeResult_ratingConflictsResolved(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergeResult", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
 func (ec *executionContext) _TeaOfTheDay_tea(ctx context.Context, field graphql.CollectedField, obj *model.TeaOfTheDay) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6688,6 +7081,121 @@ func (ec *executionContext) _TeaOfTheDay_date(ctx context.Context, field graphql
 }
 func (ec *executionContext) fieldContext_TeaOfTheDay_date(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("TeaOfTheDay", field, false, false, errors.New("field of type Date does not have child fields"))
+}
+
+func (ec *executionContext) _TeaRating_teaID(ctx context.Context, field graphql.CollectedField, obj *model.TeaRating) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaRating_teaID(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TeaID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v common.ID) graphql.Marshaler {
+			return ec.marshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaRating_teaID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaRating", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _TeaRating_average(ctx context.Context, field graphql.CollectedField, obj *model.TeaRating) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaRating_average(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Average, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *float64) graphql.Marshaler {
+			return ec.marshalOFloat2ᚖfloat64(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_TeaRating_average(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaRating", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _TeaRating_count(ctx context.Context, field graphql.CollectedField, obj *model.TeaRating) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaRating_count(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Count, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaRating_count(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaRating", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _TeaRating_myRating(ctx context.Context, field graphql.CollectedField, obj *model.TeaRating) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaRating_myRating(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.MyRating, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_TeaRating_myRating(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaRating", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _TeaRating_canRate(ctx context.Context, field graphql.CollectedField, obj *model.TeaRating) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaRating_canRate(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CanRate, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaRating_canRate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaRating", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
 func (ec *executionContext) _User_tokenExpiredAt(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
@@ -8154,6 +8662,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Mutation")
+		case "setTeaRating":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setTeaRating(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "clearTeaRating":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_clearTeaRating(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "authApple":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_authApple(ctx, field)
@@ -9058,6 +9580,44 @@ func (ec *executionContext) _Tea(ctx context.Context, sel ast.SelectionSet, obj 
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Tea")
+		case "rating":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Tea_rating(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "revision":
 			out.Values[i] = ec._Tea_revision(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -9300,6 +9860,16 @@ func (ec *executionContext) _TeaMergePreview(ctx context.Context, sel ast.Select
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "ratingsMoved":
+			out.Values[i] = ec._TeaMergePreview_ratingsMoved(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "ratingConflictsResolved":
+			out.Values[i] = ec._TeaMergePreview_ratingConflictsResolved(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "resultingImageCount":
 			out.Values[i] = ec._TeaMergePreview_resultingImageCount(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -9408,6 +9978,16 @@ func (ec *executionContext) _TeaMergeResult(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "ratingsMoved":
+			out.Values[i] = ec._TeaMergeResult_ratingsMoved(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "ratingConflictsResolved":
+			out.Values[i] = ec._TeaMergeResult_ratingConflictsResolved(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -9448,6 +10028,64 @@ func (ec *executionContext) _TeaOfTheDay(ctx context.Context, sel ast.SelectionS
 			}
 		case "date":
 			out.Values[i] = ec._TeaOfTheDay_date(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var teaRatingImplementors = []string{"TeaRating"}
+
+func (ec *executionContext) _TeaRating(ctx context.Context, sel ast.SelectionSet, obj *model.TeaRating) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, teaRatingImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("TeaRating")
+		case "teaID":
+			out.Values[i] = ec._TeaRating_teaID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "average":
+			out.Values[i] = ec._TeaRating_average(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "count":
+			out.Values[i] = ec._TeaRating_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "myRating":
+			out.Values[i] = ec._TeaRating_myRating(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "canRate":
+			out.Values[i] = ec._TeaRating_canRate(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -10362,6 +11000,16 @@ func (ec *executionContext) marshalNTeaMergeResult2ᚖgithubᚗcomᚋteaelephant
 	return ec._TeaMergeResult(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNTeaRating2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTeaRating(ctx context.Context, sel ast.SelectionSet, v *model.TeaRating) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._TeaRating(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNType2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐType(ctx context.Context, v any) (model.Type, error) {
 	var res model.Type
 	err := res.UnmarshalGQL(v)
@@ -10549,6 +11197,23 @@ func (ec *executionContext) marshalOCatalogueOperationReceipt2ᚖgithubᚗcomᚋ
 	return ec._CatalogueOperationReceipt(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalOFloat2ᚖfloat64(ctx context.Context, v any) (*float64, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalFloatContext(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOFloat2ᚖfloat64(ctx context.Context, sel ast.SelectionSet, v *float64) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	res := graphql.MarshalFloatContext(*v)
+	return graphql.WrapContextMarshaler(ctx, res)
+}
+
 func (ec *executionContext) unmarshalOID2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx context.Context, v any) (*common.ID, error) {
 	if v == nil {
 		return nil, nil
@@ -10563,6 +11228,24 @@ func (ec *executionContext) marshalOID2ᚖgithubᚗcomᚋteaelephantᚋTeaElepha
 		return graphql.Null
 	}
 	return v
+}
+
+func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalInt(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.SelectionSet, v *int) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalInt(*v)
+	return res
 }
 
 func (ec *executionContext) marshalOQRRecord2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐQRRecord(ctx context.Context, sel ast.SelectionSet, v *model.QRRecord) graphql.Marshaler {

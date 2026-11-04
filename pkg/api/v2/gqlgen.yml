@@ -45,6 +45,8 @@ autobind:
 models:
   Tea:
     fields:
+      rating:
+        resolver: true
       tags:
         resolver: true
       images:

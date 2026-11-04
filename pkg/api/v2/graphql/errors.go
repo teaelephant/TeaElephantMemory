@@ -41,7 +41,7 @@ func castGQLError(ctx context.Context, err error) error {
 	// Standardize auth-related error codes for clients
 	if errors.Is(err, common.ErrUnauthorized) {
 		extensions["code"] = "UNAUTHENTICATED"
-	} else if errors.Is(err, common.ErrNotAdmin) {
+	} else if errors.Is(err, common.ErrNotAdmin) || errors.Is(err, common.ErrTeaRatingIneligible) {
 		extensions["code"] = "FORBIDDEN"
 	} else if errors.Is(err, common.ErrCatalogueConflict) {
 		extensions["code"] = "CONFLICT"
@@ -61,9 +61,9 @@ func castGQLError(ctx context.Context, err error) error {
 		if errors.As(err, &blocked) {
 			extensions["blockers"] = blocked.Blockers
 		}
-	} else if errors.Is(err, common.ErrTeaMergeUnavailable) {
+	} else if errors.Is(err, common.ErrTeaMergeUnavailable) || errors.Is(err, common.ErrTeaRatingsUnavailable) {
 		extensions["code"] = "UNSUPPORTED"
-	} else if errors.Is(err, common.ErrInvalidTeaMerge) {
+	} else if errors.Is(err, common.ErrInvalidTeaMerge) || errors.Is(err, common.ErrInvalidTeaRating) {
 		extensions["code"] = badUserInputCode
 	} else if errors.Is(err, common.ErrInvalidCatalogueOperation) {
 		extensions["code"] = badUserInputCode

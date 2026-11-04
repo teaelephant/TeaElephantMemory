@@ -21,6 +21,7 @@ type catalogueStore interface {
 // SetCatalogueStore wires the versioned catalog prerequisite without changing old resolver clients.
 func (r *Resolver) SetCatalogueStore(store catalogueStore) {
 	r.catalog = store
+	r.ratings, _ = store.(teaRatingStore)
 	r.merges, _ = store.(teaMergeStore)
 }
 

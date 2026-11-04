@@ -29,6 +29,10 @@ type Query {
 }
 
 type Mutation {
+    "Set your 1-5 vote; requires a QR for this Tea in a collection you own."
+    setTeaRating(teaID: ID!, rating: Int!): TeaRating!
+    "Clear your own vote even after removing the Tea from your collections."
+    clearTeaRating(teaID: ID!): TeaRating!
     authApple(appleCode:String!, deviceID: ID!): Session!
     "Create a new shared catalogue entry and its initial existing tags atomically with a fresh ID; user or administrator authorization required. Existing entries are not overwritten. Omitted tagIDs defaults to no tags."
     newTea(tea: TeaData!, tagIDs: [ID!]! = [], idempotencyKey: String): Tea!
@@ -134,7 +138,16 @@ input QRRecordData {
     expirationDate: Date!
 }
 
+type TeaRating {
+    teaID: ID!
+    average: Float
+    count: Int!
+    myRating: Int
+    canRate: Boolean!
+}
+
 type Tea {
+    rating: TeaRating!
     "Opaque version of this catalogue entity. Echo as expectedRevision on edits."
     revision: String!
     id: ID!
@@ -224,6 +237,8 @@ type TeaMergePreview {
     tagsToAdd: Int!
     imagesToMove: Int!
     consumptionCount: Int!
+    ratingsMoved: Int!
+    ratingConflictsResolved: Int!
     resultingImageCount: Int!
     blockers: [String!]!
     metadataPolicy: String!
@@ -244,6 +259,8 @@ type TeaMergeResult {
     tagsAdded: Int!
     imagesMoved: Int!
     consumptionsMoved: Int!
+    ratingsMoved: Int!
+    ratingConflictsResolved: Int!
 }
 
 type CatalogueOperationReceipt {

@@ -58,6 +58,7 @@ func (r *Resolver) previewTeaMerge(ctx context.Context, source, target gqlCommon
 		SourceTea: mergeSnapshotModel(preview.Source), TargetTea: mergeSnapshotModel(preview.Target), PreviewToken: preview.Token,
 		QRCount: preview.Counts.QRCount, CollectionMembershipCount: preview.Counts.CollectionMembershipCount,
 		TagsToAdd: preview.Counts.TagsAdded, ImagesToMove: preview.Counts.ImagesMoved, ConsumptionCount: preview.Counts.ConsumptionsMoved,
+		RatingsMoved: preview.Counts.RatingsMoved, RatingConflictsResolved: preview.Counts.RatingConflictsResolved,
 		ResultingImageCount: preview.ResultingImageCount, Blockers: preview.Blockers,
 		MetadataPolicy: common.TeaMergeMetadataPolicy, CoverPolicy: common.TeaMergeCoverPolicy,
 	}
@@ -132,6 +133,7 @@ func mergeResultModel(result *common.TeaMergeResult) *model.TeaMergeResult {
 	value := &model.TeaMergeResult{
 		Receipt: &model.CatalogueOperationReceipt{IdempotencyKey: receipt.Key.String(), Operation: receipt.Operation,
 			TeaID: gqlCommon.ID(receipt.TeaID), ResourceID: gqlCommon.ID(receipt.ResourceID), ResultRevision: receipt.ResultRevision, CompletedAt: receipt.CompletedAt},
+		RatingsMoved: result.Counts.RatingsMoved, RatingConflictsResolved: result.Counts.RatingConflictsResolved,
 		Replayed: result.Replayed, SourceTeaID: gqlCommon.ID(receipt.ResourceID), TargetTeaID: gqlCommon.ID(receipt.TeaID),
 		QRCount: result.Counts.QRCount, CollectionMembershipCount: result.Counts.CollectionMembershipCount,
 		TagsAdded: result.Counts.TagsAdded, ImagesMoved: result.Counts.ImagesMoved, ConsumptionsMoved: result.Counts.ConsumptionsMoved,

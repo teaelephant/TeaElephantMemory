@@ -37,7 +37,7 @@ func (d *db) beginTeaMerge(ctx context.Context) (*sql.Tx, error) {
 func (d *db) TeaMergeCapabilities(ctx context.Context) (bool, error) {
 	var ready bool
 
-	err := d.pg.QueryRowContext(ctx, `SELECT to_regclass(current_schema() || '.tea_merge_receipt_details') IS NOT NULL AND EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid=to_regclass(current_schema() || '.catalog_operation_receipts') AND conname='catalog_operation_receipts_operation_check' AND pg_get_constraintdef(oid) LIKE '%mergeTeas%')`).Scan(&ready)
+	err := d.pg.QueryRowContext(ctx, `SELECT to_regclass(current_schema() || '.tea_merge_receipt_details') IS NOT NULL AND to_regclass(current_schema() || '.tea_ratings') IS NOT NULL AND (SELECT count(*)=2 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='tea_merge_receipt_details' AND column_name IN ('ratings_moved','rating_conflicts_resolved')) AND EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid=to_regclass(current_schema() || '.catalog_operation_receipts') AND conname='catalog_operation_receipts_operation_check' AND pg_get_constraintdef(oid) LIKE '%mergeTeas%')`).Scan(&ready)
 
 	return ready, wrapCatalogStorageError(err)
 }
@@ -212,8 +212,8 @@ func (d *db) TeaMergeResultForReceipt(ctx context.Context, command common.TeaMer
 func readTeaMergeResult(ctx context.Context, tx *sql.Tx, receipt *common.CatalogueReceipt, replayed bool) (*common.TeaMergeResult, error) {
 	result := &common.TeaMergeResult{Receipt: receipt, Replayed: replayed}
 
-	err := tx.QueryRowContext(ctx, `SELECT qr_count,collection_membership_count,tags_added,images_moved,consumptions_moved FROM tea_merge_receipt_details WHERE operation_key=$1`, receipt.Key).
-		Scan(&result.Counts.QRCount, &result.Counts.CollectionMembershipCount, &result.Counts.TagsAdded, &result.Counts.ImagesMoved, &result.Counts.ConsumptionsMoved)
+	err := tx.QueryRowContext(ctx, `SELECT qr_count,collection_membership_count,tags_added,images_moved,consumptions_moved,ratings_moved,rating_conflicts_resolved FROM tea_merge_receipt_details WHERE operation_key=$1`, receipt.Key).
+		Scan(&result.Counts.QRCount, &result.Counts.CollectionMembershipCount, &result.Counts.TagsAdded, &result.Counts.ImagesMoved, &result.Counts.ConsumptionsMoved, &result.Counts.RatingsMoved, &result.Counts.RatingConflictsResolved)
 	if err != nil {
 		return nil, fmt.Errorf("read Tea merge completion: %w", err)
 	}
@@ -241,7 +241,7 @@ func saveTeaMergeDetails(ctx context.Context, tx *sql.Tx, command common.TeaMerg
 	source, _ := json.Marshal(preview.Source.Tea.TeaData)
 	target, _ := json.Marshal(preview.Target.Tea.TeaData)
 	counts := preview.Counts
-	_, err := tx.ExecContext(ctx, `INSERT INTO tea_merge_receipt_details(operation_key,source_revision,target_revision,preview_token,qr_count,collection_membership_count,tags_added,images_moved,consumptions_moved,source_metadata,target_metadata) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb)`, common.CatalogueOperationFrom(ctx).Key, command.ExpectedSourceRevision, command.ExpectedTargetRevision, command.PreviewToken, counts.QRCount, counts.CollectionMembershipCount, counts.TagsAdded, counts.ImagesMoved, counts.ConsumptionsMoved, string(source), string(target))
+	_, err := tx.ExecContext(ctx, `INSERT INTO tea_merge_receipt_details(operation_key,source_revision,target_revision,preview_token,qr_count,collection_membership_count,tags_added,images_moved,consumptions_moved,source_metadata,target_metadata,ratings_moved,rating_conflicts_resolved) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13)`, common.CatalogueOperationFrom(ctx).Key, command.ExpectedSourceRevision, command.ExpectedTargetRevision, command.PreviewToken, counts.QRCount, counts.CollectionMembershipCount, counts.TagsAdded, counts.ImagesMoved, counts.ConsumptionsMoved, string(source), string(target), counts.RatingsMoved, counts.RatingConflictsResolved)
 
 	return wrapCatalogStorageError(err)
 }
@@ -250,6 +250,7 @@ func transferTeaMergeDependencies(ctx context.Context, tx *sql.Tx, preview *comm
 	source, target := preview.Source.Tea.ID, preview.Target.Tea.ID
 
 	statements := []string{
+		`INSERT INTO tea_ratings(user_id,tea_id,rating,updated_at) SELECT user_id,$2,rating,updated_at FROM tea_ratings WHERE tea_id=$1 ON CONFLICT(user_id,tea_id) DO UPDATE SET rating=EXCLUDED.rating,updated_at=EXCLUDED.updated_at WHERE EXCLUDED.updated_at > tea_ratings.updated_at`,
 		`UPDATE qr_records SET tea_id=$2 WHERE tea_id=$1`,
 		`INSERT INTO tea_tags(tea_id,tag_id) SELECT $2,tag_id FROM tea_tags WHERE tea_id=$1 ON CONFLICT DO NOTHING`,
 		`UPDATE tea_images SET is_cover=false WHERE tea_id=$1 AND is_cover AND EXISTS(SELECT 1 FROM tea_images WHERE tea_id=$2 AND is_cover)`,

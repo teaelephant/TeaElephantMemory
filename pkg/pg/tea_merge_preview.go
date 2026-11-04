@@ -98,6 +98,7 @@ func readTeaMergeDependencies(ctx context.Context, tx *sql.Tx, source, target uu
 	}{
 		{`SELECT COALESCE(jsonb_agg(jsonb_build_array(id,tea_id,boiling_temp,expiration_date,created_at) ORDER BY id),'[]'::jsonb)::text,count(*) FILTER(WHERE tea_id=$1) FROM qr_records WHERE tea_id IN($1,$2)`, &counts.QRCount},
 		{`SELECT COALESCE(jsonb_agg(jsonb_build_array(c.collection_id,c.qr_id) ORDER BY c.collection_id,c.qr_id),'[]'::jsonb)::text,count(*) FILTER(WHERE q.tea_id=$1) FROM collection_qr_items c JOIN qr_records q ON q.id=c.qr_id WHERE q.tea_id IN($1,$2)`, &counts.CollectionMembershipCount},
+		{`SELECT COALESCE(jsonb_agg(jsonb_build_array(user_id,tea_id,rating,updated_at) ORDER BY user_id,tea_id),'[]'::jsonb)::text,count(*) FILTER(WHERE tea_id=$1) FROM tea_ratings WHERE tea_id IN($1,$2)`, &counts.RatingsMoved},
 		{`SELECT COALESCE(jsonb_agg(jsonb_build_array(user_id,ts,tea_id) ORDER BY user_id,ts,tea_id),'[]'::jsonb)::text,count(*) FILTER(WHERE tea_id=$1) FROM consumptions WHERE tea_id IN($1,$2)`, &counts.ConsumptionsMoved},
 	}
 
@@ -179,6 +180,9 @@ func readTeaMergePair(ctx context.Context, tx *sql.Tx, source, target uuid.UUID)
 }
 
 func fillTeaMergePlan(ctx context.Context, tx *sql.Tx, preview *common.TeaMergePreview) error {
+	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM tea_ratings s JOIN tea_ratings t USING(user_id) WHERE s.tea_id=$1 AND t.tea_id=$2`, preview.Source.Tea.ID, preview.Target.Tea.ID).Scan(&preview.Counts.RatingConflictsResolved); err != nil {
+		return fmt.Errorf("count Tea rating conflicts: %w", err)
+	}
 	preview.ResultingCoverImageID = chooseTeaMergeCover(preview)
 	preview.Counts.ImagesMoved = len(preview.Source.Images)
 	preview.ResultingImageCount = len(preview.Source.Images) + len(preview.Target.Images)

@@ -135,6 +135,7 @@ type Resolver struct {
 	debug
 	adviser
 	weather
+	ratings     teaRatingStore
 	catalog     catalogueStore
 	merges      teaMergeStore
 	images      teaImages

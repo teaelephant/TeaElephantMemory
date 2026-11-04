@@ -135,6 +135,13 @@ scores, and SSE delivery against a test server. They do not contact OpenAI;
 model access and response quality with the deployment's API key need live
 verification separately.
 
+## Tea ratings
+
+Personal 1–5 Tea ratings expose public averages and vote counts, with collection
+ownership required to set a vote and retention after collection removal. See
+[Tea ratings](docs/TEA_RATINGS.md) for the contract, privacy, merge behavior and
+required additive migration. This prepared source feature is not a live rollout.
+
 ## Tea images
 
 Images belong to the shared catalogue Tea ID. Every QR package for that tea

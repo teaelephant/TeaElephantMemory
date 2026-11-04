@@ -108,6 +108,15 @@ type TeaMergeReceiptDetail struct {
 	ConsumptionsMoved         int32     `json:"consumptions_moved"`
 	SourceMetadata            []byte    `json:"source_metadata"`
 	TargetMetadata            []byte    `json:"target_metadata"`
+	RatingsMoved              int32     `json:"ratings_moved"`
+	RatingConflictsResolved   int32     `json:"rating_conflicts_resolved"`
+}
+
+type TeaRating struct {
+	UserID    uuid.UUID `json:"user_id"`
+	TeaID     uuid.UUID `json:"tea_id"`
+	Rating    int32     `json:"rating"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type TeaTag struct {

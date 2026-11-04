@@ -33,7 +33,7 @@ func (q *Queries) GetCatalogueOperationReceipt(ctx context.Context, operationKey
 }
 
 const getTeaMergeReceiptDetails = `-- name: GetTeaMergeReceiptDetails :one
-SELECT operation_key,source_revision,target_revision,preview_token,qr_count,collection_membership_count,tags_added,images_moved,consumptions_moved,source_metadata,target_metadata
+SELECT operation_key,source_revision,target_revision,preview_token,qr_count,collection_membership_count,tags_added,images_moved,consumptions_moved,source_metadata,target_metadata,ratings_moved,rating_conflicts_resolved
 FROM tea_merge_receipt_details WHERE operation_key=$1
 `
 
@@ -52,6 +52,8 @@ func (q *Queries) GetTeaMergeReceiptDetails(ctx context.Context, operationKey uu
 		&i.ConsumptionsMoved,
 		&i.SourceMetadata,
 		&i.TargetMetadata,
+		&i.RatingsMoved,
+		&i.RatingConflictsResolved,
 	)
 	return i, err
 }

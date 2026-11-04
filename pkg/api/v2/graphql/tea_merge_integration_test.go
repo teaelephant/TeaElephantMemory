@@ -404,6 +404,16 @@ func TestTeaMergeMigrationIsRepeatableAndKeepsHistoricalReceipts(t *testing.T) {
 		require.NoError(t, err)
 	}
 
+	// The current server additionally requires the additive rating columns;
+	// the original migration remains untouched and preserves old receipts.
+	unavailable := imageGraphQLCall(t, f.server, f.adminToken, mergePreviewQuery, map[string]any{mergeSourceVar: f.teaID.String(), mergeTargetVar: f.targetID.String()})
+	assertRoleDenied(t, unavailable, "UNSUPPORTED")
+
+	ratingMigration, err := os.ReadFile(ratingMigrationPath)
+	require.NoError(t, err)
+	_, err = f.db.ExecContext(t.Context(), string(ratingMigration))
+	require.NoError(t, err)
+
 	store := pgadapter.NewDB(f.db, logrus.NewEntry(logrus.New()))
 	receipt, err := store.CatalogueOperationReceipt(t.Context(), key)
 	require.NoError(t, err)

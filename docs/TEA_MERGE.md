@@ -118,3 +118,11 @@ concurrent same-key operations and overlap with a legacy QR transaction, and a s
 for a concurrent jar rebind. It also
 checks cached Tea of the Day and a merge while remote scoring is delayed, without
 extra consumption on cached reads. No real-library writes are needed for these checks.
+
+## Personal rating preservation
+
+Merges transfer personal votes with newest-timestamp conflict resolution; ties
+keep the target vote. Rating changes invalidate previews, and both preview and
+receipt expose only `ratingsMoved` and `ratingConflictsResolved` aggregate counts.
+Apply the additional rating migration before using this server version. See
+[Tea ratings](TEA_RATINGS.md) for upgrade, replay and privacy details.

@@ -84,6 +84,7 @@ type TagCategory struct {
 }
 
 type Tea struct {
+	Rating *TeaRating `json:"rating"`
 	// Opaque version of this catalogue entity. Echo as expectedRevision on edits.
 	Revision    string      `json:"revision"`
 	ID          common.ID   `json:"id"`
@@ -120,6 +121,8 @@ type TeaMergePreview struct {
 	TagsToAdd                 int      `json:"tagsToAdd"`
 	ImagesToMove              int      `json:"imagesToMove"`
 	ConsumptionCount          int      `json:"consumptionCount"`
+	RatingsMoved              int      `json:"ratingsMoved"`
+	RatingConflictsResolved   int      `json:"ratingConflictsResolved"`
 	ResultingImageCount       int      `json:"resultingImageCount"`
 	Blockers                  []string `json:"blockers"`
 	MetadataPolicy            string   `json:"metadataPolicy"`
@@ -140,11 +143,21 @@ type TeaMergeResult struct {
 	TagsAdded                 int       `json:"tagsAdded"`
 	ImagesMoved               int       `json:"imagesMoved"`
 	ConsumptionsMoved         int       `json:"consumptionsMoved"`
+	RatingsMoved              int       `json:"ratingsMoved"`
+	RatingConflictsResolved   int       `json:"ratingConflictsResolved"`
 }
 
 type TeaOfTheDay struct {
 	Tea  *QRRecord `json:"tea"`
 	Date time.Time `json:"date"`
+}
+
+type TeaRating struct {
+	TeaID    common.ID `json:"teaID"`
+	Average  *float64  `json:"average,omitempty"`
+	Count    int       `json:"count"`
+	MyRating *int      `json:"myRating,omitempty"`
+	CanRate  bool      `json:"canRate"`
 }
 
 type User struct {

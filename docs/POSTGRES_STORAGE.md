@@ -118,3 +118,10 @@ Tea FK and stay untouched. `internal/consumption/qr_selection.go` uses the same
 lock only during fresh Tea-of-the-Day QR selection/history recording, after remote
 scoring; cache hits record nothing. See [Tea merge](TEA_MERGE.md) for API policies,
 receipt recovery and the explicit scalability/rollout boundaries.
+
+## Personal Tea ratings
+
+`tea_ratings` has one `(user_id, tea_id)` vote, checked integer 1–5 and a server
+updated timestamp. Collection removal retains votes. Apply the repeatable
+`20261104_tea_ratings.sql` after both 20261012 migrations; see
+[Tea ratings](TEA_RATINGS.md) for merge and transaction details.

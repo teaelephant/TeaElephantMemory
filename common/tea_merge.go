@@ -37,6 +37,8 @@ type TeaMergeSnapshot struct {
 
 // TeaMergeCounts contains historical aggregate transfers without personal identifiers.
 type TeaMergeCounts struct {
+	RatingsMoved              int `json:"ratings_moved"`
+	RatingConflictsResolved   int `json:"rating_conflicts_resolved"`
 	QRCount                   int `json:"qr_count"`
 	CollectionMembershipCount int `json:"collection_membership_count"`
 	TagsAdded                 int `json:"tags_added"`
