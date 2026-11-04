@@ -8,6 +8,7 @@ services:
       PG_DSN: "postgres://${POSTGRES_USER:-teaelephant}:${POSTGRES_PASSWORD:-teaelephant}@postgres:5432/${POSTGRES_DB:-teaelephant}?sslmode=disable"
       OPEN_AI_TOKEN: ${OPEN_AI_TOKEN:-}
       OPENWEATHER_APIKEY: ${OPENWEATHER_APIKEY:-}
+      APNS_ENVIRONMENT: ${APNS_ENVIRONMENT:-sandbox}
       APPLE_AUTH_CLIENT_ID: ${APPLE_AUTH_CLIENT_ID:-}
       APPLE_AUTH_TEAM_ID: ${APPLE_AUTH_TEAM_ID:-}
       APPLE_AUTH_KEY_ID: ${APPLE_AUTH_KEY_ID:-}

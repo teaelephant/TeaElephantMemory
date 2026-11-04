@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/kelseyhightower/envconfig"
@@ -35,9 +36,10 @@ const (
 )
 
 type configuration struct {
-	LoggerLevel logrus.Level `envconfig:"LOG_LEVEL" default:"info"`
-	OpenAIToken string       `envconfig:"OPEN_AI_TOKEN" require:"true"`
-	PGDSN       string       `envconfig:"PG_DSN" default:""`
+	LoggerLevel     logrus.Level `envconfig:"LOG_LEVEL" default:"info"`
+	OpenAIToken     string       `envconfig:"OPEN_AI_TOKEN" require:"true"`
+	PGDSN           string       `envconfig:"PG_DSN" default:""`
+	APNSEnvironment string       `envconfig:"APNS_ENVIRONMENT" default:"sandbox"`
 }
 
 //nolint:funlen // main wires dependencies; keep it in one place for clarity despite statement count
@@ -82,18 +84,10 @@ func main() {
 
 	notificationManager := notification.NewManager(st)
 
-	authKey, err := token.AuthKeyFromFile(authCfg.SecretPath)
+	apnsClient, err := newAPNSClient(authCfg, cfg.APNSEnvironment)
 	if err != nil {
 		panic(err)
 	}
-
-	apnsClient := apns2.NewTokenClient(&token.Token{
-		AuthKey: authKey,
-		// KeyID from developer account (Certificates, Identifiers & Profiles -> Keys)
-		KeyID: authCfg.KeyID,
-		// TeamID from developer account (View Account -> Membership)
-		TeamID: authCfg.TeamID,
-	}).Development()
 
 	apnsSender := apns.NewSender(apnsClient, authCfg.ClientID, st, logrusLogger.WithField(pkgKey, "apns"))
 
@@ -127,4 +121,24 @@ func main() {
 	if err = s.Run(); err != nil {
 		panic(err)
 	}
+}
+
+func newAPNSClient(cfg *auth.Configuration, environment string) (*apns2.Client, error) {
+	authKey, err := token.AuthKeyFromFile(cfg.SecretPath)
+	if err != nil {
+		return nil, fmt.Errorf("load APNs auth key: %w", err)
+	}
+
+	client, err := apns.NewClient(&token.Token{
+		AuthKey: authKey,
+		// KeyID from developer account (Certificates, Identifiers & Profiles -> Keys)
+		KeyID: cfg.KeyID,
+		// TeamID from developer account (View Account -> Membership)
+		TeamID: cfg.TeamID,
+	}, environment)
+	if err != nil {
+		return nil, fmt.Errorf("create APNs client: %w", err)
+	}
+
+	return client, nil
 }

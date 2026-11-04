@@ -98,6 +98,7 @@ Adjust `PG_DSN` if you change the local database credentials or port.
 | `LOG_LEVEL` | Logging level, default `info` |
 | `OPEN_AI_TOKEN` | OpenAI API token for descriptions and recommendations |
 | `OPENWEATHER_APIKEY` | OpenWeather API key |
+| `APNS_ENVIRONMENT` | `sandbox` (default, local development) or `production` (TestFlight/App Store); other values fail startup |
 | `APPLE_AUTH_CLIENT_ID` | Apple client ID and APNs topic |
 | `APPLE_AUTH_TEAM_ID` | Apple developer team ID |
 | `APPLE_AUTH_KEY_ID` | Apple signing key ID |
