@@ -95,3 +95,43 @@ The explicit iOS DEBUG **AR Demo** uses real camera/QR tracking with fictional t
 - Backend: `pkg/api/v2/graphql/schema.resolvers.go`, `schema.graphql`, `internal/auth/auth.go`, `internal/managers/collection/`, `internal/managers/qr/`, `db/schema.sql`, `db/queries/collections.sql` and `db/queries/devices.sql`.
 
 The initial permission inventory was recorded from iOS `ad97581`, Editor `bfa72ae`, backend `8f7850f`. The role-alignment source changes replace the previously documented catalogue, QR and device gaps. Prepared changes and tests are separate from rollout to the live service.
+
+## Tea ratings (prepared source)
+
+Each authenticated user has one mutable integer rating from 1 to 5 per shared
+Tea. QR/jar and collection IDs establish eligibility; they are not rating IDs.
+Setting or changing a vote requires a QR referring to that Tea in any collection
+owned by that user. Several jars or collections still contribute one vote.
+Removing the last membership or collection retains the vote and its aggregate
+contribution. The user may clear their own vote after removal, but cannot set or
+change it until eligible again.
+
+The mean is arithmetic over current votes and count is the number of distinct
+rating users. With no votes the mean is null and count is zero. Aggregate reads
+are public. Only the validated user session may read or change that user's vote;
+an admin-only or anonymous context receives null for `myRating` and false for
+`canRate`. Administrative credentials do not identify or impersonate a voter.
+
+Editor reads only `teaID`, `average` and `count` from `Tea.rating`, through queries
+separate from catalogue list/detail. It shows the mean to one decimal and count,
+with distinct no-vote and unavailable states. Rating sorting compares the raw
+mean descending, count descending, localised name ascending and Tea ID as a
+stable tie-break. Unrated/unavailable rows follow rated rows. Catalogue refresh
+reloads aggregates; detail also offers a rating refresh. Older rating APIs leave
+catalogue browsing and editing usable. Editor provides no personal-vote control,
+voter identity, individual votes or rating-write MCP tool. Its existing 22 MCP
+tools, per-client grants and signed helper packaging are unchanged.
+
+Merging duplicate Teas transfers source votes. For a user with votes on both,
+the newest server timestamp wins; equal timestamps retain the target vote.
+Membership validation, votes and merges share the backend transaction boundary.
+The preview fingerprint includes vote values and timestamps. Editor displays only
+optional `ratingsMoved` (all source votes) and `ratingConflictsResolved` (users on
+both Teas); unavailable counters are not displayed as zero. Its optional preview
+counter read must match the full preview token. Result counters are read through
+the original operation's receipt; legacy mutation documents and receipts remain
+usable without those fields. Missing counters do not trigger a write retry.
+
+These are source-level changes requiring coordinated backend/client delivery.
+They do not alter Tea-of-Day scoring, implement purchases, broaden catalogue or
+collection permissions, or claim production/device verification.
