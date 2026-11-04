@@ -2,6 +2,14 @@ scalar Date
 
 type Query {
     me: User
+    "Verified administrator capabilities for the versioned catalogue protocol."
+    editorCapabilities: EditorCapabilities!
+    "Committed catalogue operation receipt; verified administrator authorization required."
+    editorOperationReceipt(idempotencyKey: String!): CatalogueOperationReceipt
+    "Preview one administrative Tea merge. A matching preview must be supplied at commit. Counts expose no user identities."
+    previewTeaMerge(sourceTeaID: ID!, targetTeaID: ID!): TeaMergePreview!
+    "Recover historical merge counters and receipt without repeating a write; verified administrator authorization required."
+    editorTeaMergeReceipt(sourceTeaID: ID!, targetTeaID: ID!, expectedSourceRevision: String!, expectedTargetRevision: String!, previewToken: String!, idempotencyKey: String!): TeaMergeResult
     "Get information about teas."
     teas(prefix: String): [Tea!]!
     "Get information about tea by id."
@@ -22,19 +30,40 @@ type Query {
 
 type Mutation {
     authApple(appleCode:String!, deviceID: ID!): Session!
-    newTea(tea: TeaData!): Tea!
-    updateTea(id: ID!, tea: TeaData!): Tea!
-    addTagToTea(teaID: ID!, tagID: ID!): Tea!
-    deleteTagFromTea(teaID: ID!, tagID: ID!): Tea!
-    deleteTea(id: ID!): ID!
+    "Create a new shared catalogue entry and its initial existing tags atomically with a fresh ID; user or administrator authorization required. Existing entries are not overwritten. Omitted tagIDs defaults to no tags."
+    newTea(tea: TeaData!, tagIDs: [ID!]! = [], idempotencyKey: String): Tea!
+    "Update shared catalogue metadata; administrator authorization required."
+    updateTea(id: ID!, tea: TeaData!, expectedRevision: String): Tea!
+    "Assign a shared catalogue tag; administrator authorization required."
+    addTagToTea(teaID: ID!, tagID: ID!, expectedRevision: String): Tea!
+    "Remove a shared catalogue tag assignment; administrator authorization required."
+    deleteTagFromTea(teaID: ID!, tagID: ID!, expectedRevision: String): Tea!
+    "Delete a shared catalogue entry; administrator authorization required."
+    deleteTea(id: ID!, expectedRevision: String): ID!
+    "Merge one duplicate Tea into another atomically; verified administrator authorization required. Keep the exact original arguments and idempotencyKey on retries."
+    mergeTeas(sourceTeaID: ID!, targetTeaID: ID!, expectedSourceRevision: String!, expectedTargetRevision: String!, previewToken: String!, idempotencyKey: String!): TeaMergeResult!
+    "Attach a JPEG or PNG to the shared tea catalogue entry; authorization required."
+    addTeaImage(teaID: ID!, imageBase64: String!, expectedRevision: String, idempotencyKey: String): Tea!
+    "Remove an image from the shared tea catalogue; administrator authorization required."
+    deleteTeaImage(teaID: ID!, imageID: ID!, expectedRevision: String): Tea!
+    "Choose the catalogue cover image; authorization required."
+    setTeaCoverImage(teaID: ID!, imageID: ID!, expectedRevision: String): Tea!
+    "Create or update jar metadata; user or administrator authorization required. QR IDs remain shared, without exclusive ownership."
     writeToQR(id: ID!, data: QRRecordData!): QRRecord!
+    "Create a shared tag category; administrator authorization required."
     createTagCategory(name: String!): TagCategory!
-    updateTagCategory(id: ID!, name: String!): TagCategory!
-    deleteTagCategory(id:ID!): ID!
+    "Update a shared tag category; administrator authorization required."
+    updateTagCategory(id: ID!, name: String!, expectedRevision: String): TagCategory!
+    "Delete a shared tag category; administrator authorization required."
+    deleteTagCategory(id:ID!, expectedRevision: String): ID!
+    "Create a shared tag; administrator authorization required."
     createTag(name: String!, color: String!, category: ID!): Tag!
-    updateTag(id: ID!, name: String!, color: String!): Tag!
-    changeTagCategory(id: ID!, category: ID!): Tag!
-    deleteTag(id: ID!): ID!
+    "Update a shared tag; administrator authorization required."
+    updateTag(id: ID!, name: String!, color: String!, expectedRevision: String): Tag!
+    "Change a shared tag category; administrator authorization required."
+    changeTagCategory(id: ID!, category: ID!, expectedRevision: String): Tag!
+    "Delete a shared tag; administrator authorization required."
+    deleteTag(id: ID!, expectedRevision: String): ID!
     "authorization required"
     createCollection(name: String!): Collection!
     "authorization required"
@@ -43,9 +72,8 @@ type Mutation {
     deleteRecordsFromCollection(id: ID!, records: [ID!]!): Collection!
     "authorization required"
     deleteCollection(id: ID!): ID!
-    "register mobile device token for notifications"
+    "Register a notification token for a device already bound to the authenticated user; administrator credentials do not replace that user session."
     registerDeviceToken(deviceID: ID!, deviceToken: String!): Boolean!
-    @deprecated
     send: Boolean!
     "get tea recommendation"
     teaRecommendation(collectionID: ID!, feelings: String!): String!
@@ -86,6 +114,8 @@ type Subscription {
 }
 
 type TagCategory {
+    "Opaque version of this catalogue entity. Echo as expectedRevision on edits."
+    revision: String!
     id: ID!
     name: String!
     tags(name: String): [Tag!]!
@@ -105,11 +135,25 @@ input QRRecordData {
 }
 
 type Tea {
+    "Opaque version of this catalogue entity. Echo as expectedRevision on edits."
+    revision: String!
     id: ID!
     name: String!
     type: Type!
     description: String!
     tags: [Tag!]!
+    images: [TeaImage!]!
+}
+
+type TeaImage {
+    id: ID!
+    "Path relative to the API origin."
+    url: String!
+    contentType: String!
+    width: Int!
+    height: Int!
+    createdAt: Date!
+    isCover: Boolean!
 }
 
 input TeaData {
@@ -119,6 +163,8 @@ input TeaData {
 }
 
 type Tag {
+    "Opaque version of this catalogue entity. Echo as expectedRevision on edits."
+    revision: String!
     id: ID!
     name: String!
     color: String!
@@ -159,4 +205,52 @@ enum NotificationType {
     unknown
     teaExpiration
     teaRecommendation
+}
+
+
+type EditorCapabilities {
+    protocolVersion: String!
+    supportsRevisions: Boolean!
+    supportsIdempotency: Boolean!
+    supportsTeaMerge: Boolean!
+}
+
+type TeaMergePreview {
+    sourceTea: Tea!
+    targetTea: Tea!
+    previewToken: String!
+    qrCount: Int!
+    collectionMembershipCount: Int!
+    tagsToAdd: Int!
+    imagesToMove: Int!
+    consumptionCount: Int!
+    resultingImageCount: Int!
+    blockers: [String!]!
+    metadataPolicy: String!
+    coverPolicy: String!
+    "Resulting cover UUID; target cover, otherwise source cover, otherwise the oldest surviving image. Null for an empty gallery."
+    resultingCoverImageID: ID
+}
+
+type TeaMergeResult {
+    receipt: CatalogueOperationReceipt!
+    "Current target, or null if later deleted. The receipt always describes the original committed operation."
+    targetTea: Tea
+    replayed: Boolean!
+    sourceTeaID: ID!
+    targetTeaID: ID!
+    qrCount: Int!
+    collectionMembershipCount: Int!
+    tagsAdded: Int!
+    imagesMoved: Int!
+    consumptionsMoved: Int!
+}
+
+type CatalogueOperationReceipt {
+    idempotencyKey: String!
+    operation: String!
+    teaID: ID!
+    resourceID: ID!
+    resultRevision: String!
+    completedAt: Date!
 }

@@ -11,6 +11,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type CatalogOperationReceipt struct {
+	OperationKey   uuid.UUID `json:"operation_key"`
+	Actor          string    `json:"actor"`
+	Operation      string    `json:"operation"`
+	RequestHash    string    `json:"request_hash"`
+	TeaID          uuid.UUID `json:"tea_id"`
+	ResourceID     uuid.UUID `json:"resource_id"`
+	ResultRevision string    `json:"result_revision"`
+	CompletedAt    time.Time `json:"completed_at"`
+}
+
 type Collection struct {
 	ID        uuid.UUID `json:"id"`
 	UserID    uuid.UUID `json:"user_id"`
@@ -56,11 +67,13 @@ type Tag struct {
 	Name       string    `json:"name"`
 	Color      string    `json:"color"`
 	CategoryID uuid.UUID `json:"category_id"`
+	Revision   int64     `json:"revision"`
 }
 
 type TagCategory struct {
-	ID   uuid.UUID `json:"id"`
-	Name string    `json:"name"`
+	ID       uuid.UUID `json:"id"`
+	Name     string    `json:"name"`
+	Revision int64     `json:"revision"`
 }
 
 type Tea struct {
@@ -69,6 +82,32 @@ type Tea struct {
 	Type        string      `json:"type"`
 	Description pgtype.Text `json:"description"`
 	CreatedAt   time.Time   `json:"created_at"`
+	Revision    int64       `json:"revision"`
+}
+
+type TeaImage struct {
+	ID          uuid.UUID `json:"id"`
+	TeaID       uuid.UUID `json:"tea_id"`
+	ContentType string    `json:"content_type"`
+	Width       int32     `json:"width"`
+	Height      int32     `json:"height"`
+	Data        []byte    `json:"data"`
+	CreatedAt   time.Time `json:"created_at"`
+	IsCover     bool      `json:"is_cover"`
+}
+
+type TeaMergeReceiptDetail struct {
+	OperationKey              uuid.UUID `json:"operation_key"`
+	SourceRevision            string    `json:"source_revision"`
+	TargetRevision            string    `json:"target_revision"`
+	PreviewToken              string    `json:"preview_token"`
+	QrCount                   int32     `json:"qr_count"`
+	CollectionMembershipCount int32     `json:"collection_membership_count"`
+	TagsAdded                 int32     `json:"tags_added"`
+	ImagesMoved               int32     `json:"images_moved"`
+	ConsumptionsMoved         int32     `json:"consumptions_moved"`
+	SourceMetadata            []byte    `json:"source_metadata"`
+	TargetMetadata            []byte    `json:"target_metadata"`
 }
 
 type TeaTag struct {

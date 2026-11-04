@@ -34,6 +34,7 @@ type Server struct {
 	router      *mux.Router
 	middlewares []graphql.HandlerExtension
 	wsInitFunc  transport.WebsocketInitFunc
+	images      imageReader
 }
 
 // Middleware represents an HTTP middleware function.
@@ -90,7 +91,8 @@ func (s *Server) InitV2Api() {
 
 	s.router.Use()
 	s.router.Handle("/v2/", playground.Handler("GraphQL playground", v2QueryPath))
-	s.router.Handle(v2QueryPath, srv)
+	s.router.Handle(v2QueryPath, boundedGraphQLBody(srv))
+	s.router.HandleFunc("/v2/tea-images/{id}", s.serveTeaImage).Methods(http.MethodGet, http.MethodHead)
 	s.router.Handle("/health", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -108,6 +110,11 @@ func (s *Server) InitV2Api() {
 }
 
 // NewServer creates the HTTP server wiring resolvers, middlewares, and websocket init.
-func NewServer(resolvers generated.ResolverRoot, middlewares []graphql.HandlerExtension, wsInitFunc transport.WebsocketInitFunc) *Server {
-	return &Server{resolvers: resolvers, router: mux.NewRouter(), middlewares: middlewares, wsInitFunc: wsInitFunc}
+func NewServer(resolvers generated.ResolverRoot, middlewares []graphql.HandlerExtension, wsInitFunc transport.WebsocketInitFunc, images ...imageReader) *Server {
+	var reader imageReader
+	if len(images) > 0 {
+		reader = images[0]
+	}
+
+	return &Server{resolvers: resolvers, router: mux.NewRouter(), middlewares: middlewares, wsInitFunc: wsInitFunc, images: reader}
 }

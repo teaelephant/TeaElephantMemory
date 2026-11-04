@@ -31,7 +31,7 @@ const changeTagCategory = `-- name: ChangeTagCategory :one
 UPDATE tags
 SET category_id = $2
 WHERE id = $1
-RETURNING id, name, color, category_id
+RETURNING id, name, color, category_id, revision
 `
 
 type ChangeTagCategoryParams struct {
@@ -47,6 +47,7 @@ func (q *Queries) ChangeTagCategory(ctx context.Context, arg ChangeTagCategoryPa
 		&i.Name,
 		&i.Color,
 		&i.CategoryID,
+		&i.Revision,
 	)
 	return i, err
 }
@@ -94,7 +95,7 @@ func (q *Queries) DeleteTagsByCategory(ctx context.Context, categoryID uuid.UUID
 }
 
 const getTag = `-- name: GetTag :one
-SELECT id, name, color, category_id
+SELECT id, name, color, category_id, revision
 FROM tags
 WHERE id = $1
 `
@@ -107,12 +108,13 @@ func (q *Queries) GetTag(ctx context.Context, id uuid.UUID) (Tag, error) {
 		&i.Name,
 		&i.Color,
 		&i.CategoryID,
+		&i.Revision,
 	)
 	return i, err
 }
 
 const getTagCategory = `-- name: GetTagCategory :one
-SELECT id, name
+SELECT id, name, revision
 FROM tag_categories
 WHERE id = $1
 `
@@ -120,14 +122,14 @@ WHERE id = $1
 func (q *Queries) GetTagCategory(ctx context.Context, id uuid.UUID) (TagCategory, error) {
 	row := q.db.QueryRow(ctx, getTagCategory, id)
 	var i TagCategory
-	err := row.Scan(&i.ID, &i.Name)
+	err := row.Scan(&i.ID, &i.Name, &i.Revision)
 	return i, err
 }
 
 const insertTag = `-- name: InsertTag :one
 INSERT INTO tags (id, name, color, category_id)
 VALUES ($1, $2, $3, $4)
-RETURNING id, name, color, category_id
+RETURNING id, name, color, category_id, revision
 `
 
 type InsertTagParams struct {
@@ -150,6 +152,7 @@ func (q *Queries) InsertTag(ctx context.Context, arg InsertTagParams) (Tag, erro
 		&i.Name,
 		&i.Color,
 		&i.CategoryID,
+		&i.Revision,
 	)
 	return i, err
 }
@@ -157,7 +160,7 @@ func (q *Queries) InsertTag(ctx context.Context, arg InsertTagParams) (Tag, erro
 const insertTagCategory = `-- name: InsertTagCategory :one
 INSERT INTO tag_categories (id, name)
 VALUES ($1, $2)
-RETURNING id, name
+RETURNING id, name, revision
 `
 
 type InsertTagCategoryParams struct {
@@ -168,12 +171,12 @@ type InsertTagCategoryParams struct {
 func (q *Queries) InsertTagCategory(ctx context.Context, arg InsertTagCategoryParams) (TagCategory, error) {
 	row := q.db.QueryRow(ctx, insertTagCategory, arg.ID, arg.Name)
 	var i TagCategory
-	err := row.Scan(&i.ID, &i.Name)
+	err := row.Scan(&i.ID, &i.Name, &i.Revision)
 	return i, err
 }
 
 const listTagCategories = `-- name: ListTagCategories :many
-SELECT id, name
+SELECT id, name, revision
 FROM tag_categories
 ORDER BY name ASC
 `
@@ -187,7 +190,7 @@ func (q *Queries) ListTagCategories(ctx context.Context) ([]TagCategory, error) 
 	items := []TagCategory{}
 	for rows.Next() {
 		var i TagCategory
-		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+		if err := rows.Scan(&i.ID, &i.Name, &i.Revision); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -199,7 +202,7 @@ func (q *Queries) ListTagCategories(ctx context.Context) ([]TagCategory, error) 
 }
 
 const listTags = `-- name: ListTags :many
-SELECT id, name, color, category_id
+SELECT id, name, color, category_id, revision
 FROM tags
 ORDER BY name ASC
 `
@@ -218,6 +221,7 @@ func (q *Queries) ListTags(ctx context.Context) ([]Tag, error) {
 			&i.Name,
 			&i.Color,
 			&i.CategoryID,
+			&i.Revision,
 		); err != nil {
 			return nil, err
 		}
@@ -230,7 +234,7 @@ func (q *Queries) ListTags(ctx context.Context) ([]Tag, error) {
 }
 
 const listTagsByCategory = `-- name: ListTagsByCategory :many
-SELECT id, name, color, category_id
+SELECT id, name, color, category_id, revision
 FROM tags
 WHERE category_id = $1
 ORDER BY name ASC
@@ -250,6 +254,7 @@ func (q *Queries) ListTagsByCategory(ctx context.Context, categoryID uuid.UUID) 
 			&i.Name,
 			&i.Color,
 			&i.CategoryID,
+			&i.Revision,
 		); err != nil {
 			return nil, err
 		}
@@ -262,7 +267,7 @@ func (q *Queries) ListTagsByCategory(ctx context.Context, categoryID uuid.UUID) 
 }
 
 const listTagsByCategoryFilter = `-- name: ListTagsByCategoryFilter :many
-SELECT id, name, color, category_id
+SELECT id, name, color, category_id, revision
 FROM tags
 WHERE category_id = $1
 ORDER BY name ASC
@@ -282,6 +287,7 @@ func (q *Queries) ListTagsByCategoryFilter(ctx context.Context, categoryID uuid.
 			&i.Name,
 			&i.Color,
 			&i.CategoryID,
+			&i.Revision,
 		); err != nil {
 			return nil, err
 		}
@@ -294,7 +300,7 @@ func (q *Queries) ListTagsByCategoryFilter(ctx context.Context, categoryID uuid.
 }
 
 const listTagsByName = `-- name: ListTagsByName :many
-SELECT id, name, color, category_id
+SELECT id, name, color, category_id, revision
 FROM tags
 WHERE lower(name) LIKE lower($1) || '%'
 ORDER BY name ASC
@@ -314,6 +320,7 @@ func (q *Queries) ListTagsByName(ctx context.Context, lower string) ([]Tag, erro
 			&i.Name,
 			&i.Color,
 			&i.CategoryID,
+			&i.Revision,
 		); err != nil {
 			return nil, err
 		}
@@ -326,7 +333,7 @@ func (q *Queries) ListTagsByName(ctx context.Context, lower string) ([]Tag, erro
 }
 
 const listTagsByNameCategory = `-- name: ListTagsByNameCategory :many
-SELECT id, name, color, category_id
+SELECT id, name, color, category_id, revision
 FROM tags
 WHERE lower(name) LIKE lower($1) || '%'
   AND category_id = $2
@@ -352,6 +359,7 @@ func (q *Queries) ListTagsByNameCategory(ctx context.Context, arg ListTagsByName
 			&i.Name,
 			&i.Color,
 			&i.CategoryID,
+			&i.Revision,
 		); err != nil {
 			return nil, err
 		}
@@ -364,7 +372,7 @@ func (q *Queries) ListTagsByNameCategory(ctx context.Context, arg ListTagsByName
 }
 
 const listTagsByTea = `-- name: ListTagsByTea :many
-SELECT t.id, t.name, t.color, t.category_id
+SELECT t.id, t.name, t.color, t.category_id, t.revision
 FROM tea_tags tt
 JOIN tags t ON t.id = tt.tag_id
 WHERE tt.tea_id = $1
@@ -385,6 +393,7 @@ func (q *Queries) ListTagsByTea(ctx context.Context, teaID uuid.UUID) ([]Tag, er
 			&i.Name,
 			&i.Color,
 			&i.CategoryID,
+			&i.Revision,
 		); err != nil {
 			return nil, err
 		}
@@ -397,7 +406,7 @@ func (q *Queries) ListTagsByTea(ctx context.Context, teaID uuid.UUID) ([]Tag, er
 }
 
 const searchTagCategories = `-- name: SearchTagCategories :many
-SELECT id, name
+SELECT id, name, revision
 FROM tag_categories
 WHERE lower(name) LIKE lower($1) || '%'
 ORDER BY name ASC
@@ -412,7 +421,7 @@ func (q *Queries) SearchTagCategories(ctx context.Context, lower string) ([]TagC
 	items := []TagCategory{}
 	for rows.Next() {
 		var i TagCategory
-		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+		if err := rows.Scan(&i.ID, &i.Name, &i.Revision); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -428,7 +437,7 @@ UPDATE tags
 SET name = $2,
     color = $3
 WHERE id = $1
-RETURNING id, name, color, category_id
+RETURNING id, name, color, category_id, revision
 `
 
 type UpdateTagParams struct {
@@ -445,6 +454,7 @@ func (q *Queries) UpdateTag(ctx context.Context, arg UpdateTagParams) (Tag, erro
 		&i.Name,
 		&i.Color,
 		&i.CategoryID,
+		&i.Revision,
 	)
 	return i, err
 }
@@ -453,7 +463,7 @@ const updateTagCategory = `-- name: UpdateTagCategory :one
 UPDATE tag_categories
 SET name = $2
 WHERE id = $1
-RETURNING id, name
+RETURNING id, name, revision
 `
 
 type UpdateTagCategoryParams struct {
@@ -464,6 +474,6 @@ type UpdateTagCategoryParams struct {
 func (q *Queries) UpdateTagCategory(ctx context.Context, arg UpdateTagCategoryParams) (TagCategory, error) {
 	row := q.db.QueryRow(ctx, updateTagCategory, arg.ID, arg.Name)
 	var i TagCategory
-	err := row.Scan(&i.ID, &i.Name)
+	err := row.Scan(&i.ID, &i.Name, &i.Revision)
 	return i, err
 }

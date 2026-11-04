@@ -47,6 +47,8 @@ models:
     fields:
       tags:
         resolver: true
+      images:
+        resolver: true
   User:
     fields:
       collections:

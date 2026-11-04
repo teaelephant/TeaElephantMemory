@@ -7,13 +7,15 @@ import (
 
 // TagCategory represents a category to which tags belong (e.g., flavor, origin).
 type TagCategory struct {
-	ID   uuid.UUID
-	Name string
+	ID       uuid.UUID
+	Name     string
+	Revision string
 }
 
 // Tag describes a label that can be attached to a tea (e.g., "bergamot", "green").
 type Tag struct {
-	ID uuid.UUID
+	ID       uuid.UUID
+	Revision string
 	*TagData
 }
 

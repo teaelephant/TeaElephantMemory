@@ -4,10 +4,21 @@
 
 Go backend for TeaElephant's iOS application and macOS catalogue editor.
 
+## Product roles and data scopes
+
+TeaElephant on iOS is the everyday user client for NFC/QR labels, AR, jar information, personal collections, recommendations and notifications. TeaElephantEditor on macOS is the administrator's workspace for maintaining the shared drink catalogue, its descriptions, classification and galleries. This backend stores their common data and validates user/admin identity independently of the device.
+
+Shared Tea data, jar-specific QR attributes and user-owned collection membership are distinct. A user deleting their own collection does not delete a catalogue Tea, QR record or shared image. Destructive shared catalogue operations require a verified administrator; Apple Sign In does not grant that role.
+
+Signed-in users may create a new shared Tea with initial existing tags using `newTea(tea: TeaData!, tagIDs: [ID!]! = [])`. Creation commits the fresh Tea and its deduplicated initial tag links together, and never overwrites an existing entry, including one with the same name. Unknown tags or a failed transaction leave no partial Tea or links and publish no creation event. Adding or removing tags after creation and editing existing shared Tea metadata require a verified admin, including for a Tea the user just created. Tag/category definitions remain admin-managed. Users retain jar QR writes, owned collection management, and photo upload/cover selection. Notification-token updates require the device already bound to that same user. QR IDs remain globally shared; authentication does not assign exclusive ownership to legacy household labels.
+
+The verified rights, compatibility constraints and rollout boundary are recorded in [product boundaries](docs/PRODUCT_BOUNDARIES.md). Valid users refused catalogue administration receive `FORBIDDEN` without losing their sessions. Authentication details are in [ADMIN_AUTH.md](docs/ADMIN_AUTH.md).
+
 ## Features
 
 - GraphQL HTTP and WebSocket API for teas, tags, QR records, and user collections
 - PostgreSQL persistence and consumption history
+- Shared tea image galleries with a selectable cover image
 - AI-generated descriptions and tea recommendations, including Tea of the Day
 - Apple Sign In, admin JWT authentication, and APNs expiration notifications
 - OpenWeather context and printable QR code generation
@@ -124,6 +135,60 @@ scores, and SSE delivery against a test server. They do not contact OpenAI;
 model access and response quality with the deployment's API key need live
 verification separately.
 
+## Tea images
+
+Images belong to the shared catalogue Tea ID. Every QR package for that tea
+shows the same gallery. Signed-in mobile users and Editor admins can add
+images and select a cover image. Only administrators can delete images from
+the shared catalogue; mobile user sessions and anonymous requests cannot
+delete them. Catalogue reads and image downloads are public, matching the
+existing tea catalogue permissions.
+
+Denied image deletion returns `FORBIDDEN` for a valid mobile user session
+and `UNAUTHENTICATED` for an anonymous request. Permission denial does not
+invalidate the user's session or modify the gallery.
+
+The GraphQL API exposes `Tea.images` with metadata and a path relative to the
+API origin. Resolve `url` against the configured GraphQL endpoint's origin.
+Mutations return the updated Tea:
+
+- `addTeaImage(teaID: ID!, imageBase64: String!): Tea!`
+- `deleteTeaImage(teaID: ID!, imageID: ID!): Tea!`
+- `setTeaCoverImage(teaID: ID!, imageID: ID!): Tea!`
+
+Send standard base64-encoded JPEG or PNG bytes, without a data-URL prefix.
+The server validates the full image stream: at most 5 MiB, 16 million pixels,
+and 8192 pixels on either edge. A tea has at most 10 images. The first image
+becomes the cover; deleting the cover promotes the oldest remaining image.
+Image mutations publish the existing tea update subscription. Ordinary
+`updateTea` saves preserve the gallery.
+
+Bytes are stored in PostgreSQL, with no additional storage service or volume.
+`GET` and `HEAD /v2/tea-images/<image-id>` support HTTP caching and return
+`404` for invalid or missing IDs. Immutable image URLs can remain cached for
+up to one day after deletion; subsequent catalogue reads remove deleted
+images from the gallery. GraphQL POST bodies are limited to 8 MiB and
+return HTTP `413` before parsing or mutation execution when too large.
+The NGINX Ingress in `deployment/server.yml` sets
+`nginx.ingress.kubernetes.io/proxy-body-size: "8m"` to match this request cap
+and accommodate base64 overhead. Include that manifest change when deploying
+the backend; check equivalent body limits if using another proxy. See the
+[Ingress annotation documentation](https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/#custom-max-body-size).
+
+Fresh databases receive the table from `db/schema.sql`. For an existing
+database, back it up and apply this idempotent migration explicitly before
+running the updated clients:
+
+```sh
+psql "$PG_DSN" -v ON_ERROR_STOP=1 -f db/migrations/20261011_tea_images.sql
+```
+
+The application does not run migrations at startup. To include the real
+PostgreSQL integration tests, set `TEA_IMAGES_TEST_PG_DSN` to a disposable
+local PostgreSQL database and run `go test ./...`. Tests create and drop only
+randomly named test schemas in that database; without this variable these
+integration tests report a skip. No application credentials are required.
+
 ## Build and checks
 
 Install the pinned linter and SQL generator into the ignored `bin` directory:
@@ -170,3 +235,14 @@ Generate printable QR codes with `go run ./cmd/qr_gen`.
 
 See [PostgreSQL storage](docs/POSTGRES_STORAGE.md) for data relationships and
 schema maintenance. License: [LICENSE](LICENSE).
+
+## Editor agent catalogue API
+
+The prepared versioned catalogue API supports atomic revision checks and durable
+Tea/photo creation receipts for the Editor agent bridge. Existing mobile QR and
+collection roles remain unchanged. Apply the additive catalogue migration after
+the tea-image migration before enabling bridge writes. See
+[Editor agent API](docs/EDITOR_AGENT_API.md),
+[administrative duplicate Tea merge](docs/TEA_MERGE.md) and
+[PostgreSQL storage](docs/POSTGRES_STORAGE.md). Local implementation and tests do
+not imply a live rollout.

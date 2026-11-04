@@ -358,7 +358,7 @@ func (a *Middleware) Validate(graphql.ExecutableSchema) error {
 // GetUser extracts the authenticated user from the context.
 func GetUser(ctx context.Context) (*common.User, error) {
 	value := ctx.Value(userCtxKey)
-	if user, ok := (value).(*common.User); ok {
+	if user, ok := (value).(*common.User); ok && user != nil {
 		return user, nil
 	}
 
@@ -369,15 +369,20 @@ func GetUser(ctx context.Context) (*common.User, error) {
 func AdminPrincipalFrom(ctx context.Context) (*AdminPrincipal, bool) {
 	v := ctx.Value(adminCtxKey)
 	p, ok := v.(*AdminPrincipal)
-	return p, ok
+	return p, ok && p != nil
 }
 
 // RequireAdmin ensures an admin principal is present in context.
 func RequireAdmin(ctx context.Context) error {
-	if _, ok := AdminPrincipalFrom(ctx); !ok {
-		return common.ErrUnauthorized
+	if _, ok := AdminPrincipalFrom(ctx); ok {
+		return nil
 	}
-	return nil
+
+	if _, err := GetUser(ctx); err == nil {
+		return common.ErrNotAdmin
+	}
+
+	return common.ErrUnauthorized
 }
 
 // RequireUserOrAdmin ensures either a mobile user session or an admin principal is present.

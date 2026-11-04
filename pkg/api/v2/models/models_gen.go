@@ -12,11 +12,27 @@ import (
 	"github.com/teaelephant/TeaElephantMemory/pkg/api/v2/common"
 )
 
+type CatalogueOperationReceipt struct {
+	IdempotencyKey string    `json:"idempotencyKey"`
+	Operation      string    `json:"operation"`
+	TeaID          common.ID `json:"teaID"`
+	ResourceID     common.ID `json:"resourceID"`
+	ResultRevision string    `json:"resultRevision"`
+	CompletedAt    time.Time `json:"completedAt"`
+}
+
 type Collection struct {
 	ID      common.ID   `json:"id"`
 	Name    string      `json:"name"`
 	UserID  common.ID   `json:"userID"`
 	Records []*QRRecord `json:"records"`
+}
+
+type EditorCapabilities struct {
+	ProtocolVersion     string `json:"protocolVersion"`
+	SupportsRevisions   bool   `json:"supportsRevisions"`
+	SupportsIdempotency bool   `json:"supportsIdempotency"`
+	SupportsTeaMerge    bool   `json:"supportsTeaMerge"`
 }
 
 type Mutation struct {
@@ -51,6 +67,8 @@ type Subscription struct {
 }
 
 type Tag struct {
+	// Opaque version of this catalogue entity. Echo as expectedRevision on edits.
+	Revision string       `json:"revision"`
 	ID       common.ID    `json:"id"`
 	Name     string       `json:"name"`
 	Color    string       `json:"color"`
@@ -58,23 +76,70 @@ type Tag struct {
 }
 
 type TagCategory struct {
-	ID   common.ID `json:"id"`
-	Name string    `json:"name"`
-	Tags []*Tag    `json:"tags"`
+	// Opaque version of this catalogue entity. Echo as expectedRevision on edits.
+	Revision string    `json:"revision"`
+	ID       common.ID `json:"id"`
+	Name     string    `json:"name"`
+	Tags     []*Tag    `json:"tags"`
 }
 
 type Tea struct {
-	ID          common.ID `json:"id"`
-	Name        string    `json:"name"`
-	Type        Type      `json:"type"`
-	Description string    `json:"description"`
-	Tags        []*Tag    `json:"tags"`
+	// Opaque version of this catalogue entity. Echo as expectedRevision on edits.
+	Revision    string      `json:"revision"`
+	ID          common.ID   `json:"id"`
+	Name        string      `json:"name"`
+	Type        Type        `json:"type"`
+	Description string      `json:"description"`
+	Tags        []*Tag      `json:"tags"`
+	Images      []*TeaImage `json:"images"`
 }
 
 type TeaData struct {
 	Name        string `json:"name"`
 	Type        Type   `json:"type"`
 	Description string `json:"description"`
+}
+
+type TeaImage struct {
+	ID common.ID `json:"id"`
+	// Path relative to the API origin.
+	URL         string    `json:"url"`
+	ContentType string    `json:"contentType"`
+	Width       int       `json:"width"`
+	Height      int       `json:"height"`
+	CreatedAt   time.Time `json:"createdAt"`
+	IsCover     bool      `json:"isCover"`
+}
+
+type TeaMergePreview struct {
+	SourceTea                 *Tea     `json:"sourceTea"`
+	TargetTea                 *Tea     `json:"targetTea"`
+	PreviewToken              string   `json:"previewToken"`
+	QRCount                   int      `json:"qrCount"`
+	CollectionMembershipCount int      `json:"collectionMembershipCount"`
+	TagsToAdd                 int      `json:"tagsToAdd"`
+	ImagesToMove              int      `json:"imagesToMove"`
+	ConsumptionCount          int      `json:"consumptionCount"`
+	ResultingImageCount       int      `json:"resultingImageCount"`
+	Blockers                  []string `json:"blockers"`
+	MetadataPolicy            string   `json:"metadataPolicy"`
+	CoverPolicy               string   `json:"coverPolicy"`
+	// Resulting cover UUID; target cover, otherwise source cover, otherwise the oldest surviving image. Null for an empty gallery.
+	ResultingCoverImageID *common.ID `json:"resultingCoverImageID,omitempty"`
+}
+
+type TeaMergeResult struct {
+	Receipt *CatalogueOperationReceipt `json:"receipt"`
+	// Current target, or null if later deleted. The receipt always describes the original committed operation.
+	TargetTea                 *Tea      `json:"targetTea,omitempty"`
+	Replayed                  bool      `json:"replayed"`
+	SourceTeaID               common.ID `json:"sourceTeaID"`
+	TargetTeaID               common.ID `json:"targetTeaID"`
+	QRCount                   int       `json:"qrCount"`
+	CollectionMembershipCount int       `json:"collectionMembershipCount"`
+	TagsAdded                 int       `json:"tagsAdded"`
+	ImagesMoved               int       `json:"imagesMoved"`
+	ConsumptionsMoved         int       `json:"consumptionsMoved"`
 }
 
 type TeaOfTheDay struct {

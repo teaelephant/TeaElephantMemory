@@ -43,11 +43,24 @@ func (r *mutationResolver) AuthApple(ctx context.Context, appleCode string, devi
 }
 
 // NewTea is the resolver for the newTea field.
-func (r *mutationResolver) NewTea(ctx context.Context, tea model.TeaData) (*model.Tea, error) {
+func (r *mutationResolver) NewTea(ctx context.Context, tea model.TeaData, tagIDs []common.ID, idempotencyKey *string) (*model.Tea, error) {
 	if err := authPkg.RequireUserOrAdmin(ctx); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
-	res, err := r.teaData.Create(ctx, tea.ToCommonTeaData())
+
+	operationCtx, operationErr := catalogueMutationContext(ctx, nil, idempotencyKey)
+	if operationErr != nil {
+		return nil, castGQLError(ctx, operationErr)
+	}
+
+	ctx = operationCtx
+
+	tags := make([]uuid.UUID, len(tagIDs))
+	for i, id := range tagIDs {
+		tags[i] = uuid.UUID(id)
+	}
+
+	res, err := r.CreateWithTags(ctx, tea.ToCommonTeaData(), tags)
 	if err != nil {
 		return nil, castGQLError(ctx, err)
 	}
@@ -56,10 +69,18 @@ func (r *mutationResolver) NewTea(ctx context.Context, tea model.TeaData) (*mode
 }
 
 // UpdateTea is the resolver for the updateTea field.
-func (r *mutationResolver) UpdateTea(ctx context.Context, id common.ID, tea model.TeaData) (*model.Tea, error) {
-	if err := authPkg.RequireUserOrAdmin(ctx); err != nil {
+func (r *mutationResolver) UpdateTea(ctx context.Context, id common.ID, tea model.TeaData, expectedRevision *string) (*model.Tea, error) {
+	if err := authPkg.RequireAdmin(ctx); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
+
+	operationCtx, operationErr := catalogueMutationContext(ctx, expectedRevision, nil)
+	if operationErr != nil {
+		return nil, castGQLError(ctx, operationErr)
+	}
+
+	ctx = operationCtx
+
 	res, err := r.teaData.Update(ctx, uuid.UUID(id), tea.ToCommonTeaData())
 	if err != nil {
 		return nil, castGQLError(ctx, err)
@@ -69,10 +90,18 @@ func (r *mutationResolver) UpdateTea(ctx context.Context, id common.ID, tea mode
 }
 
 // AddTagToTea is the resolver for the addTagToTea field.
-func (r *mutationResolver) AddTagToTea(ctx context.Context, teaID common.ID, tagID common.ID) (*model.Tea, error) {
-	if err := authPkg.RequireUserOrAdmin(ctx); err != nil {
+func (r *mutationResolver) AddTagToTea(ctx context.Context, teaID common.ID, tagID common.ID, expectedRevision *string) (*model.Tea, error) {
+	if err := authPkg.RequireAdmin(ctx); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
+
+	operationCtx, operationErr := catalogueMutationContext(ctx, expectedRevision, nil)
+	if operationErr != nil {
+		return nil, castGQLError(ctx, operationErr)
+	}
+
+	ctx = operationCtx
+
 	if err := r.tagManager.AddTagToTea(ctx, uuid.UUID(teaID), uuid.UUID(tagID)); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
@@ -86,10 +115,18 @@ func (r *mutationResolver) AddTagToTea(ctx context.Context, teaID common.ID, tag
 }
 
 // DeleteTagFromTea is the resolver for the deleteTagFromTea field.
-func (r *mutationResolver) DeleteTagFromTea(ctx context.Context, teaID common.ID, tagID common.ID) (*model.Tea, error) {
-	if err := authPkg.RequireUserOrAdmin(ctx); err != nil {
+func (r *mutationResolver) DeleteTagFromTea(ctx context.Context, teaID common.ID, tagID common.ID, expectedRevision *string) (*model.Tea, error) {
+	if err := authPkg.RequireAdmin(ctx); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
+
+	operationCtx, operationErr := catalogueMutationContext(ctx, expectedRevision, nil)
+	if operationErr != nil {
+		return nil, castGQLError(ctx, operationErr)
+	}
+
+	ctx = operationCtx
+
 	if err := r.tagManager.DeleteTagFromTea(ctx, uuid.UUID(teaID), uuid.UUID(tagID)); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
@@ -103,10 +140,18 @@ func (r *mutationResolver) DeleteTagFromTea(ctx context.Context, teaID common.ID
 }
 
 // DeleteTea is the resolver for the deleteTea field.
-func (r *mutationResolver) DeleteTea(ctx context.Context, id common.ID) (common.ID, error) {
+func (r *mutationResolver) DeleteTea(ctx context.Context, id common.ID, expectedRevision *string) (common.ID, error) {
 	if err := authPkg.RequireAdmin(ctx); err != nil {
 		return common.ID{}, castGQLError(ctx, err)
 	}
+
+	operationCtx, operationErr := catalogueMutationContext(ctx, expectedRevision, nil)
+	if operationErr != nil {
+		return common.ID{}, castGQLError(ctx, operationErr)
+	}
+
+	ctx = operationCtx
+
 	if err := r.teaData.Delete(ctx, uuid.UUID(id)); err != nil {
 		return common.ID{}, castGQLError(ctx, err)
 	}
@@ -114,8 +159,92 @@ func (r *mutationResolver) DeleteTea(ctx context.Context, id common.ID) (common.
 	return id, nil
 }
 
+// MergeTeas is the resolver for the mergeTeas field.
+func (r *mutationResolver) MergeTeas(ctx context.Context, sourceTeaID common.ID, targetTeaID common.ID, expectedSourceRevision string, expectedTargetRevision string, previewToken string, idempotencyKey string) (*model.TeaMergeResult, error) {
+	return r.mergeTeas(ctx, sourceTeaID, targetTeaID, expectedSourceRevision, expectedTargetRevision, previewToken, idempotencyKey)
+}
+
+// AddTeaImage is the resolver for the addTeaImage field.
+func (r *mutationResolver) AddTeaImage(ctx context.Context, teaID common.ID, imageBase64 string, expectedRevision *string, idempotencyKey *string) (*model.Tea, error) {
+	if err := authPkg.RequireUserOrAdmin(ctx); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
+
+	operationCtx, operationErr := catalogueMutationContext(ctx, expectedRevision, idempotencyKey)
+	if operationErr != nil {
+		return nil, castGQLError(ctx, operationErr)
+	}
+
+	ctx = operationCtx
+
+	if err := r.images.Add(ctx, uuid.UUID(teaID), imageBase64); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
+
+	record, err := r.NotifyUpdate(ctx, uuid.UUID(teaID))
+	if err != nil {
+		return nil, castGQLError(ctx, err)
+	}
+
+	return model.FromCommonTea(record), nil
+}
+
+// DeleteTeaImage is the resolver for the deleteTeaImage field.
+func (r *mutationResolver) DeleteTeaImage(ctx context.Context, teaID common.ID, imageID common.ID, expectedRevision *string) (*model.Tea, error) {
+	if err := authPkg.RequireAdmin(ctx); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
+
+	operationCtx, operationErr := catalogueMutationContext(ctx, expectedRevision, nil)
+	if operationErr != nil {
+		return nil, castGQLError(ctx, operationErr)
+	}
+
+	ctx = operationCtx
+
+	if err := r.images.DeleteTeaImage(ctx, uuid.UUID(teaID), uuid.UUID(imageID)); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
+
+	record, err := r.NotifyUpdate(ctx, uuid.UUID(teaID))
+	if err != nil {
+		return nil, castGQLError(ctx, err)
+	}
+
+	return model.FromCommonTea(record), nil
+}
+
+// SetTeaCoverImage is the resolver for the setTeaCoverImage field.
+func (r *mutationResolver) SetTeaCoverImage(ctx context.Context, teaID common.ID, imageID common.ID, expectedRevision *string) (*model.Tea, error) {
+	if err := authPkg.RequireUserOrAdmin(ctx); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
+
+	operationCtx, operationErr := catalogueMutationContext(ctx, expectedRevision, nil)
+	if operationErr != nil {
+		return nil, castGQLError(ctx, operationErr)
+	}
+
+	ctx = operationCtx
+
+	if err := r.images.SetTeaCoverImage(ctx, uuid.UUID(teaID), uuid.UUID(imageID)); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
+
+	record, err := r.NotifyUpdate(ctx, uuid.UUID(teaID))
+	if err != nil {
+		return nil, castGQLError(ctx, err)
+	}
+
+	return model.FromCommonTea(record), nil
+}
+
 // WriteToQR is the resolver for the writeToQR field.
 func (r *mutationResolver) WriteToQR(ctx context.Context, id common.ID, data model.QRRecordData) (*model.QRRecord, error) {
+	if err := authPkg.RequireUserOrAdmin(ctx); err != nil {
+		return nil, castGQLError(ctx, err)
+	}
+
 	if err := r.Set(ctx, uuid.UUID(id), &data); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
@@ -129,6 +258,7 @@ func (r *mutationResolver) WriteToQR(ctx context.Context, id common.ID, data mod
 		ID: id,
 		Tea: &model.Tea{
 			ID:          common.ID(tea.ID),
+			Revision:    tea.Revision,
 			Name:        tea.Name,
 			Type:        model.FromBeverageType(tea.Type),
 			Description: tea.Description,
@@ -149,32 +279,50 @@ func (r *mutationResolver) CreateTagCategory(ctx context.Context, name string) (
 	}
 
 	return &model.TagCategory{
-		ID:   common.ID(category.ID),
-		Name: category.Name,
+		ID:       common.ID(category.ID),
+		Revision: category.Revision,
+		Name:     category.Name,
 	}, nil
 }
 
 // UpdateTagCategory is the resolver for the updateTagCategory field.
-func (r *mutationResolver) UpdateTagCategory(ctx context.Context, id common.ID, name string) (*model.TagCategory, error) {
+func (r *mutationResolver) UpdateTagCategory(ctx context.Context, id common.ID, name string, expectedRevision *string) (*model.TagCategory, error) {
 	if err := authPkg.RequireAdmin(ctx); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
+
+	operationCtx, operationErr := catalogueMutationContext(ctx, expectedRevision, nil)
+	if operationErr != nil {
+		return nil, castGQLError(ctx, operationErr)
+	}
+
+	ctx = operationCtx
+
 	cat, err := r.UpdateCategory(ctx, uuid.UUID(id), name)
 	if err != nil {
 		return nil, castGQLError(ctx, err)
 	}
 
 	return &model.TagCategory{
-		ID:   common.ID(cat.ID),
-		Name: cat.Name,
+		ID:       common.ID(cat.ID),
+		Revision: cat.Revision,
+		Name:     cat.Name,
 	}, nil
 }
 
 // DeleteTagCategory is the resolver for the deleteTagCategory field.
-func (r *mutationResolver) DeleteTagCategory(ctx context.Context, id common.ID) (common.ID, error) {
+func (r *mutationResolver) DeleteTagCategory(ctx context.Context, id common.ID, expectedRevision *string) (common.ID, error) {
 	if err := authPkg.RequireAdmin(ctx); err != nil {
 		return common.ID{}, castGQLError(ctx, err)
 	}
+
+	operationCtx, operationErr := catalogueMutationContext(ctx, expectedRevision, nil)
+	if operationErr != nil {
+		return common.ID{}, castGQLError(ctx, operationErr)
+	}
+
+	ctx = operationCtx
+
 	if err := r.DeleteCategory(ctx, uuid.UUID(id)); err != nil {
 		return common.ID{}, castGQLError(ctx, err)
 	}
@@ -193,51 +341,81 @@ func (r *mutationResolver) CreateTag(ctx context.Context, name string, color str
 	}
 
 	return &model.Tag{
-		ID:    common.ID(tag.ID),
-		Name:  tag.Name,
-		Color: tag.Color,
+		ID:       common.ID(tag.ID),
+		Revision: tag.Revision,
+		Name:     tag.Name,
+		Color:    tag.Color,
+		Category: &model.TagCategory{ID: common.ID(tag.CategoryID)},
 	}, nil
 }
 
 // UpdateTag is the resolver for the updateTag field.
-func (r *mutationResolver) UpdateTag(ctx context.Context, id common.ID, name string, color string) (*model.Tag, error) {
+func (r *mutationResolver) UpdateTag(ctx context.Context, id common.ID, name string, color string, expectedRevision *string) (*model.Tag, error) {
 	if err := authPkg.RequireAdmin(ctx); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
+
+	operationCtx, operationErr := catalogueMutationContext(ctx, expectedRevision, nil)
+	if operationErr != nil {
+		return nil, castGQLError(ctx, operationErr)
+	}
+
+	ctx = operationCtx
+
 	tag, err := r.tagManager.Update(ctx, uuid.UUID(id), name, color)
 	if err != nil {
 		return nil, castGQLError(ctx, err)
 	}
 
 	return &model.Tag{
-		ID:    common.ID(tag.ID),
-		Name:  tag.Name,
-		Color: tag.Color,
+		ID:       common.ID(tag.ID),
+		Revision: tag.Revision,
+		Name:     tag.Name,
+		Color:    tag.Color,
+		Category: &model.TagCategory{ID: common.ID(tag.CategoryID)},
 	}, nil
 }
 
 // ChangeTagCategory is the resolver for the changeTagCategory field.
-func (r *mutationResolver) ChangeTagCategory(ctx context.Context, id common.ID, category common.ID) (*model.Tag, error) {
+func (r *mutationResolver) ChangeTagCategory(ctx context.Context, id common.ID, category common.ID, expectedRevision *string) (*model.Tag, error) {
 	if err := authPkg.RequireAdmin(ctx); err != nil {
 		return nil, castGQLError(ctx, err)
 	}
+
+	operationCtx, operationErr := catalogueMutationContext(ctx, expectedRevision, nil)
+	if operationErr != nil {
+		return nil, castGQLError(ctx, operationErr)
+	}
+
+	ctx = operationCtx
+
 	tag, err := r.ChangeCategory(ctx, uuid.UUID(id), uuid.UUID(category))
 	if err != nil {
 		return nil, castGQLError(ctx, err)
 	}
 
 	return &model.Tag{
-		ID:    common.ID(tag.ID),
-		Name:  tag.Name,
-		Color: tag.Color,
+		ID:       common.ID(tag.ID),
+		Revision: tag.Revision,
+		Name:     tag.Name,
+		Color:    tag.Color,
+		Category: &model.TagCategory{ID: common.ID(tag.CategoryID)},
 	}, nil
 }
 
 // DeleteTag is the resolver for the deleteTag field.
-func (r *mutationResolver) DeleteTag(ctx context.Context, id common.ID) (common.ID, error) {
+func (r *mutationResolver) DeleteTag(ctx context.Context, id common.ID, expectedRevision *string) (common.ID, error) {
 	if err := authPkg.RequireAdmin(ctx); err != nil {
 		return common.ID{}, castGQLError(ctx, err)
 	}
+
+	operationCtx, operationErr := catalogueMutationContext(ctx, expectedRevision, nil)
+	if operationErr != nil {
+		return common.ID{}, castGQLError(ctx, operationErr)
+	}
+
+	ctx = operationCtx
+
 	if err := r.tagManager.Delete(ctx, uuid.UUID(id)); err != nil {
 		return common.ID{}, castGQLError(ctx, err)
 	}
@@ -324,7 +502,12 @@ func (r *mutationResolver) DeleteCollection(ctx context.Context, id common.ID) (
 
 // RegisterDeviceToken is the resolver for the registerDeviceToken field.
 func (r *mutationResolver) RegisterDeviceToken(ctx context.Context, deviceID common.ID, deviceToken string) (bool, error) {
-	if err := r.notificationsManager.RegisterDeviceToken(ctx, uuid.UUID(deviceID), deviceToken); err != nil {
+	user, err := authPkg.GetUser(ctx)
+	if err != nil {
+		return false, castGQLError(ctx, err)
+	}
+
+	if err := r.notificationsManager.RegisterDeviceToken(ctx, user.ID, uuid.UUID(deviceID), deviceToken); err != nil {
 		return false, castGQLError(ctx, err)
 	}
 
@@ -390,6 +573,26 @@ func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
 	return &model.User{TokenExpiredAt: user.ExpiredAt}, nil
 }
 
+// EditorCapabilities is the resolver for the editorCapabilities field.
+func (r *queryResolver) EditorCapabilities(ctx context.Context) (*model.EditorCapabilities, error) {
+	return r.editorCapabilities(ctx)
+}
+
+// EditorOperationReceipt is the resolver for the editorOperationReceipt field.
+func (r *queryResolver) EditorOperationReceipt(ctx context.Context, idempotencyKey string) (*model.CatalogueOperationReceipt, error) {
+	return r.editorOperationReceipt(ctx, idempotencyKey)
+}
+
+// PreviewTeaMerge is the resolver for the previewTeaMerge field.
+func (r *queryResolver) PreviewTeaMerge(ctx context.Context, sourceTeaID common.ID, targetTeaID common.ID) (*model.TeaMergePreview, error) {
+	return r.previewTeaMerge(ctx, sourceTeaID, targetTeaID)
+}
+
+// EditorTeaMergeReceipt is the resolver for the editorTeaMergeReceipt field.
+func (r *queryResolver) EditorTeaMergeReceipt(ctx context.Context, sourceTeaID common.ID, targetTeaID common.ID, expectedSourceRevision string, expectedTargetRevision string, previewToken string, idempotencyKey string) (*model.TeaMergeResult, error) {
+	return r.editorTeaMergeReceipt(ctx, sourceTeaID, targetTeaID, expectedSourceRevision, expectedTargetRevision, previewToken, idempotencyKey)
+}
+
 // Teas is the resolver for the teas field.
 func (r *queryResolver) Teas(ctx context.Context, prefix *string) ([]*model.Tea, error) {
 	res, err := r.teaData.List(ctx, prefix)
@@ -453,9 +656,10 @@ func (r *queryResolver) Tag(ctx context.Context, id common.ID) (*model.Tag, erro
 	}
 
 	return &model.Tag{
-		ID:    common.ID(tag.ID),
-		Name:  tag.Name,
-		Color: tag.Color,
+		ID:       common.ID(tag.ID),
+		Revision: tag.Revision,
+		Name:     tag.Name,
+		Color:    tag.Color,
 		Category: &model.TagCategory{
 			ID: common.ID(tag.CategoryID),
 		},
@@ -472,8 +676,9 @@ func (r *queryResolver) TagsCategories(ctx context.Context, name *string) ([]*mo
 	result := make([]*model.TagCategory, len(categories))
 	for i, cat := range categories {
 		result[i] = &model.TagCategory{
-			ID:   common.ID(cat.ID),
-			Name: cat.Name,
+			ID:       common.ID(cat.ID),
+			Revision: cat.Revision,
+			Name:     cat.Name,
 		}
 	}
 
@@ -505,6 +710,14 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 	now := time.Now()
 	// Try cache first: cache is per-user and expires at next local midnight.
 	if cached, ok := r.todCache.Get(user.ID, now); ok {
+		// The selected QR is stable across a merge; reload its current Tea without
+		// recomputing the recommendation or recording another consumption event.
+		refreshed, refreshErr := r.refreshTeaOfDaySelection(ctx, cached)
+		if refreshErr != nil {
+			return nil, castGQLError(ctx, refreshErr)
+		}
+
+		cached = refreshed
 		if r.log != nil {
 			r.log.
 				WithField(logKeyUser, user.ID.String()).
@@ -635,17 +848,16 @@ func (r *queryResolver) TeaOfTheDay(ctx context.Context) (*model.TeaOfTheDay, er
 		return nil, ErrNoTeaCandidates
 	}
 
-	if err := r.consumption.Record(ctx, user.ID, bestID, now); err != nil && r.log != nil {
-		r.log.WithField(logKeyUser, user.ID.String()).WithField(logKeyErr, err).Debug("tea_of_day record consumption failed")
-	}
-
 	// Build QRRecord for the selected tea using the earliest record we observed
 	qrr := earliestRec[common.ID(bestID)]
 	if qrr == nil {
 		return nil, ErrNoTeaCandidates
 	}
 
-	res := &model.TeaOfTheDay{Tea: qrr, Date: now}
+	res, finalErr := r.finalizeTeaOfDaySelection(ctx, user.ID, &model.TeaOfTheDay{Tea: qrr, Date: now})
+	if finalErr != nil {
+		return nil, castGQLError(ctx, finalErr)
+	}
 	r.todCache.Set(user.ID, res, now)
 	return res, nil
 }
@@ -813,8 +1025,9 @@ func (r *tagResolver) Category(ctx context.Context, obj *model.Tag) (*model.TagC
 	}
 
 	return &model.TagCategory{
-		ID:   common.ID(cat.ID),
-		Name: cat.Name,
+		ID:       common.ID(cat.ID),
+		Revision: cat.Revision,
+		Name:     cat.Name,
 	}, nil
 }
 
@@ -843,14 +1056,16 @@ func (r *tagCategoryResolver) Tags(ctx context.Context, obj *model.TagCategory, 
 	catMap := map[uuid.UUID]*model.TagCategory{}
 	for _, ctg := range categories {
 		catMap[ctg.ID] = &model.TagCategory{
-			ID:   common.ID(ctg.ID),
-			Name: ctg.Name,
+			ID:       common.ID(ctg.ID),
+			Revision: ctg.Revision,
+			Name:     ctg.Name,
 		}
 	}
 
 	for i, tag := range tags {
 		result[i] = &model.Tag{
 			ID:       common.ID(tag.ID),
+			Revision: tag.Revision,
 			Name:     tag.Name,
 			Color:    tag.Color,
 			Category: catMap[tag.CategoryID],
@@ -862,6 +1077,9 @@ func (r *tagCategoryResolver) Tags(ctx context.Context, obj *model.TagCategory, 
 
 // Tags is the resolver for the tags field.
 func (r *teaResolver) Tags(ctx context.Context, obj *model.Tea) ([]*model.Tag, error) {
+	if obj.Tags != nil {
+		return obj.Tags, nil
+	}
 	tags, err := r.ListByTea(ctx, uuid.UUID(obj.ID))
 	if err != nil {
 		return nil, castGQLError(ctx, err)
@@ -871,10 +1089,41 @@ func (r *teaResolver) Tags(ctx context.Context, obj *model.Tea) ([]*model.Tag, e
 	for i, t := range tags {
 		result[i] = &model.Tag{
 			ID:       common.ID(t.ID),
+			Revision: t.Revision,
 			Name:     t.Name,
 			Color:    t.Color,
 			Category: &model.TagCategory{ID: common.ID(t.CategoryID)},
 		}
+	}
+
+	return result, nil
+}
+
+// Images is the resolver for the images field.
+func (r *teaResolver) Images(ctx context.Context, obj *model.Tea) ([]*model.TeaImage, error) {
+	if obj.Images != nil {
+		return obj.Images, nil
+	}
+	result := make([]*model.TeaImage, 0)
+	if r.images == nil {
+		return result, nil
+	}
+
+	images, err := r.images.ListTeaImages(ctx, uuid.UUID(obj.ID))
+	if err != nil {
+		return nil, castGQLError(ctx, err)
+	}
+
+	for _, item := range images {
+		result = append(result, &model.TeaImage{
+			ID:          common.ID(item.ID),
+			URL:         "/v2/tea-images/" + item.ID.String(),
+			ContentType: item.ContentType,
+			Width:       item.Width,
+			Height:      item.Height,
+			CreatedAt:   item.CreatedAt,
+			IsCover:     item.IsCover,
+		})
 	}
 
 	return result, nil

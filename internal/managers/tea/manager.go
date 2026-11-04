@@ -2,6 +2,7 @@ package tea
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 
@@ -12,7 +13,9 @@ import (
 )
 
 type Manager interface {
+	NotifyUpdate(ctx context.Context, id uuid.UUID) (*common.Tea, error)
 	Create(ctx context.Context, data *common.TeaData) (tea *common.Tea, err error)
+	CreateWithTags(ctx context.Context, data *common.TeaData, tagIDs []uuid.UUID) (*common.Tea, error)
 	Update(ctx context.Context, id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	Get(ctx context.Context, id uuid.UUID) (record *common.Tea, err error)
@@ -25,6 +28,7 @@ type Manager interface {
 
 type storage interface {
 	WriteRecord(ctx context.Context, rec *common.TeaData) (record *common.Tea, err error)
+	WriteRecordWithTags(ctx context.Context, rec *common.TeaData, tagIDs []uuid.UUID) (*common.Tea, error)
 	ReadRecord(ctx context.Context, id uuid.UUID) (record *common.Tea, err error)
 	ReadAllRecords(ctx context.Context, search string) ([]common.Tea, error)
 	Update(ctx context.Context, id uuid.UUID, rec *common.TeaData) (record *common.Tea, err error)
@@ -80,7 +84,23 @@ func (m *manager) Create(ctx context.Context, data *common.TeaData) (*common.Tea
 		return nil, err
 	}
 
-	m.create <- res
+	if !res.CreationReplayed {
+		m.create <- res
+	}
+
+	return res, nil
+}
+
+// CreateWithTags publishes a new Tea only after its initial tag links are committed.
+func (m *manager) CreateWithTags(ctx context.Context, data *common.TeaData, tagIDs []uuid.UUID) (*common.Tea, error) {
+	res, err := m.WriteRecordWithTags(ctx, data, tagIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	if !res.CreationReplayed {
+		m.create <- res
+	}
 
 	return res, nil
 }
@@ -119,5 +139,36 @@ func NewManager(storage storage) Manager {
 		create:            make(chan *common.Tea, 100),
 		update:            make(chan *common.Tea, 100),
 		delete:            make(chan uuid.UUID, 100),
+	}
+}
+
+// NotifyUpdate publishes a catalog change without overwriting the tea metadata.
+func (m *manager) NotifyUpdate(ctx context.Context, id uuid.UUID) (*common.Tea, error) {
+	record, err := m.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	select {
+	case m.update <- record:
+		return record, nil
+	case <-ctx.Done():
+		return nil, fmt.Errorf("publish tea update: %w", ctx.Err())
+	}
+}
+
+// NotifyMerge publishes the committed target update and source removal without deleting storage twice.
+func (m *manager) NotifyMerge(ctx context.Context, source uuid.UUID, target *common.Tea) error {
+	select {
+	case m.update <- target:
+	case <-ctx.Done():
+		return fmt.Errorf("publish merged Tea update: %w", ctx.Err())
+	}
+
+	select {
+	case m.delete <- source:
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("publish merged Tea removal: %w", ctx.Err())
 	}
 }

@@ -44,6 +44,15 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	CatalogueOperationReceipt struct {
+		CompletedAt    func(childComplexity int) int
+		IdempotencyKey func(childComplexity int) int
+		Operation      func(childComplexity int) int
+		ResourceID     func(childComplexity int) int
+		ResultRevision func(childComplexity int) int
+		TeaID          func(childComplexity int) int
+	}
+
 	Collection struct {
 		ID      func(childComplexity int) int
 		Name    func(childComplexity int) int
@@ -51,27 +60,38 @@ type ComplexityRoot struct {
 		UserID  func(childComplexity int) int
 	}
 
+	EditorCapabilities struct {
+		ProtocolVersion     func(childComplexity int) int
+		SupportsIdempotency func(childComplexity int) int
+		SupportsRevisions   func(childComplexity int) int
+		SupportsTeaMerge    func(childComplexity int) int
+	}
+
 	Mutation struct {
 		AddRecordsToCollection      func(childComplexity int, id common.ID, records []common.ID) int
-		AddTagToTea                 func(childComplexity int, teaID common.ID, tagID common.ID) int
+		AddTagToTea                 func(childComplexity int, teaID common.ID, tagID common.ID, expectedRevision *string) int
+		AddTeaImage                 func(childComplexity int, teaID common.ID, imageBase64 string, expectedRevision *string, idempotencyKey *string) int
 		AuthApple                   func(childComplexity int, appleCode string, deviceID common.ID) int
-		ChangeTagCategory           func(childComplexity int, id common.ID, category common.ID) int
+		ChangeTagCategory           func(childComplexity int, id common.ID, category common.ID, expectedRevision *string) int
 		CreateCollection            func(childComplexity int, name string) int
 		CreateTag                   func(childComplexity int, name string, color string, category common.ID) int
 		CreateTagCategory           func(childComplexity int, name string) int
 		DeleteCollection            func(childComplexity int, id common.ID) int
 		DeleteRecordsFromCollection func(childComplexity int, id common.ID, records []common.ID) int
-		DeleteTag                   func(childComplexity int, id common.ID) int
-		DeleteTagCategory           func(childComplexity int, id common.ID) int
-		DeleteTagFromTea            func(childComplexity int, teaID common.ID, tagID common.ID) int
-		DeleteTea                   func(childComplexity int, id common.ID) int
-		NewTea                      func(childComplexity int, tea model.TeaData) int
+		DeleteTag                   func(childComplexity int, id common.ID, expectedRevision *string) int
+		DeleteTagCategory           func(childComplexity int, id common.ID, expectedRevision *string) int
+		DeleteTagFromTea            func(childComplexity int, teaID common.ID, tagID common.ID, expectedRevision *string) int
+		DeleteTea                   func(childComplexity int, id common.ID, expectedRevision *string) int
+		DeleteTeaImage              func(childComplexity int, teaID common.ID, imageID common.ID, expectedRevision *string) int
+		MergeTeas                   func(childComplexity int, sourceTeaID common.ID, targetTeaID common.ID, expectedSourceRevision string, expectedTargetRevision string, previewToken string, idempotencyKey string) int
+		NewTea                      func(childComplexity int, tea model.TeaData, tagIDs []common.ID, idempotencyKey *string) int
 		RegisterDeviceToken         func(childComplexity int, deviceID common.ID, deviceToken string) int
 		Send                        func(childComplexity int) int
+		SetTeaCoverImage            func(childComplexity int, teaID common.ID, imageID common.ID, expectedRevision *string) int
 		TeaRecommendation           func(childComplexity int, collectionID common.ID, feelings string) int
-		UpdateTag                   func(childComplexity int, id common.ID, name string, color string) int
-		UpdateTagCategory           func(childComplexity int, id common.ID, name string) int
-		UpdateTea                   func(childComplexity int, id common.ID, tea model.TeaData) int
+		UpdateTag                   func(childComplexity int, id common.ID, name string, color string, expectedRevision *string) int
+		UpdateTagCategory           func(childComplexity int, id common.ID, name string, expectedRevision *string) int
+		UpdateTea                   func(childComplexity int, id common.ID, tea model.TeaData, expectedRevision *string) int
 		WriteToQR                   func(childComplexity int, id common.ID, data model.QRRecordData) int
 	}
 
@@ -87,15 +107,19 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		Collections         func(childComplexity int) int
-		GenerateDescription func(childComplexity int, name string) int
-		Me                  func(childComplexity int) int
-		QRRecord            func(childComplexity int, id common.ID) int
-		Tag                 func(childComplexity int, id common.ID) int
-		TagsCategories      func(childComplexity int, name *string) int
-		Tea                 func(childComplexity int, id common.ID) int
-		TeaOfTheDay         func(childComplexity int) int
-		Teas                func(childComplexity int, prefix *string) int
+		Collections            func(childComplexity int) int
+		EditorCapabilities     func(childComplexity int) int
+		EditorOperationReceipt func(childComplexity int, idempotencyKey string) int
+		EditorTeaMergeReceipt  func(childComplexity int, sourceTeaID common.ID, targetTeaID common.ID, expectedSourceRevision string, expectedTargetRevision string, previewToken string, idempotencyKey string) int
+		GenerateDescription    func(childComplexity int, name string) int
+		Me                     func(childComplexity int) int
+		PreviewTeaMerge        func(childComplexity int, sourceTeaID common.ID, targetTeaID common.ID) int
+		QRRecord               func(childComplexity int, id common.ID) int
+		Tag                    func(childComplexity int, id common.ID) int
+		TagsCategories         func(childComplexity int, name *string) int
+		Tea                    func(childComplexity int, id common.ID) int
+		TeaOfTheDay            func(childComplexity int) int
+		Teas                   func(childComplexity int, prefix *string) int
 	}
 
 	Session struct {
@@ -124,20 +148,63 @@ type ComplexityRoot struct {
 		Color    func(childComplexity int) int
 		ID       func(childComplexity int) int
 		Name     func(childComplexity int) int
+		Revision func(childComplexity int) int
 	}
 
 	TagCategory struct {
-		ID   func(childComplexity int) int
-		Name func(childComplexity int) int
-		Tags func(childComplexity int, name *string) int
+		ID       func(childComplexity int) int
+		Name     func(childComplexity int) int
+		Revision func(childComplexity int) int
+		Tags     func(childComplexity int, name *string) int
 	}
 
 	Tea struct {
 		Description func(childComplexity int) int
 		ID          func(childComplexity int) int
+		Images      func(childComplexity int) int
 		Name        func(childComplexity int) int
+		Revision    func(childComplexity int) int
 		Tags        func(childComplexity int) int
 		Type        func(childComplexity int) int
+	}
+
+	TeaImage struct {
+		ContentType func(childComplexity int) int
+		CreatedAt   func(childComplexity int) int
+		Height      func(childComplexity int) int
+		ID          func(childComplexity int) int
+		IsCover     func(childComplexity int) int
+		URL         func(childComplexity int) int
+		Width       func(childComplexity int) int
+	}
+
+	TeaMergePreview struct {
+		Blockers                  func(childComplexity int) int
+		CollectionMembershipCount func(childComplexity int) int
+		ConsumptionCount          func(childComplexity int) int
+		CoverPolicy               func(childComplexity int) int
+		ImagesToMove              func(childComplexity int) int
+		MetadataPolicy            func(childComplexity int) int
+		PreviewToken              func(childComplexity int) int
+		QRCount                   func(childComplexity int) int
+		ResultingCoverImageID     func(childComplexity int) int
+		ResultingImageCount       func(childComplexity int) int
+		SourceTea                 func(childComplexity int) int
+		TagsToAdd                 func(childComplexity int) int
+		TargetTea                 func(childComplexity int) int
+	}
+
+	TeaMergeResult struct {
+		CollectionMembershipCount func(childComplexity int) int
+		ConsumptionsMoved         func(childComplexity int) int
+		ImagesMoved               func(childComplexity int) int
+		QRCount                   func(childComplexity int) int
+		Receipt                   func(childComplexity int) int
+		Replayed                  func(childComplexity int) int
+		SourceTeaID               func(childComplexity int) int
+		TagsAdded                 func(childComplexity int) int
+		TargetTea                 func(childComplexity int) int
+		TargetTeaID               func(childComplexity int) int
 	}
 
 	TeaOfTheDay struct {
@@ -161,19 +228,23 @@ type CollectionResolver interface {
 }
 type MutationResolver interface {
 	AuthApple(ctx context.Context, appleCode string, deviceID common.ID) (*model.Session, error)
-	NewTea(ctx context.Context, tea model.TeaData) (*model.Tea, error)
-	UpdateTea(ctx context.Context, id common.ID, tea model.TeaData) (*model.Tea, error)
-	AddTagToTea(ctx context.Context, teaID common.ID, tagID common.ID) (*model.Tea, error)
-	DeleteTagFromTea(ctx context.Context, teaID common.ID, tagID common.ID) (*model.Tea, error)
-	DeleteTea(ctx context.Context, id common.ID) (common.ID, error)
+	NewTea(ctx context.Context, tea model.TeaData, tagIDs []common.ID, idempotencyKey *string) (*model.Tea, error)
+	UpdateTea(ctx context.Context, id common.ID, tea model.TeaData, expectedRevision *string) (*model.Tea, error)
+	AddTagToTea(ctx context.Context, teaID common.ID, tagID common.ID, expectedRevision *string) (*model.Tea, error)
+	DeleteTagFromTea(ctx context.Context, teaID common.ID, tagID common.ID, expectedRevision *string) (*model.Tea, error)
+	DeleteTea(ctx context.Context, id common.ID, expectedRevision *string) (common.ID, error)
+	MergeTeas(ctx context.Context, sourceTeaID common.ID, targetTeaID common.ID, expectedSourceRevision string, expectedTargetRevision string, previewToken string, idempotencyKey string) (*model.TeaMergeResult, error)
+	AddTeaImage(ctx context.Context, teaID common.ID, imageBase64 string, expectedRevision *string, idempotencyKey *string) (*model.Tea, error)
+	DeleteTeaImage(ctx context.Context, teaID common.ID, imageID common.ID, expectedRevision *string) (*model.Tea, error)
+	SetTeaCoverImage(ctx context.Context, teaID common.ID, imageID common.ID, expectedRevision *string) (*model.Tea, error)
 	WriteToQR(ctx context.Context, id common.ID, data model.QRRecordData) (*model.QRRecord, error)
 	CreateTagCategory(ctx context.Context, name string) (*model.TagCategory, error)
-	UpdateTagCategory(ctx context.Context, id common.ID, name string) (*model.TagCategory, error)
-	DeleteTagCategory(ctx context.Context, id common.ID) (common.ID, error)
+	UpdateTagCategory(ctx context.Context, id common.ID, name string, expectedRevision *string) (*model.TagCategory, error)
+	DeleteTagCategory(ctx context.Context, id common.ID, expectedRevision *string) (common.ID, error)
 	CreateTag(ctx context.Context, name string, color string, category common.ID) (*model.Tag, error)
-	UpdateTag(ctx context.Context, id common.ID, name string, color string) (*model.Tag, error)
-	ChangeTagCategory(ctx context.Context, id common.ID, category common.ID) (*model.Tag, error)
-	DeleteTag(ctx context.Context, id common.ID) (common.ID, error)
+	UpdateTag(ctx context.Context, id common.ID, name string, color string, expectedRevision *string) (*model.Tag, error)
+	ChangeTagCategory(ctx context.Context, id common.ID, category common.ID, expectedRevision *string) (*model.Tag, error)
+	DeleteTag(ctx context.Context, id common.ID, expectedRevision *string) (common.ID, error)
 	CreateCollection(ctx context.Context, name string) (*model.Collection, error)
 	AddRecordsToCollection(ctx context.Context, id common.ID, records []common.ID) (*model.Collection, error)
 	DeleteRecordsFromCollection(ctx context.Context, id common.ID, records []common.ID) (*model.Collection, error)
@@ -184,6 +255,10 @@ type MutationResolver interface {
 }
 type QueryResolver interface {
 	Me(ctx context.Context) (*model.User, error)
+	EditorCapabilities(ctx context.Context) (*model.EditorCapabilities, error)
+	EditorOperationReceipt(ctx context.Context, idempotencyKey string) (*model.CatalogueOperationReceipt, error)
+	PreviewTeaMerge(ctx context.Context, sourceTeaID common.ID, targetTeaID common.ID) (*model.TeaMergePreview, error)
+	EditorTeaMergeReceipt(ctx context.Context, sourceTeaID common.ID, targetTeaID common.ID, expectedSourceRevision string, expectedTargetRevision string, previewToken string, idempotencyKey string) (*model.TeaMergeResult, error)
 	Teas(ctx context.Context, prefix *string) ([]*model.Tea, error)
 	Tea(ctx context.Context, id common.ID) (*model.Tea, error)
 	GenerateDescription(ctx context.Context, name string) (string, error)
@@ -216,6 +291,7 @@ type TagCategoryResolver interface {
 }
 type TeaResolver interface {
 	Tags(ctx context.Context, obj *model.Tea) ([]*model.Tag, error)
+	Images(ctx context.Context, obj *model.Tea) ([]*model.TeaImage, error)
 }
 type UserResolver interface {
 	Collections(ctx context.Context, obj *model.User) ([]*model.Collection, error)
@@ -239,6 +315,43 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	ec := newExecutionContext(nil, e, nil)
 	_ = ec
 	switch typeName + "." + field {
+
+	case "CatalogueOperationReceipt.completedAt":
+		if e.ComplexityRoot.CatalogueOperationReceipt.CompletedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CatalogueOperationReceipt.CompletedAt(childComplexity), true
+	case "CatalogueOperationReceipt.idempotencyKey":
+		if e.ComplexityRoot.CatalogueOperationReceipt.IdempotencyKey == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CatalogueOperationReceipt.IdempotencyKey(childComplexity), true
+	case "CatalogueOperationReceipt.operation":
+		if e.ComplexityRoot.CatalogueOperationReceipt.Operation == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CatalogueOperationReceipt.Operation(childComplexity), true
+	case "CatalogueOperationReceipt.resourceID":
+		if e.ComplexityRoot.CatalogueOperationReceipt.ResourceID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CatalogueOperationReceipt.ResourceID(childComplexity), true
+	case "CatalogueOperationReceipt.resultRevision":
+		if e.ComplexityRoot.CatalogueOperationReceipt.ResultRevision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CatalogueOperationReceipt.ResultRevision(childComplexity), true
+	case "CatalogueOperationReceipt.teaID":
+		if e.ComplexityRoot.CatalogueOperationReceipt.TeaID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CatalogueOperationReceipt.TeaID(childComplexity), true
 
 	case "Collection.id":
 		if e.ComplexityRoot.Collection.ID == nil {
@@ -265,6 +378,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Collection.UserID(childComplexity), true
 
+	case "EditorCapabilities.protocolVersion":
+		if e.ComplexityRoot.EditorCapabilities.ProtocolVersion == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EditorCapabilities.ProtocolVersion(childComplexity), true
+	case "EditorCapabilities.supportsIdempotency":
+		if e.ComplexityRoot.EditorCapabilities.SupportsIdempotency == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EditorCapabilities.SupportsIdempotency(childComplexity), true
+	case "EditorCapabilities.supportsRevisions":
+		if e.ComplexityRoot.EditorCapabilities.SupportsRevisions == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EditorCapabilities.SupportsRevisions(childComplexity), true
+	case "EditorCapabilities.supportsTeaMerge":
+		if e.ComplexityRoot.EditorCapabilities.SupportsTeaMerge == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EditorCapabilities.SupportsTeaMerge(childComplexity), true
+
 	case "Mutation.addRecordsToCollection":
 		if e.ComplexityRoot.Mutation.AddRecordsToCollection == nil {
 			break
@@ -286,7 +424,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.AddTagToTea(childComplexity, args["teaID"].(common.ID), args["tagID"].(common.ID)), true
+		return e.ComplexityRoot.Mutation.AddTagToTea(childComplexity, args["teaID"].(common.ID), args["tagID"].(common.ID), args["expectedRevision"].(*string)), true
+	case "Mutation.addTeaImage":
+		if e.ComplexityRoot.Mutation.AddTeaImage == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_addTeaImage_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.AddTeaImage(childComplexity, args["teaID"].(common.ID), args["imageBase64"].(string), args["expectedRevision"].(*string), args["idempotencyKey"].(*string)), true
 	case "Mutation.authApple":
 		if e.ComplexityRoot.Mutation.AuthApple == nil {
 			break
@@ -308,7 +457,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.ChangeTagCategory(childComplexity, args["id"].(common.ID), args["category"].(common.ID)), true
+		return e.ComplexityRoot.Mutation.ChangeTagCategory(childComplexity, args["id"].(common.ID), args["category"].(common.ID), args["expectedRevision"].(*string)), true
 	case "Mutation.createCollection":
 		if e.ComplexityRoot.Mutation.CreateCollection == nil {
 			break
@@ -374,7 +523,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.DeleteTag(childComplexity, args["id"].(common.ID)), true
+		return e.ComplexityRoot.Mutation.DeleteTag(childComplexity, args["id"].(common.ID), args["expectedRevision"].(*string)), true
 	case "Mutation.deleteTagCategory":
 		if e.ComplexityRoot.Mutation.DeleteTagCategory == nil {
 			break
@@ -385,7 +534,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.DeleteTagCategory(childComplexity, args["id"].(common.ID)), true
+		return e.ComplexityRoot.Mutation.DeleteTagCategory(childComplexity, args["id"].(common.ID), args["expectedRevision"].(*string)), true
 	case "Mutation.deleteTagFromTea":
 		if e.ComplexityRoot.Mutation.DeleteTagFromTea == nil {
 			break
@@ -396,7 +545,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.DeleteTagFromTea(childComplexity, args["teaID"].(common.ID), args["tagID"].(common.ID)), true
+		return e.ComplexityRoot.Mutation.DeleteTagFromTea(childComplexity, args["teaID"].(common.ID), args["tagID"].(common.ID), args["expectedRevision"].(*string)), true
 	case "Mutation.deleteTea":
 		if e.ComplexityRoot.Mutation.DeleteTea == nil {
 			break
@@ -407,7 +556,29 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.DeleteTea(childComplexity, args["id"].(common.ID)), true
+		return e.ComplexityRoot.Mutation.DeleteTea(childComplexity, args["id"].(common.ID), args["expectedRevision"].(*string)), true
+	case "Mutation.deleteTeaImage":
+		if e.ComplexityRoot.Mutation.DeleteTeaImage == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteTeaImage_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DeleteTeaImage(childComplexity, args["teaID"].(common.ID), args["imageID"].(common.ID), args["expectedRevision"].(*string)), true
+	case "Mutation.mergeTeas":
+		if e.ComplexityRoot.Mutation.MergeTeas == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_mergeTeas_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.MergeTeas(childComplexity, args["sourceTeaID"].(common.ID), args["targetTeaID"].(common.ID), args["expectedSourceRevision"].(string), args["expectedTargetRevision"].(string), args["previewToken"].(string), args["idempotencyKey"].(string)), true
 	case "Mutation.newTea":
 		if e.ComplexityRoot.Mutation.NewTea == nil {
 			break
@@ -418,7 +589,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.NewTea(childComplexity, args["tea"].(model.TeaData)), true
+		return e.ComplexityRoot.Mutation.NewTea(childComplexity, args["tea"].(model.TeaData), args["tagIDs"].([]common.ID), args["idempotencyKey"].(*string)), true
 	case "Mutation.registerDeviceToken":
 		if e.ComplexityRoot.Mutation.RegisterDeviceToken == nil {
 			break
@@ -436,6 +607,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.Send(childComplexity), true
+	case "Mutation.setTeaCoverImage":
+		if e.ComplexityRoot.Mutation.SetTeaCoverImage == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setTeaCoverImage_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetTeaCoverImage(childComplexity, args["teaID"].(common.ID), args["imageID"].(common.ID), args["expectedRevision"].(*string)), true
 	case "Mutation.teaRecommendation":
 		if e.ComplexityRoot.Mutation.TeaRecommendation == nil {
 			break
@@ -457,7 +639,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.UpdateTag(childComplexity, args["id"].(common.ID), args["name"].(string), args["color"].(string)), true
+		return e.ComplexityRoot.Mutation.UpdateTag(childComplexity, args["id"].(common.ID), args["name"].(string), args["color"].(string), args["expectedRevision"].(*string)), true
 	case "Mutation.updateTagCategory":
 		if e.ComplexityRoot.Mutation.UpdateTagCategory == nil {
 			break
@@ -468,7 +650,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.UpdateTagCategory(childComplexity, args["id"].(common.ID), args["name"].(string)), true
+		return e.ComplexityRoot.Mutation.UpdateTagCategory(childComplexity, args["id"].(common.ID), args["name"].(string), args["expectedRevision"].(*string)), true
 	case "Mutation.updateTea":
 		if e.ComplexityRoot.Mutation.UpdateTea == nil {
 			break
@@ -479,7 +661,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.UpdateTea(childComplexity, args["id"].(common.ID), args["tea"].(model.TeaData)), true
+		return e.ComplexityRoot.Mutation.UpdateTea(childComplexity, args["id"].(common.ID), args["tea"].(model.TeaData), args["expectedRevision"].(*string)), true
 	case "Mutation.writeToQR":
 		if e.ComplexityRoot.Mutation.WriteToQR == nil {
 			break
@@ -530,6 +712,34 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Collections(childComplexity), true
+	case "Query.editorCapabilities":
+		if e.ComplexityRoot.Query.EditorCapabilities == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.EditorCapabilities(childComplexity), true
+	case "Query.editorOperationReceipt":
+		if e.ComplexityRoot.Query.EditorOperationReceipt == nil {
+			break
+		}
+
+		args, err := ec.field_Query_editorOperationReceipt_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.EditorOperationReceipt(childComplexity, args["idempotencyKey"].(string)), true
+	case "Query.editorTeaMergeReceipt":
+		if e.ComplexityRoot.Query.EditorTeaMergeReceipt == nil {
+			break
+		}
+
+		args, err := ec.field_Query_editorTeaMergeReceipt_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.EditorTeaMergeReceipt(childComplexity, args["sourceTeaID"].(common.ID), args["targetTeaID"].(common.ID), args["expectedSourceRevision"].(string), args["expectedTargetRevision"].(string), args["previewToken"].(string), args["idempotencyKey"].(string)), true
 	case "Query.generateDescription":
 		if e.ComplexityRoot.Query.GenerateDescription == nil {
 			break
@@ -548,6 +758,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Me(childComplexity), true
+	case "Query.previewTeaMerge":
+		if e.ComplexityRoot.Query.PreviewTeaMerge == nil {
+			break
+		}
+
+		args, err := ec.field_Query_previewTeaMerge_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.PreviewTeaMerge(childComplexity, args["sourceTeaID"].(common.ID), args["targetTeaID"].(common.ID)), true
 	case "Query.qrRecord":
 		if e.ComplexityRoot.Query.QRRecord == nil {
 			break
@@ -736,6 +957,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Tag.Name(childComplexity), true
+	case "Tag.revision":
+		if e.ComplexityRoot.Tag.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Tag.Revision(childComplexity), true
 
 	case "TagCategory.id":
 		if e.ComplexityRoot.TagCategory.ID == nil {
@@ -749,6 +976,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.TagCategory.Name(childComplexity), true
+	case "TagCategory.revision":
+		if e.ComplexityRoot.TagCategory.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TagCategory.Revision(childComplexity), true
 	case "TagCategory.tags":
 		if e.ComplexityRoot.TagCategory.Tags == nil {
 			break
@@ -773,12 +1006,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Tea.ID(childComplexity), true
+	case "Tea.images":
+		if e.ComplexityRoot.Tea.Images == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Tea.Images(childComplexity), true
 	case "Tea.name":
 		if e.ComplexityRoot.Tea.Name == nil {
 			break
 		}
 
 		return e.ComplexityRoot.Tea.Name(childComplexity), true
+	case "Tea.revision":
+		if e.ComplexityRoot.Tea.Revision == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Tea.Revision(childComplexity), true
 	case "Tea.tags":
 		if e.ComplexityRoot.Tea.Tags == nil {
 			break
@@ -791,6 +1036,189 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Tea.Type(childComplexity), true
+
+	case "TeaImage.contentType":
+		if e.ComplexityRoot.TeaImage.ContentType == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaImage.ContentType(childComplexity), true
+	case "TeaImage.createdAt":
+		if e.ComplexityRoot.TeaImage.CreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaImage.CreatedAt(childComplexity), true
+	case "TeaImage.height":
+		if e.ComplexityRoot.TeaImage.Height == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaImage.Height(childComplexity), true
+	case "TeaImage.id":
+		if e.ComplexityRoot.TeaImage.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaImage.ID(childComplexity), true
+	case "TeaImage.isCover":
+		if e.ComplexityRoot.TeaImage.IsCover == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaImage.IsCover(childComplexity), true
+	case "TeaImage.url":
+		if e.ComplexityRoot.TeaImage.URL == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaImage.URL(childComplexity), true
+	case "TeaImage.width":
+		if e.ComplexityRoot.TeaImage.Width == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaImage.Width(childComplexity), true
+
+	case "TeaMergePreview.blockers":
+		if e.ComplexityRoot.TeaMergePreview.Blockers == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergePreview.Blockers(childComplexity), true
+	case "TeaMergePreview.collectionMembershipCount":
+		if e.ComplexityRoot.TeaMergePreview.CollectionMembershipCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergePreview.CollectionMembershipCount(childComplexity), true
+	case "TeaMergePreview.consumptionCount":
+		if e.ComplexityRoot.TeaMergePreview.ConsumptionCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergePreview.ConsumptionCount(childComplexity), true
+	case "TeaMergePreview.coverPolicy":
+		if e.ComplexityRoot.TeaMergePreview.CoverPolicy == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergePreview.CoverPolicy(childComplexity), true
+	case "TeaMergePreview.imagesToMove":
+		if e.ComplexityRoot.TeaMergePreview.ImagesToMove == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergePreview.ImagesToMove(childComplexity), true
+	case "TeaMergePreview.metadataPolicy":
+		if e.ComplexityRoot.TeaMergePreview.MetadataPolicy == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergePreview.MetadataPolicy(childComplexity), true
+	case "TeaMergePreview.previewToken":
+		if e.ComplexityRoot.TeaMergePreview.PreviewToken == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergePreview.PreviewToken(childComplexity), true
+	case "TeaMergePreview.qrCount":
+		if e.ComplexityRoot.TeaMergePreview.QRCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergePreview.QRCount(childComplexity), true
+	case "TeaMergePreview.resultingCoverImageID":
+		if e.ComplexityRoot.TeaMergePreview.ResultingCoverImageID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergePreview.ResultingCoverImageID(childComplexity), true
+	case "TeaMergePreview.resultingImageCount":
+		if e.ComplexityRoot.TeaMergePreview.ResultingImageCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergePreview.ResultingImageCount(childComplexity), true
+	case "TeaMergePreview.sourceTea":
+		if e.ComplexityRoot.TeaMergePreview.SourceTea == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergePreview.SourceTea(childComplexity), true
+	case "TeaMergePreview.tagsToAdd":
+		if e.ComplexityRoot.TeaMergePreview.TagsToAdd == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergePreview.TagsToAdd(childComplexity), true
+	case "TeaMergePreview.targetTea":
+		if e.ComplexityRoot.TeaMergePreview.TargetTea == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergePreview.TargetTea(childComplexity), true
+
+	case "TeaMergeResult.collectionMembershipCount":
+		if e.ComplexityRoot.TeaMergeResult.CollectionMembershipCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergeResult.CollectionMembershipCount(childComplexity), true
+	case "TeaMergeResult.consumptionsMoved":
+		if e.ComplexityRoot.TeaMergeResult.ConsumptionsMoved == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergeResult.ConsumptionsMoved(childComplexity), true
+	case "TeaMergeResult.imagesMoved":
+		if e.ComplexityRoot.TeaMergeResult.ImagesMoved == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergeResult.ImagesMoved(childComplexity), true
+	case "TeaMergeResult.qrCount":
+		if e.ComplexityRoot.TeaMergeResult.QRCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergeResult.QRCount(childComplexity), true
+	case "TeaMergeResult.receipt":
+		if e.ComplexityRoot.TeaMergeResult.Receipt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergeResult.Receipt(childComplexity), true
+	case "TeaMergeResult.replayed":
+		if e.ComplexityRoot.TeaMergeResult.Replayed == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergeResult.Replayed(childComplexity), true
+	case "TeaMergeResult.sourceTeaID":
+		if e.ComplexityRoot.TeaMergeResult.SourceTeaID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergeResult.SourceTeaID(childComplexity), true
+	case "TeaMergeResult.tagsAdded":
+		if e.ComplexityRoot.TeaMergeResult.TagsAdded == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergeResult.TagsAdded(childComplexity), true
+	case "TeaMergeResult.targetTea":
+		if e.ComplexityRoot.TeaMergeResult.TargetTea == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergeResult.TargetTea(childComplexity), true
+	case "TeaMergeResult.targetTeaID":
+		if e.ComplexityRoot.TeaMergeResult.TargetTeaID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeaMergeResult.TargetTeaID(childComplexity), true
 
 	case "TeaOfTheDay.date":
 		if e.ComplexityRoot.TeaOfTheDay.Date == nil {
@@ -930,6 +1358,14 @@ var sources = []*ast.Source{
 
 type Query {
     me: User
+    "Verified administrator capabilities for the versioned catalogue protocol."
+    editorCapabilities: EditorCapabilities!
+    "Committed catalogue operation receipt; verified administrator authorization required."
+    editorOperationReceipt(idempotencyKey: String!): CatalogueOperationReceipt
+    "Preview one administrative Tea merge. A matching preview must be supplied at commit. Counts expose no user identities."
+    previewTeaMerge(sourceTeaID: ID!, targetTeaID: ID!): TeaMergePreview!
+    "Recover historical merge counters and receipt without repeating a write; verified administrator authorization required."
+    editorTeaMergeReceipt(sourceTeaID: ID!, targetTeaID: ID!, expectedSourceRevision: String!, expectedTargetRevision: String!, previewToken: String!, idempotencyKey: String!): TeaMergeResult
     "Get information about teas."
     teas(prefix: String): [Tea!]!
     "Get information about tea by id."
@@ -950,19 +1386,40 @@ type Query {
 
 type Mutation {
     authApple(appleCode:String!, deviceID: ID!): Session!
-    newTea(tea: TeaData!): Tea!
-    updateTea(id: ID!, tea: TeaData!): Tea!
-    addTagToTea(teaID: ID!, tagID: ID!): Tea!
-    deleteTagFromTea(teaID: ID!, tagID: ID!): Tea!
-    deleteTea(id: ID!): ID!
+    "Create a new shared catalogue entry and its initial existing tags atomically with a fresh ID; user or administrator authorization required. Existing entries are not overwritten. Omitted tagIDs defaults to no tags."
+    newTea(tea: TeaData!, tagIDs: [ID!]! = [], idempotencyKey: String): Tea!
+    "Update shared catalogue metadata; administrator authorization required."
+    updateTea(id: ID!, tea: TeaData!, expectedRevision: String): Tea!
+    "Assign a shared catalogue tag; administrator authorization required."
+    addTagToTea(teaID: ID!, tagID: ID!, expectedRevision: String): Tea!
+    "Remove a shared catalogue tag assignment; administrator authorization required."
+    deleteTagFromTea(teaID: ID!, tagID: ID!, expectedRevision: String): Tea!
+    "Delete a shared catalogue entry; administrator authorization required."
+    deleteTea(id: ID!, expectedRevision: String): ID!
+    "Merge one duplicate Tea into another atomically; verified administrator authorization required. Keep the exact original arguments and idempotencyKey on retries."
+    mergeTeas(sourceTeaID: ID!, targetTeaID: ID!, expectedSourceRevision: String!, expectedTargetRevision: String!, previewToken: String!, idempotencyKey: String!): TeaMergeResult!
+    "Attach a JPEG or PNG to the shared tea catalogue entry; authorization required."
+    addTeaImage(teaID: ID!, imageBase64: String!, expectedRevision: String, idempotencyKey: String): Tea!
+    "Remove an image from the shared tea catalogue; administrator authorization required."
+    deleteTeaImage(teaID: ID!, imageID: ID!, expectedRevision: String): Tea!
+    "Choose the catalogue cover image; authorization required."
+    setTeaCoverImage(teaID: ID!, imageID: ID!, expectedRevision: String): Tea!
+    "Create or update jar metadata; user or administrator authorization required. QR IDs remain shared, without exclusive ownership."
     writeToQR(id: ID!, data: QRRecordData!): QRRecord!
+    "Create a shared tag category; administrator authorization required."
     createTagCategory(name: String!): TagCategory!
-    updateTagCategory(id: ID!, name: String!): TagCategory!
-    deleteTagCategory(id:ID!): ID!
+    "Update a shared tag category; administrator authorization required."
+    updateTagCategory(id: ID!, name: String!, expectedRevision: String): TagCategory!
+    "Delete a shared tag category; administrator authorization required."
+    deleteTagCategory(id:ID!, expectedRevision: String): ID!
+    "Create a shared tag; administrator authorization required."
     createTag(name: String!, color: String!, category: ID!): Tag!
-    updateTag(id: ID!, name: String!, color: String!): Tag!
-    changeTagCategory(id: ID!, category: ID!): Tag!
-    deleteTag(id: ID!): ID!
+    "Update a shared tag; administrator authorization required."
+    updateTag(id: ID!, name: String!, color: String!, expectedRevision: String): Tag!
+    "Change a shared tag category; administrator authorization required."
+    changeTagCategory(id: ID!, category: ID!, expectedRevision: String): Tag!
+    "Delete a shared tag; administrator authorization required."
+    deleteTag(id: ID!, expectedRevision: String): ID!
     "authorization required"
     createCollection(name: String!): Collection!
     "authorization required"
@@ -971,9 +1428,8 @@ type Mutation {
     deleteRecordsFromCollection(id: ID!, records: [ID!]!): Collection!
     "authorization required"
     deleteCollection(id: ID!): ID!
-    "register mobile device token for notifications"
+    "Register a notification token for a device already bound to the authenticated user; administrator credentials do not replace that user session."
     registerDeviceToken(deviceID: ID!, deviceToken: String!): Boolean!
-    @deprecated
     send: Boolean!
     "get tea recommendation"
     teaRecommendation(collectionID: ID!, feelings: String!): String!
@@ -1014,6 +1470,8 @@ type Subscription {
 }
 
 type TagCategory {
+    "Opaque version of this catalogue entity. Echo as expectedRevision on edits."
+    revision: String!
     id: ID!
     name: String!
     tags(name: String): [Tag!]!
@@ -1033,11 +1491,25 @@ input QRRecordData {
 }
 
 type Tea {
+    "Opaque version of this catalogue entity. Echo as expectedRevision on edits."
+    revision: String!
     id: ID!
     name: String!
     type: Type!
     description: String!
     tags: [Tag!]!
+    images: [TeaImage!]!
+}
+
+type TeaImage {
+    id: ID!
+    "Path relative to the API origin."
+    url: String!
+    contentType: String!
+    width: Int!
+    height: Int!
+    createdAt: Date!
+    isCover: Boolean!
 }
 
 input TeaData {
@@ -1047,6 +1519,8 @@ input TeaData {
 }
 
 type Tag {
+    "Opaque version of this catalogue entity. Echo as expectedRevision on edits."
+    revision: String!
     id: ID!
     name: String!
     color: String!
@@ -1087,13 +1561,80 @@ enum NotificationType {
     unknown
     teaExpiration
     teaRecommendation
-}`, BuiltIn: false},
+}
+
+
+type EditorCapabilities {
+    protocolVersion: String!
+    supportsRevisions: Boolean!
+    supportsIdempotency: Boolean!
+    supportsTeaMerge: Boolean!
+}
+
+type TeaMergePreview {
+    sourceTea: Tea!
+    targetTea: Tea!
+    previewToken: String!
+    qrCount: Int!
+    collectionMembershipCount: Int!
+    tagsToAdd: Int!
+    imagesToMove: Int!
+    consumptionCount: Int!
+    resultingImageCount: Int!
+    blockers: [String!]!
+    metadataPolicy: String!
+    coverPolicy: String!
+    "Resulting cover UUID; target cover, otherwise source cover, otherwise the oldest surviving image. Null for an empty gallery."
+    resultingCoverImageID: ID
+}
+
+type TeaMergeResult {
+    receipt: CatalogueOperationReceipt!
+    "Current target, or null if later deleted. The receipt always describes the original committed operation."
+    targetTea: Tea
+    replayed: Boolean!
+    sourceTeaID: ID!
+    targetTeaID: ID!
+    qrCount: Int!
+    collectionMembershipCount: Int!
+    tagsAdded: Int!
+    imagesMoved: Int!
+    consumptionsMoved: Int!
+}
+
+type CatalogueOperationReceipt {
+    idempotencyKey: String!
+    operation: String!
+    teaID: ID!
+    resourceID: ID!
+    resultRevision: String!
+    completedAt: Date!
+}
+`, BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // childFields_* functions provide shared child field context lookups.
 // Each function is generated once per unique object type, deduplicating the
 // switch statements that were previously inlined in every fieldContext_* function.
+
+func (ec *executionContext) childFields_CatalogueOperationReceipt(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "idempotencyKey":
+		return ec.fieldContext_CatalogueOperationReceipt_idempotencyKey(ctx, field)
+	case "operation":
+		return ec.fieldContext_CatalogueOperationReceipt_operation(ctx, field)
+	case "teaID":
+		return ec.fieldContext_CatalogueOperationReceipt_teaID(ctx, field)
+	case "resourceID":
+		return ec.fieldContext_CatalogueOperationReceipt_resourceID(ctx, field)
+	case "resultRevision":
+		return ec.fieldContext_CatalogueOperationReceipt_resultRevision(ctx, field)
+	case "completedAt":
+		return ec.fieldContext_CatalogueOperationReceipt_completedAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type CatalogueOperationReceipt", field.Name)
+}
 
 func (ec *executionContext) childFields_Collection(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
@@ -1107,6 +1648,20 @@ func (ec *executionContext) childFields_Collection(ctx context.Context, field gr
 		return ec.fieldContext_Collection_records(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Collection", field.Name)
+}
+
+func (ec *executionContext) childFields_EditorCapabilities(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "protocolVersion":
+		return ec.fieldContext_EditorCapabilities_protocolVersion(ctx, field)
+	case "supportsRevisions":
+		return ec.fieldContext_EditorCapabilities_supportsRevisions(ctx, field)
+	case "supportsIdempotency":
+		return ec.fieldContext_EditorCapabilities_supportsIdempotency(ctx, field)
+	case "supportsTeaMerge":
+		return ec.fieldContext_EditorCapabilities_supportsTeaMerge(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type EditorCapabilities", field.Name)
 }
 
 func (ec *executionContext) childFields_Notification(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -1143,6 +1698,8 @@ func (ec *executionContext) childFields_Session(ctx context.Context, field graph
 
 func (ec *executionContext) childFields_Tag(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
+	case "revision":
+		return ec.fieldContext_Tag_revision(ctx, field)
 	case "id":
 		return ec.fieldContext_Tag_id(ctx, field)
 	case "name":
@@ -1157,6 +1714,8 @@ func (ec *executionContext) childFields_Tag(ctx context.Context, field graphql.C
 
 func (ec *executionContext) childFields_TagCategory(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
+	case "revision":
+		return ec.fieldContext_TagCategory_revision(ctx, field)
 	case "id":
 		return ec.fieldContext_TagCategory_id(ctx, field)
 	case "name":
@@ -1169,6 +1728,8 @@ func (ec *executionContext) childFields_TagCategory(ctx context.Context, field g
 
 func (ec *executionContext) childFields_Tea(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
+	case "revision":
+		return ec.fieldContext_Tea_revision(ctx, field)
 	case "id":
 		return ec.fieldContext_Tea_id(ctx, field)
 	case "name":
@@ -1179,8 +1740,88 @@ func (ec *executionContext) childFields_Tea(ctx context.Context, field graphql.C
 		return ec.fieldContext_Tea_description(ctx, field)
 	case "tags":
 		return ec.fieldContext_Tea_tags(ctx, field)
+	case "images":
+		return ec.fieldContext_Tea_images(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Tea", field.Name)
+}
+
+func (ec *executionContext) childFields_TeaImage(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_TeaImage_id(ctx, field)
+	case "url":
+		return ec.fieldContext_TeaImage_url(ctx, field)
+	case "contentType":
+		return ec.fieldContext_TeaImage_contentType(ctx, field)
+	case "width":
+		return ec.fieldContext_TeaImage_width(ctx, field)
+	case "height":
+		return ec.fieldContext_TeaImage_height(ctx, field)
+	case "createdAt":
+		return ec.fieldContext_TeaImage_createdAt(ctx, field)
+	case "isCover":
+		return ec.fieldContext_TeaImage_isCover(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type TeaImage", field.Name)
+}
+
+func (ec *executionContext) childFields_TeaMergePreview(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "sourceTea":
+		return ec.fieldContext_TeaMergePreview_sourceTea(ctx, field)
+	case "targetTea":
+		return ec.fieldContext_TeaMergePreview_targetTea(ctx, field)
+	case "previewToken":
+		return ec.fieldContext_TeaMergePreview_previewToken(ctx, field)
+	case "qrCount":
+		return ec.fieldContext_TeaMergePreview_qrCount(ctx, field)
+	case "collectionMembershipCount":
+		return ec.fieldContext_TeaMergePreview_collectionMembershipCount(ctx, field)
+	case "tagsToAdd":
+		return ec.fieldContext_TeaMergePreview_tagsToAdd(ctx, field)
+	case "imagesToMove":
+		return ec.fieldContext_TeaMergePreview_imagesToMove(ctx, field)
+	case "consumptionCount":
+		return ec.fieldContext_TeaMergePreview_consumptionCount(ctx, field)
+	case "resultingImageCount":
+		return ec.fieldContext_TeaMergePreview_resultingImageCount(ctx, field)
+	case "blockers":
+		return ec.fieldContext_TeaMergePreview_blockers(ctx, field)
+	case "metadataPolicy":
+		return ec.fieldContext_TeaMergePreview_metadataPolicy(ctx, field)
+	case "coverPolicy":
+		return ec.fieldContext_TeaMergePreview_coverPolicy(ctx, field)
+	case "resultingCoverImageID":
+		return ec.fieldContext_TeaMergePreview_resultingCoverImageID(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type TeaMergePreview", field.Name)
+}
+
+func (ec *executionContext) childFields_TeaMergeResult(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "receipt":
+		return ec.fieldContext_TeaMergeResult_receipt(ctx, field)
+	case "targetTea":
+		return ec.fieldContext_TeaMergeResult_targetTea(ctx, field)
+	case "replayed":
+		return ec.fieldContext_TeaMergeResult_replayed(ctx, field)
+	case "sourceTeaID":
+		return ec.fieldContext_TeaMergeResult_sourceTeaID(ctx, field)
+	case "targetTeaID":
+		return ec.fieldContext_TeaMergeResult_targetTeaID(ctx, field)
+	case "qrCount":
+		return ec.fieldContext_TeaMergeResult_qrCount(ctx, field)
+	case "collectionMembershipCount":
+		return ec.fieldContext_TeaMergeResult_collectionMembershipCount(ctx, field)
+	case "tagsAdded":
+		return ec.fieldContext_TeaMergeResult_tagsAdded(ctx, field)
+	case "imagesMoved":
+		return ec.fieldContext_TeaMergeResult_imagesMoved(ctx, field)
+	case "consumptionsMoved":
+		return ec.fieldContext_TeaMergeResult_consumptionsMoved(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type TeaMergeResult", field.Name)
 }
 
 func (ec *executionContext) childFields_TeaOfTheDay(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -1362,6 +2003,52 @@ func (ec *executionContext) field_Mutation_addTagToTea_args(ctx context.Context,
 		return nil, err
 	}
 	args["tagID"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "expectedRevision",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["expectedRevision"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_addTeaImage_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "teaID",
+		func(ctx context.Context, v any) (common.ID, error) {
+			return ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["teaID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "imageBase64",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["imageBase64"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "expectedRevision",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["expectedRevision"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "idempotencyKey",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["idempotencyKey"] = arg3
 	return args, nil
 }
 
@@ -1406,6 +2093,14 @@ func (ec *executionContext) field_Mutation_changeTagCategory_args(ctx context.Co
 		return nil, err
 	}
 	args["category"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "expectedRevision",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["expectedRevision"] = arg2
 	return args, nil
 }
 
@@ -1514,6 +2209,14 @@ func (ec *executionContext) field_Mutation_deleteTagCategory_args(ctx context.Co
 		return nil, err
 	}
 	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "expectedRevision",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["expectedRevision"] = arg1
 	return args, nil
 }
 
@@ -1536,6 +2239,14 @@ func (ec *executionContext) field_Mutation_deleteTagFromTea_args(ctx context.Con
 		return nil, err
 	}
 	args["tagID"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "expectedRevision",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["expectedRevision"] = arg2
 	return args, nil
 }
 
@@ -1550,6 +2261,44 @@ func (ec *executionContext) field_Mutation_deleteTag_args(ctx context.Context, r
 		return nil, err
 	}
 	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "expectedRevision",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["expectedRevision"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteTeaImage_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "teaID",
+		func(ctx context.Context, v any) (common.ID, error) {
+			return ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["teaID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "imageID",
+		func(ctx context.Context, v any) (common.ID, error) {
+			return ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["imageID"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "expectedRevision",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["expectedRevision"] = arg2
 	return args, nil
 }
 
@@ -1564,6 +2313,68 @@ func (ec *executionContext) field_Mutation_deleteTea_args(ctx context.Context, r
 		return nil, err
 	}
 	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "expectedRevision",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["expectedRevision"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_mergeTeas_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "sourceTeaID",
+		func(ctx context.Context, v any) (common.ID, error) {
+			return ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["sourceTeaID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "targetTeaID",
+		func(ctx context.Context, v any) (common.ID, error) {
+			return ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["targetTeaID"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "expectedSourceRevision",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["expectedSourceRevision"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "expectedTargetRevision",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["expectedTargetRevision"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "previewToken",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["previewToken"] = arg4
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "idempotencyKey",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["idempotencyKey"] = arg5
 	return args, nil
 }
 
@@ -1578,6 +2389,22 @@ func (ec *executionContext) field_Mutation_newTea_args(ctx context.Context, rawA
 		return nil, err
 	}
 	args["tea"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "tagIDs",
+		func(ctx context.Context, v any) ([]common.ID, error) {
+			return ec.unmarshalNID2ᚕgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐIDᚄ(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["tagIDs"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "idempotencyKey",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["idempotencyKey"] = arg2
 	return args, nil
 }
 
@@ -1600,6 +2427,36 @@ func (ec *executionContext) field_Mutation_registerDeviceToken_args(ctx context.
 		return nil, err
 	}
 	args["deviceToken"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setTeaCoverImage_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "teaID",
+		func(ctx context.Context, v any) (common.ID, error) {
+			return ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["teaID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "imageID",
+		func(ctx context.Context, v any) (common.ID, error) {
+			return ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["imageID"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "expectedRevision",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["expectedRevision"] = arg2
 	return args, nil
 }
 
@@ -1644,6 +2501,14 @@ func (ec *executionContext) field_Mutation_updateTagCategory_args(ctx context.Co
 		return nil, err
 	}
 	args["name"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "expectedRevision",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["expectedRevision"] = arg2
 	return args, nil
 }
 
@@ -1674,6 +2539,14 @@ func (ec *executionContext) field_Mutation_updateTag_args(ctx context.Context, r
 		return nil, err
 	}
 	args["color"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "expectedRevision",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["expectedRevision"] = arg3
 	return args, nil
 }
 
@@ -1696,6 +2569,14 @@ func (ec *executionContext) field_Mutation_updateTea_args(ctx context.Context, r
 		return nil, err
 	}
 	args["tea"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "expectedRevision",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["expectedRevision"] = arg2
 	return args, nil
 }
 
@@ -1735,6 +2616,74 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_editorOperationReceipt_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "idempotencyKey",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["idempotencyKey"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_editorTeaMergeReceipt_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "sourceTeaID",
+		func(ctx context.Context, v any) (common.ID, error) {
+			return ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["sourceTeaID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "targetTeaID",
+		func(ctx context.Context, v any) (common.ID, error) {
+			return ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["targetTeaID"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "expectedSourceRevision",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["expectedSourceRevision"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "expectedTargetRevision",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["expectedTargetRevision"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "previewToken",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["previewToken"] = arg4
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "idempotencyKey",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["idempotencyKey"] = arg5
+	return args, nil
+}
+
 func (ec *executionContext) field_Query_generateDescription_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -1746,6 +2695,28 @@ func (ec *executionContext) field_Query_generateDescription_args(ctx context.Con
 		return nil, err
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_previewTeaMerge_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "sourceTeaID",
+		func(ctx context.Context, v any) (common.ID, error) {
+			return ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["sourceTeaID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "targetTeaID",
+		func(ctx context.Context, v any) (common.ID, error) {
+			return ec.unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["targetTeaID"] = arg1
 	return args, nil
 }
 
@@ -1929,6 +2900,144 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 
 // region    **************************** field.gotpl *****************************
 
+func (ec *executionContext) _CatalogueOperationReceipt_idempotencyKey(ctx context.Context, field graphql.CollectedField, obj *model.CatalogueOperationReceipt) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CatalogueOperationReceipt_idempotencyKey(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.IdempotencyKey, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CatalogueOperationReceipt_idempotencyKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CatalogueOperationReceipt", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _CatalogueOperationReceipt_operation(ctx context.Context, field graphql.CollectedField, obj *model.CatalogueOperationReceipt) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CatalogueOperationReceipt_operation(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Operation, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CatalogueOperationReceipt_operation(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CatalogueOperationReceipt", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _CatalogueOperationReceipt_teaID(ctx context.Context, field graphql.CollectedField, obj *model.CatalogueOperationReceipt) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CatalogueOperationReceipt_teaID(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TeaID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v common.ID) graphql.Marshaler {
+			return ec.marshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CatalogueOperationReceipt_teaID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CatalogueOperationReceipt", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _CatalogueOperationReceipt_resourceID(ctx context.Context, field graphql.CollectedField, obj *model.CatalogueOperationReceipt) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CatalogueOperationReceipt_resourceID(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ResourceID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v common.ID) graphql.Marshaler {
+			return ec.marshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CatalogueOperationReceipt_resourceID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CatalogueOperationReceipt", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _CatalogueOperationReceipt_resultRevision(ctx context.Context, field graphql.CollectedField, obj *model.CatalogueOperationReceipt) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CatalogueOperationReceipt_resultRevision(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ResultRevision, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CatalogueOperationReceipt_resultRevision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CatalogueOperationReceipt", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _CatalogueOperationReceipt_completedAt(ctx context.Context, field graphql.CollectedField, obj *model.CatalogueOperationReceipt) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CatalogueOperationReceipt_completedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CompletedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNDate2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CatalogueOperationReceipt_completedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CatalogueOperationReceipt", field, false, false, errors.New("field of type Date does not have child fields"))
+}
+
 func (ec *executionContext) _Collection_id(ctx context.Context, field graphql.CollectedField, obj *model.Collection) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -2030,6 +3139,98 @@ func (ec *executionContext) fieldContext_Collection_records(_ context.Context, f
 	return fc, nil
 }
 
+func (ec *executionContext) _EditorCapabilities_protocolVersion(ctx context.Context, field graphql.CollectedField, obj *model.EditorCapabilities) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_EditorCapabilities_protocolVersion(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ProtocolVersion, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_EditorCapabilities_protocolVersion(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("EditorCapabilities", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _EditorCapabilities_supportsRevisions(ctx context.Context, field graphql.CollectedField, obj *model.EditorCapabilities) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_EditorCapabilities_supportsRevisions(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.SupportsRevisions, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_EditorCapabilities_supportsRevisions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("EditorCapabilities", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _EditorCapabilities_supportsIdempotency(ctx context.Context, field graphql.CollectedField, obj *model.EditorCapabilities) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_EditorCapabilities_supportsIdempotency(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.SupportsIdempotency, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_EditorCapabilities_supportsIdempotency(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("EditorCapabilities", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _EditorCapabilities_supportsTeaMerge(ctx context.Context, field graphql.CollectedField, obj *model.EditorCapabilities) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_EditorCapabilities_supportsTeaMerge(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.SupportsTeaMerge, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_EditorCapabilities_supportsTeaMerge(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("EditorCapabilities", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
 func (ec *executionContext) _Mutation_authApple(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -2084,7 +3285,7 @@ func (ec *executionContext) _Mutation_newTea(ctx context.Context, field graphql.
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().NewTea(ctx, fc.Args["tea"].(model.TeaData))
+			return ec.Resolvers.Mutation().NewTea(ctx, fc.Args["tea"].(model.TeaData), fc.Args["tagIDs"].([]common.ID), fc.Args["idempotencyKey"].(*string))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Tea) graphql.Marshaler {
@@ -2128,7 +3329,7 @@ func (ec *executionContext) _Mutation_updateTea(ctx context.Context, field graph
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().UpdateTea(ctx, fc.Args["id"].(common.ID), fc.Args["tea"].(model.TeaData))
+			return ec.Resolvers.Mutation().UpdateTea(ctx, fc.Args["id"].(common.ID), fc.Args["tea"].(model.TeaData), fc.Args["expectedRevision"].(*string))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Tea) graphql.Marshaler {
@@ -2172,7 +3373,7 @@ func (ec *executionContext) _Mutation_addTagToTea(ctx context.Context, field gra
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().AddTagToTea(ctx, fc.Args["teaID"].(common.ID), fc.Args["tagID"].(common.ID))
+			return ec.Resolvers.Mutation().AddTagToTea(ctx, fc.Args["teaID"].(common.ID), fc.Args["tagID"].(common.ID), fc.Args["expectedRevision"].(*string))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Tea) graphql.Marshaler {
@@ -2216,7 +3417,7 @@ func (ec *executionContext) _Mutation_deleteTagFromTea(ctx context.Context, fiel
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().DeleteTagFromTea(ctx, fc.Args["teaID"].(common.ID), fc.Args["tagID"].(common.ID))
+			return ec.Resolvers.Mutation().DeleteTagFromTea(ctx, fc.Args["teaID"].(common.ID), fc.Args["tagID"].(common.ID), fc.Args["expectedRevision"].(*string))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Tea) graphql.Marshaler {
@@ -2260,7 +3461,7 @@ func (ec *executionContext) _Mutation_deleteTea(ctx context.Context, field graph
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().DeleteTea(ctx, fc.Args["id"].(common.ID))
+			return ec.Resolvers.Mutation().DeleteTea(ctx, fc.Args["id"].(common.ID), fc.Args["expectedRevision"].(*string))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v common.ID) graphql.Marshaler {
@@ -2288,6 +3489,182 @@ func (ec *executionContext) fieldContext_Mutation_deleteTea(ctx context.Context,
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_deleteTea_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_mergeTeas(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_mergeTeas(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().MergeTeas(ctx, fc.Args["sourceTeaID"].(common.ID), fc.Args["targetTeaID"].(common.ID), fc.Args["expectedSourceRevision"].(string), fc.Args["expectedTargetRevision"].(string), fc.Args["previewToken"].(string), fc.Args["idempotencyKey"].(string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.TeaMergeResult) graphql.Marshaler {
+			return ec.marshalNTeaMergeResult2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTeaMergeResult(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_mergeTeas(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_TeaMergeResult(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_mergeTeas_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_addTeaImage(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_addTeaImage(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().AddTeaImage(ctx, fc.Args["teaID"].(common.ID), fc.Args["imageBase64"].(string), fc.Args["expectedRevision"].(*string), fc.Args["idempotencyKey"].(*string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Tea) graphql.Marshaler {
+			return ec.marshalNTea2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTea(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_addTeaImage(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Tea(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_addTeaImage_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteTeaImage(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_deleteTeaImage(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DeleteTeaImage(ctx, fc.Args["teaID"].(common.ID), fc.Args["imageID"].(common.ID), fc.Args["expectedRevision"].(*string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Tea) graphql.Marshaler {
+			return ec.marshalNTea2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTea(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_deleteTeaImage(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Tea(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteTeaImage_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setTeaCoverImage(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setTeaCoverImage(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetTeaCoverImage(ctx, fc.Args["teaID"].(common.ID), fc.Args["imageID"].(common.ID), fc.Args["expectedRevision"].(*string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Tea) graphql.Marshaler {
+			return ec.marshalNTea2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTea(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setTeaCoverImage(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Tea(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setTeaCoverImage_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -2392,7 +3769,7 @@ func (ec *executionContext) _Mutation_updateTagCategory(ctx context.Context, fie
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().UpdateTagCategory(ctx, fc.Args["id"].(common.ID), fc.Args["name"].(string))
+			return ec.Resolvers.Mutation().UpdateTagCategory(ctx, fc.Args["id"].(common.ID), fc.Args["name"].(string), fc.Args["expectedRevision"].(*string))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.TagCategory) graphql.Marshaler {
@@ -2436,7 +3813,7 @@ func (ec *executionContext) _Mutation_deleteTagCategory(ctx context.Context, fie
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().DeleteTagCategory(ctx, fc.Args["id"].(common.ID))
+			return ec.Resolvers.Mutation().DeleteTagCategory(ctx, fc.Args["id"].(common.ID), fc.Args["expectedRevision"].(*string))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v common.ID) graphql.Marshaler {
@@ -2524,7 +3901,7 @@ func (ec *executionContext) _Mutation_updateTag(ctx context.Context, field graph
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().UpdateTag(ctx, fc.Args["id"].(common.ID), fc.Args["name"].(string), fc.Args["color"].(string))
+			return ec.Resolvers.Mutation().UpdateTag(ctx, fc.Args["id"].(common.ID), fc.Args["name"].(string), fc.Args["color"].(string), fc.Args["expectedRevision"].(*string))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Tag) graphql.Marshaler {
@@ -2568,7 +3945,7 @@ func (ec *executionContext) _Mutation_changeTagCategory(ctx context.Context, fie
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().ChangeTagCategory(ctx, fc.Args["id"].(common.ID), fc.Args["category"].(common.ID))
+			return ec.Resolvers.Mutation().ChangeTagCategory(ctx, fc.Args["id"].(common.ID), fc.Args["category"].(common.ID), fc.Args["expectedRevision"].(*string))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Tag) graphql.Marshaler {
@@ -2612,7 +3989,7 @@ func (ec *executionContext) _Mutation_deleteTag(ctx context.Context, field graph
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().DeleteTag(ctx, fc.Args["id"].(common.ID))
+			return ec.Resolvers.Mutation().DeleteTag(ctx, fc.Args["id"].(common.ID), fc.Args["expectedRevision"].(*string))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v common.ID) graphql.Marshaler {
@@ -3085,6 +4462,170 @@ func (ec *executionContext) fieldContext_Query_me(_ context.Context, field graph
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_User(ctx, field)
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_editorCapabilities(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_editorCapabilities(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().EditorCapabilities(ctx)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.EditorCapabilities) graphql.Marshaler {
+			return ec.marshalNEditorCapabilities2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐEditorCapabilities(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_editorCapabilities(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_EditorCapabilities(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_editorOperationReceipt(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_editorOperationReceipt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().EditorOperationReceipt(ctx, fc.Args["idempotencyKey"].(string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.CatalogueOperationReceipt) graphql.Marshaler {
+			return ec.marshalOCatalogueOperationReceipt2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐCatalogueOperationReceipt(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Query_editorOperationReceipt(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_CatalogueOperationReceipt(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_editorOperationReceipt_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_previewTeaMerge(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_previewTeaMerge(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().PreviewTeaMerge(ctx, fc.Args["sourceTeaID"].(common.ID), fc.Args["targetTeaID"].(common.ID))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.TeaMergePreview) graphql.Marshaler {
+			return ec.marshalNTeaMergePreview2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTeaMergePreview(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_previewTeaMerge(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_TeaMergePreview(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_previewTeaMerge_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_editorTeaMergeReceipt(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_editorTeaMergeReceipt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().EditorTeaMergeReceipt(ctx, fc.Args["sourceTeaID"].(common.ID), fc.Args["targetTeaID"].(common.ID), fc.Args["expectedSourceRevision"].(string), fc.Args["expectedTargetRevision"].(string), fc.Args["previewToken"].(string), fc.Args["idempotencyKey"].(string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.TeaMergeResult) graphql.Marshaler {
+			return ec.marshalOTeaMergeResult2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTeaMergeResult(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Query_editorTeaMergeReceipt(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_TeaMergeResult(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_editorTeaMergeReceipt_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -3952,6 +5493,29 @@ func (ec *executionContext) fieldContext_Subscription_recommendTea(ctx context.C
 	return fc, nil
 }
 
+func (ec *executionContext) _Tag_revision(ctx context.Context, field graphql.CollectedField, obj *model.Tag) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Tag_revision(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Tag_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Tag", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) _Tag_id(ctx context.Context, field graphql.CollectedField, obj *model.Tag) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -4053,6 +5617,29 @@ func (ec *executionContext) fieldContext_Tag_category(_ context.Context, field g
 	return fc, nil
 }
 
+func (ec *executionContext) _TagCategory_revision(ctx context.Context, field graphql.CollectedField, obj *model.TagCategory) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TagCategory_revision(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TagCategory_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TagCategory", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) _TagCategory_id(ctx context.Context, field graphql.CollectedField, obj *model.TagCategory) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -4141,6 +5728,29 @@ func (ec *executionContext) fieldContext_TagCategory_tags(ctx context.Context, f
 		return fc, err
 	}
 	return fc, nil
+}
+
+func (ec *executionContext) _Tea_revision(ctx context.Context, field graphql.CollectedField, obj *model.Tea) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Tea_revision(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Revision, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Tea_revision(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Tea", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _Tea_id(ctx context.Context, field graphql.CollectedField, obj *model.Tea) (ret graphql.Marshaler) {
@@ -4265,6 +5875,764 @@ func (ec *executionContext) fieldContext_Tea_tags(_ context.Context, field graph
 		},
 	}
 	return fc, nil
+}
+
+func (ec *executionContext) _Tea_images(ctx context.Context, field graphql.CollectedField, obj *model.Tea) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Tea_images(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Tea().Images(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.TeaImage) graphql.Marshaler {
+			return ec.marshalNTeaImage2ᚕᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTeaImageᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Tea_images(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Tea",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_TeaImage(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TeaImage_id(ctx context.Context, field graphql.CollectedField, obj *model.TeaImage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaImage_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v common.ID) graphql.Marshaler {
+			return ec.marshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaImage_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaImage", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _TeaImage_url(ctx context.Context, field graphql.CollectedField, obj *model.TeaImage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaImage_url(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.URL, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaImage_url(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaImage", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _TeaImage_contentType(ctx context.Context, field graphql.CollectedField, obj *model.TeaImage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaImage_contentType(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ContentType, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaImage_contentType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaImage", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _TeaImage_width(ctx context.Context, field graphql.CollectedField, obj *model.TeaImage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaImage_width(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Width, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaImage_width(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaImage", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _TeaImage_height(ctx context.Context, field graphql.CollectedField, obj *model.TeaImage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaImage_height(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Height, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaImage_height(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaImage", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _TeaImage_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.TeaImage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaImage_createdAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNDate2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaImage_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaImage", field, false, false, errors.New("field of type Date does not have child fields"))
+}
+
+func (ec *executionContext) _TeaImage_isCover(ctx context.Context, field graphql.CollectedField, obj *model.TeaImage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaImage_isCover(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.IsCover, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaImage_isCover(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaImage", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _TeaMergePreview_sourceTea(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergePreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergePreview_sourceTea(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.SourceTea, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Tea) graphql.Marshaler {
+			return ec.marshalNTea2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTea(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergePreview_sourceTea(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TeaMergePreview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Tea(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TeaMergePreview_targetTea(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergePreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergePreview_targetTea(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TargetTea, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Tea) graphql.Marshaler {
+			return ec.marshalNTea2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTea(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergePreview_targetTea(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TeaMergePreview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Tea(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TeaMergePreview_previewToken(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergePreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergePreview_previewToken(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.PreviewToken, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergePreview_previewToken(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergePreview", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _TeaMergePreview_qrCount(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergePreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergePreview_qrCount(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.QRCount, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergePreview_qrCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergePreview", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _TeaMergePreview_collectionMembershipCount(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergePreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergePreview_collectionMembershipCount(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CollectionMembershipCount, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergePreview_collectionMembershipCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergePreview", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _TeaMergePreview_tagsToAdd(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergePreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergePreview_tagsToAdd(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TagsToAdd, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergePreview_tagsToAdd(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergePreview", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _TeaMergePreview_imagesToMove(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergePreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergePreview_imagesToMove(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ImagesToMove, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergePreview_imagesToMove(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergePreview", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _TeaMergePreview_consumptionCount(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergePreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergePreview_consumptionCount(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ConsumptionCount, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergePreview_consumptionCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergePreview", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _TeaMergePreview_resultingImageCount(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergePreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergePreview_resultingImageCount(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ResultingImageCount, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergePreview_resultingImageCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergePreview", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _TeaMergePreview_blockers(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergePreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergePreview_blockers(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Blockers, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
+			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergePreview_blockers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergePreview", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _TeaMergePreview_metadataPolicy(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergePreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergePreview_metadataPolicy(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.MetadataPolicy, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergePreview_metadataPolicy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergePreview", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _TeaMergePreview_coverPolicy(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergePreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergePreview_coverPolicy(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CoverPolicy, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergePreview_coverPolicy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergePreview", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _TeaMergePreview_resultingCoverImageID(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergePreview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergePreview_resultingCoverImageID(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ResultingCoverImageID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *common.ID) graphql.Marshaler {
+			return ec.marshalOID2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergePreview_resultingCoverImageID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergePreview", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _TeaMergeResult_receipt(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergeResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergeResult_receipt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Receipt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.CatalogueOperationReceipt) graphql.Marshaler {
+			return ec.marshalNCatalogueOperationReceipt2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐCatalogueOperationReceipt(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergeResult_receipt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TeaMergeResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_CatalogueOperationReceipt(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TeaMergeResult_targetTea(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergeResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergeResult_targetTea(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TargetTea, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Tea) graphql.Marshaler {
+			return ec.marshalOTea2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTea(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergeResult_targetTea(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TeaMergeResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Tea(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TeaMergeResult_replayed(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergeResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergeResult_replayed(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Replayed, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergeResult_replayed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergeResult", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _TeaMergeResult_sourceTeaID(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergeResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergeResult_sourceTeaID(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.SourceTeaID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v common.ID) graphql.Marshaler {
+			return ec.marshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergeResult_sourceTeaID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergeResult", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _TeaMergeResult_targetTeaID(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergeResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergeResult_targetTeaID(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TargetTeaID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v common.ID) graphql.Marshaler {
+			return ec.marshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergeResult_targetTeaID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergeResult", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _TeaMergeResult_qrCount(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergeResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergeResult_qrCount(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.QRCount, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergeResult_qrCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergeResult", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _TeaMergeResult_collectionMembershipCount(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergeResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergeResult_collectionMembershipCount(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CollectionMembershipCount, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergeResult_collectionMembershipCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergeResult", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _TeaMergeResult_tagsAdded(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergeResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergeResult_tagsAdded(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TagsAdded, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergeResult_tagsAdded(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergeResult", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _TeaMergeResult_imagesMoved(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergeResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergeResult_imagesMoved(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ImagesMoved, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergeResult_imagesMoved(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergeResult", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _TeaMergeResult_consumptionsMoved(ctx context.Context, field graphql.CollectedField, obj *model.TeaMergeResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeaMergeResult_consumptionsMoved(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ConsumptionsMoved, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeaMergeResult_consumptionsMoved(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeaMergeResult", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
 func (ec *executionContext) _TeaOfTheDay_tea(ctx context.Context, field graphql.CollectedField, obj *model.TeaOfTheDay) (ret graphql.Marshaler) {
@@ -5564,6 +7932,69 @@ func (ec *executionContext) unmarshalInputTeaData(ctx context.Context, obj any) 
 
 // region    **************************** object.gotpl ****************************
 
+var catalogueOperationReceiptImplementors = []string{"CatalogueOperationReceipt"}
+
+func (ec *executionContext) _CatalogueOperationReceipt(ctx context.Context, sel ast.SelectionSet, obj *model.CatalogueOperationReceipt) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, catalogueOperationReceiptImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CatalogueOperationReceipt")
+		case "idempotencyKey":
+			out.Values[i] = ec._CatalogueOperationReceipt_idempotencyKey(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "operation":
+			out.Values[i] = ec._CatalogueOperationReceipt_operation(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "teaID":
+			out.Values[i] = ec._CatalogueOperationReceipt_teaID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "resourceID":
+			out.Values[i] = ec._CatalogueOperationReceipt_resourceID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "resultRevision":
+			out.Values[i] = ec._CatalogueOperationReceipt_resultRevision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "completedAt":
+			out.Values[i] = ec._CatalogueOperationReceipt_completedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var collectionImplementors = []string{"Collection"}
 
 func (ec *executionContext) _Collection(ctx context.Context, sel ast.SelectionSet, obj *model.Collection) graphql.Marshaler {
@@ -5650,6 +8081,59 @@ func (ec *executionContext) _Collection(ctx context.Context, sel ast.SelectionSe
 	return out
 }
 
+var editorCapabilitiesImplementors = []string{"EditorCapabilities"}
+
+func (ec *executionContext) _EditorCapabilities(ctx context.Context, sel ast.SelectionSet, obj *model.EditorCapabilities) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, editorCapabilitiesImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("EditorCapabilities")
+		case "protocolVersion":
+			out.Values[i] = ec._EditorCapabilities_protocolVersion(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "supportsRevisions":
+			out.Values[i] = ec._EditorCapabilities_supportsRevisions(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "supportsIdempotency":
+			out.Values[i] = ec._EditorCapabilities_supportsIdempotency(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "supportsTeaMerge":
+			out.Values[i] = ec._EditorCapabilities_supportsTeaMerge(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var mutationImplementors = []string{"Mutation"}
 
 func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -5708,6 +8192,34 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "deleteTea":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteTea(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "mergeTeas":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_mergeTeas(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "addTeaImage":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_addTeaImage(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteTeaImage":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteTeaImage(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setTeaCoverImage":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setTeaCoverImage(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -5959,6 +8471,94 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_me(ctx, field)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "editorCapabilities":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_editorCapabilities(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "editorOperationReceipt":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_editorOperationReceipt(ctx, field)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "previewTeaMerge":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_previewTeaMerge(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "editorTeaMergeReceipt":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_editorTeaMergeReceipt(ctx, field)
 				if res == graphql.RequiredNull {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -6281,6 +8881,11 @@ func (ec *executionContext) _Tag(ctx context.Context, sel ast.SelectionSet, obj 
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Tag")
+		case "revision":
+			out.Values[i] = ec._Tag_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "id":
 			out.Values[i] = ec._Tag_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -6367,6 +8972,11 @@ func (ec *executionContext) _TagCategory(ctx context.Context, sel ast.SelectionS
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("TagCategory")
+		case "revision":
+			out.Values[i] = ec._TagCategory_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "id":
 			out.Values[i] = ec._TagCategory_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -6448,6 +9058,11 @@ func (ec *executionContext) _Tea(ctx context.Context, sel ast.SelectionSet, obj 
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Tea")
+		case "revision":
+			out.Values[i] = ec._Tea_revision(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "id":
 			out.Values[i] = ec._Tea_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -6506,6 +9121,293 @@ func (ec *executionContext) _Tea(ctx context.Context, sel ast.SelectionSet, obj 
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "images":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Tea_images(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var teaImageImplementors = []string{"TeaImage"}
+
+func (ec *executionContext) _TeaImage(ctx context.Context, sel ast.SelectionSet, obj *model.TeaImage) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, teaImageImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("TeaImage")
+		case "id":
+			out.Values[i] = ec._TeaImage_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "url":
+			out.Values[i] = ec._TeaImage_url(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "contentType":
+			out.Values[i] = ec._TeaImage_contentType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "width":
+			out.Values[i] = ec._TeaImage_width(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "height":
+			out.Values[i] = ec._TeaImage_height(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._TeaImage_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "isCover":
+			out.Values[i] = ec._TeaImage_isCover(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var teaMergePreviewImplementors = []string{"TeaMergePreview"}
+
+func (ec *executionContext) _TeaMergePreview(ctx context.Context, sel ast.SelectionSet, obj *model.TeaMergePreview) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, teaMergePreviewImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("TeaMergePreview")
+		case "sourceTea":
+			out.Values[i] = ec._TeaMergePreview_sourceTea(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "targetTea":
+			out.Values[i] = ec._TeaMergePreview_targetTea(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "previewToken":
+			out.Values[i] = ec._TeaMergePreview_previewToken(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "qrCount":
+			out.Values[i] = ec._TeaMergePreview_qrCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "collectionMembershipCount":
+			out.Values[i] = ec._TeaMergePreview_collectionMembershipCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "tagsToAdd":
+			out.Values[i] = ec._TeaMergePreview_tagsToAdd(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "imagesToMove":
+			out.Values[i] = ec._TeaMergePreview_imagesToMove(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "consumptionCount":
+			out.Values[i] = ec._TeaMergePreview_consumptionCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "resultingImageCount":
+			out.Values[i] = ec._TeaMergePreview_resultingImageCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "blockers":
+			out.Values[i] = ec._TeaMergePreview_blockers(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "metadataPolicy":
+			out.Values[i] = ec._TeaMergePreview_metadataPolicy(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "coverPolicy":
+			out.Values[i] = ec._TeaMergePreview_coverPolicy(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "resultingCoverImageID":
+			out.Values[i] = ec._TeaMergePreview_resultingCoverImageID(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var teaMergeResultImplementors = []string{"TeaMergeResult"}
+
+func (ec *executionContext) _TeaMergeResult(ctx context.Context, sel ast.SelectionSet, obj *model.TeaMergeResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, teaMergeResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("TeaMergeResult")
+		case "receipt":
+			out.Values[i] = ec._TeaMergeResult_receipt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "targetTea":
+			out.Values[i] = ec._TeaMergeResult_targetTea(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "replayed":
+			out.Values[i] = ec._TeaMergeResult_replayed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "sourceTeaID":
+			out.Values[i] = ec._TeaMergeResult_sourceTeaID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "targetTeaID":
+			out.Values[i] = ec._TeaMergeResult_targetTeaID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "qrCount":
+			out.Values[i] = ec._TeaMergeResult_qrCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "collectionMembershipCount":
+			out.Values[i] = ec._TeaMergeResult_collectionMembershipCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "tagsAdded":
+			out.Values[i] = ec._TeaMergeResult_tagsAdded(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "imagesMoved":
+			out.Values[i] = ec._TeaMergeResult_imagesMoved(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "consumptionsMoved":
+			out.Values[i] = ec._TeaMergeResult_consumptionsMoved(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -7092,6 +9994,16 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
+func (ec *executionContext) marshalNCatalogueOperationReceipt2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐCatalogueOperationReceipt(ctx context.Context, sel ast.SelectionSet, v *model.CatalogueOperationReceipt) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CatalogueOperationReceipt(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNCollection2ᚕᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐCollectionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Collection) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -7132,6 +10044,16 @@ func (ec *executionContext) marshalNDate2timeᚐTime(ctx context.Context, sel as
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) marshalNEditorCapabilities2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐEditorCapabilities(ctx context.Context, sel ast.SelectionSet, v *model.EditorCapabilities) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._EditorCapabilities(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNID2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx context.Context, v any) (common.ID, error) {
@@ -7282,6 +10204,35 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 	return res
 }
 
+func (ec *executionContext) unmarshalNString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
+	vSlice := graphql.CoerceList(v)
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNString2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNString2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNString2string(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) marshalNTag2ᚕᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTagᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Tag) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -7363,6 +10314,52 @@ func (ec *executionContext) marshalNTea2ᚖgithubᚗcomᚋteaelephantᚋTeaEleph
 func (ec *executionContext) unmarshalNTeaData2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTeaData(ctx context.Context, v any) (model.TeaData, error) {
 	res, err := ec.unmarshalInputTeaData(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNTeaImage2ᚕᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTeaImageᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.TeaImage) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNTeaImage2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTeaImage(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNTeaImage2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTeaImage(ctx context.Context, sel ast.SelectionSet, v *model.TeaImage) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._TeaImage(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNTeaMergePreview2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTeaMergePreview(ctx context.Context, sel ast.SelectionSet, v *model.TeaMergePreview) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._TeaMergePreview(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNTeaMergeResult2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTeaMergeResult(ctx context.Context, sel ast.SelectionSet, v *model.TeaMergeResult) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._TeaMergeResult(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNType2githubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐType(ctx context.Context, v any) (model.Type, error) {
@@ -7545,6 +10542,29 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	return res
 }
 
+func (ec *executionContext) marshalOCatalogueOperationReceipt2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐCatalogueOperationReceipt(ctx context.Context, sel ast.SelectionSet, v *model.CatalogueOperationReceipt) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._CatalogueOperationReceipt(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOID2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx context.Context, v any) (*common.ID, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(common.ID)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOID2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋcommonᚐID(ctx context.Context, sel ast.SelectionSet, v *common.ID) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
+}
+
 func (ec *executionContext) marshalOQRRecord2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐQRRecord(ctx context.Context, sel ast.SelectionSet, v *model.QRRecord) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -7582,6 +10602,13 @@ func (ec *executionContext) marshalOTea2ᚖgithubᚗcomᚋteaelephantᚋTeaEleph
 		return graphql.Null
 	}
 	return ec._Tea(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOTeaMergeResult2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTeaMergeResult(ctx context.Context, sel ast.SelectionSet, v *model.TeaMergeResult) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._TeaMergeResult(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOTeaOfTheDay2ᚖgithubᚗcomᚋteaelephantᚋTeaElephantMemoryᚋpkgᚋapiᚋv2ᚋmodelsᚐTeaOfTheDay(ctx context.Context, sel ast.SelectionSet, v *model.TeaOfTheDay) graphql.Marshaler {
